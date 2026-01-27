@@ -2,42 +2,31 @@ package com.example.ovi
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
-import androidx.compose.runtime.*
-import com.example.ovi.ui.device.DeviceScreen
-import com.example.ovi.ui.devices.DeviceListScreen
-import com.example.ovi.ui.devices.DevicesViewModel
+import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.tooling.preview.Preview
+import com.example.ovi.presentation.navigation.SmartLockNavGraph
 import com.example.ovi.ui.theme.OviTheme
 
 class MainActivity : ComponentActivity() {
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
+        enableEdgeToEdge()
         setContent {
             OviTheme {
-
-                val  viewModel = remember { DevicesViewModel() }
-                var selectedDeviceId by remember { mutableStateOf<String?>(null)}
-
-                BackHandler(enabled = selectedDeviceId != null) {
-                    selectedDeviceId = null
-                }
-
-                if (selectedDeviceId == null) {
-                    DeviceListScreen(
-                        viewModel = viewModel,
-                        onDeviceClick = { id -> selectedDeviceId = id }
-                    )
-                } else {
-                    DeviceScreen(
-                        deviceId = selectedDeviceId!!,
-                        viewModel = viewModel
-                    )
+                Surface(modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background) {
+                    SmartLockNavGraph()
                 }
             }
         }
     }
 }
-
