@@ -1,8 +1,7 @@
-package com.example.ovi.ui.devices
+package com.example.ovi.presentation.ui.screens.devices
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -22,38 +21,34 @@ fun DeviceListScreen(
     val devices by viewModel.devices.collectAsState()
 
     LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
-
+        modifier = Modifier.fillMaxSize().padding(16.dp)
     ) {
-        items(devices) { dev ->
+        items(devices) { lock ->
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 8.dp)
-                    .clickable {onDeviceClick(dev.id) },
+                    .clickable {onDeviceClick(lock.id) },
                 shape = MaterialTheme.shapes.large,
-                elevation = CardDefaults.cardElevation(6.dp)
+                elevation = CardDefaults.cardElevation(4.dp)
             ){
                 Row(
                     modifier = Modifier.padding(16.dp),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Column{
-                        Text(dev.name, style = MaterialTheme.typography.titleMedium)
+                        Text(lock.name, style = MaterialTheme.typography.titleMedium)
                         Text(
-                            text = "Status: ${dev.status}",
-                            color = if (dev.status == "ON") Color.Green else Color.Red
+                            text = if (lock.isConnected) "Connected" else "Disconnected",
+                            color = if (lock.isConnected) Color(0xFF4CAF50) else Color.Gray
                         )
                     }
 
                     Icon(
                         imageVector =
-                            if (dev.locked) Icons.Default.Lock else Icons.Default.LockOpen,
+                            if (lock.isLocked) Icons.Default.Lock else Icons.Default.LockOpen,
                         contentDescription = null,
-                        tint =
-                            if (dev.locked) Color.Red else Color.Green
+                        tint = if (lock.isLocked) Color.Red else Color.Green
                     )
                 }
             }

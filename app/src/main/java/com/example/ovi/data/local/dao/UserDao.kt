@@ -15,7 +15,7 @@ interface UserDao {
     suspend fun getUserByEmail(email: String): UserEntity?
 
     @Query("SELECT * FROM users WHERE id = :id LIMIT 1")
-    suspend fun getUserById(id: String): UserEntity?
+    suspend fun getUserById(id: Int): UserEntity?
 
     @Query("UPDATE users SET jwtToken = :token WHERE id = :userId")
     suspend fun updateUserToken(userId: Int, token: String?)
@@ -24,6 +24,6 @@ interface UserDao {
     suspend fun updateLastLogin(userId: Int, timestamp: Long)
 
     @Query("DELETE FROM users WHERE id = :userId")
-    suspend fun deleteUser(userId: String)
+    suspend fun deleteUser(userId: Int): Int
 
 }

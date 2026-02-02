@@ -49,9 +49,8 @@ class AuthRepositoryImpl (
                 return Result.failure(Exception("User already exists"))
             }
 
-            val userId = UUID.randomUUID().toString().toInt()
             val userEntity = UserEntity(
-                id = userId,
+                id = 0,
                 email = email,
                 name = name,
                 passwordHash = password.hashCode().toString(),

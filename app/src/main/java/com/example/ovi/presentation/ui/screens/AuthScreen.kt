@@ -18,14 +18,16 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.ovi.presentation.viewmodel.AuthViewModel
+import com.example.ovi.presentation.viewmodel.ViewModelFactory
 import com.example.ovi.ui.theme.OviTheme
 
 @Composable
 fun AuthScreen(
-    viewModel: AuthViewModel = viewModel(),
+    viewModel: AuthViewModel,
     onNavigateToMain: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+
     var isLoginMode by remember { mutableStateOf(true) }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -209,7 +211,17 @@ fun AuthScreen(
 @Preview(showBackground = true)
 @Composable
 fun AuthScreenPreview() {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val app = context.applicationContext as com.example.ovi.OviApplication
+
+    val dummyViewModel: AuthViewModel = viewModel(
+        factory = ViewModelFactory(authRepository = app.authRepository)
+    )
+
     OviTheme {
-        AuthScreen(onNavigateToMain = {})
+        AuthScreen(
+            viewModel = dummyViewModel,
+            onNavigateToMain = {}
+        )
     }
 }

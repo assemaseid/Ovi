@@ -22,7 +22,7 @@ class AuthViewModel(
     sealed class AuthState {
         object Initial : AuthState()
         object Loading : AuthState()
-        data class Success(val message: String) : AuthState()
+        data class Success(val message: String, val user: com.example.ovi.domain.model.User? = null) : AuthState()
         data class Error(val message: String) : AuthState()
     }
 
@@ -36,7 +36,7 @@ class AuthViewModel(
             val result = authRepository.login(email, password)
 
             result.onSuccess { user ->
-                _authState.value = AuthState.Success("Login successful!")
+                _authState.value = AuthState.Success("Login successful!", user)
                 // Здесь можно сохранить пользователя в SharedPreferences
             }.onFailure { error ->
                 _authState.value = AuthState.Error(error.message ?: "Login failed")
