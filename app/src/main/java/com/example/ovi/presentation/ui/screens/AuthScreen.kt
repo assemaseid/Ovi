@@ -1,5 +1,9 @@
 package com.example.ovi.presentation.ui.screens
 
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.activity.viewModels
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -16,13 +20,13 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.ovi.presentation.viewmodel.AuthViewModel
 import com.example.ovi.ui.theme.OviTheme
 
 @Composable
-fun AuthScreen(
-    viewModel: AuthViewModel = viewModel(),
+fun AuthScreen (
+    viewModel: AuthViewModel = hiltViewModel(),
     onNavigateToMain: () -> Unit,
     modifier: Modifier = Modifier
 ) {

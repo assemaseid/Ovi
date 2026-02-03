@@ -1,5 +1,6 @@
 package com.example.ovi.data.repository
 
+import com.example.ovi.data.api.AuthService
 import com.example.ovi.data.local.database.AppDatabase
 import com.example.ovi.data.local.entity.UserEntity
 import com.example.ovi.data.mapper.toDomain
@@ -7,8 +8,10 @@ import com.example.ovi.data.mapper.toEntity
 import com.example.ovi.domain.model.User
 import com.example.ovi.domain.repository.AuthRepository
 import java.util.UUID
+import javax.inject.Inject
 
-class AuthRepositoryImpl (
+class AuthRepositoryImpl @Inject constructor(
+    private val authService: AuthService,
     private val database: AppDatabase
 ): AuthRepository {
     private val userDao = database.userDao()
@@ -49,9 +52,9 @@ class AuthRepositoryImpl (
                 return Result.failure(Exception("User already exists"))
             }
 
-            val userId = UUID.randomUUID().toString().toInt()
+
             val userEntity = UserEntity(
-                id = userId,
+                id = 0,
                 email = email,
                 name = name,
                 passwordHash = password.hashCode().toString(),

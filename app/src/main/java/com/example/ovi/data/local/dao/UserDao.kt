@@ -6,6 +6,8 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import com.example.ovi.data.local.entity.UserEntity
 
+//многие методы могут быть и не нужны
+//можно оставить мин: добавление; изменение; удаление; получение
 @Dao
 interface UserDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
@@ -15,7 +17,7 @@ interface UserDao {
     suspend fun getUserByEmail(email: String): UserEntity?
 
     @Query("SELECT * FROM users WHERE id = :id LIMIT 1")
-    suspend fun getUserById(id: String): UserEntity?
+    suspend fun getUserById(id: Int): UserEntity?
 
     @Query("UPDATE users SET jwtToken = :token WHERE id = :userId")
     suspend fun updateUserToken(userId: Int, token: String?)
@@ -24,6 +26,19 @@ interface UserDao {
     suspend fun updateLastLogin(userId: Int, timestamp: Long)
 
     @Query("DELETE FROM users WHERE id = :userId")
-    suspend fun deleteUser(userId: String)
+    suspend fun deleteUser(userId: Int)
 
 }
+//"/login
+//email, pass
+//return: token
+//"/register
+//
+
+//list<key>
+//key by id -> battery info
+//
+//user info endpoint
+//
+//bluetooth animation - lottie
+//

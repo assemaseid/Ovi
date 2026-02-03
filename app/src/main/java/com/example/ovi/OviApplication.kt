@@ -3,9 +3,12 @@ package com.example.ovi
 import android.app.Application
 import com.example.ovi.data.local.database.AppDatabase
 import com.example.ovi.data.repository.AuthRepositoryImpl
-
+import dagger.hilt.android.HiltAndroidApp
+@HiltAndroidApp
 class OviApplication : Application() {
 
-    val database by lazy { AppDatabase.getDatabase(this) }
-    val authRepository by lazy { AuthRepositoryImpl(database) }
+//    hilt изучить
+    //создать объект классов ViewModel, Repository
+//    did not create but rey to call
+//    needed AppModule with Single tone
 }
