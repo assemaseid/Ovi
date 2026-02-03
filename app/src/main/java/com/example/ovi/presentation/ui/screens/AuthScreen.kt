@@ -23,7 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.ovi.presentation.viewmodel.AuthViewModel
 import com.example.ovi.ui.theme.OviTheme
-
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AuthScreen (
     viewModel: AuthViewModel = hiltViewModel(),
