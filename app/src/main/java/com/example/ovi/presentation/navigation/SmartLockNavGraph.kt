@@ -7,6 +7,8 @@ import androidx.navigation.compose.composable
 import androidx.compose.runtime.Composable
 import androidx.navigation.compose.rememberNavController
 import com.example.ovi.presentation.ui.screens.AuthScreen
+import com.example.ovi.presentation.ui.screens.MainScreen
+
 //import com.example.ovi.presentation.ui.screens.SplashScreen
 
 
@@ -31,8 +33,7 @@ fun SmartLockNavGraph(){
         }
 
         composable(Screen.Main.route) {
-            //  MainScreen()
-            Text(text = "Main Screen")
+            MainScreen()
         }
     }
 }

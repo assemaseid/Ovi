@@ -58,3 +58,11 @@ class AuthViewModel @Inject constructor(
         _authState.value = AuthState.Initial
     }
 }
+
+data class DeviceItem(
+    val id: String,
+    val name: String,
+    val status: String,
+    val locked: Boolean
+)
+
