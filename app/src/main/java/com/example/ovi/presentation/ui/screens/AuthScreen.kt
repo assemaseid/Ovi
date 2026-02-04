@@ -1,9 +1,5 @@
 package com.example.ovi.presentation.ui.screens
 
-import android.os.Bundle
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
-import androidx.activity.viewModels
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -38,17 +34,14 @@ fun AuthScreen (
 
     val authState by viewModel.authState.collectAsState()
 
-    // Обработка успешной авторизации
     LaunchedEffect(authState) {
         when (authState) {
             is AuthViewModel.AuthState.Success -> {
-                // Через 1 секунду переходим на главный экран
                 kotlinx.coroutines.delay(1000)
                 onNavigateToMain()
                 viewModel.resetState()
             }
             else -> {
-                // Ничего не делаем
             }
         }
     }
@@ -128,7 +121,6 @@ fun AuthScreen (
                 isError = authState is AuthViewModel.AuthState.Error
             )
 
-            // Показываем ошибку, если есть
             if (authState is AuthViewModel.AuthState.Error) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
@@ -138,7 +130,6 @@ fun AuthScreen (
                 )
             }
 
-            // Показываем успех, если есть
             if (authState is AuthViewModel.AuthState.Success) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
@@ -196,7 +187,6 @@ fun AuthScreen (
                 )
             }
 
-            // Кнопка для быстрого тестирования
             TextButton(
                 onClick = { onNavigateToMain() },
                 modifier = Modifier.padding(top = 32.dp)

@@ -3,6 +3,7 @@ package com.example.ovi.presentation.navigation
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.ui.graphics.vector.ImageVector
 
@@ -25,5 +26,10 @@ sealed class BottomNavItem (
         route = "bluetooth",
         title = "Pair lock",
         icon = Icons.Default.Bluetooth
+    )
+    object Personal : BottomNavItem(
+        route = "personal",
+        title = "Profile",
+        icon = Icons.Default.Person
     )
 }
