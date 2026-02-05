@@ -104,16 +104,3 @@ dependencies {
     // system UI Controller
     implementation("com.google.accompanist:accompanist-systemuicontroller:0.27.0")
 }
-
-
-
-
-
-
-
-
-
-
-
-
-

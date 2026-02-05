@@ -5,9 +5,15 @@ import android.content.Context
 import android.content.SharedPreferences
 import com.example.ovi.data.api.AuthService
 import com.example.ovi.data.local.SessionManager
+import com.example.ovi.data.local.dao.EventDao
+import com.example.ovi.data.local.dao.LockDao
 import com.example.ovi.data.local.database.AppDatabase
 import com.example.ovi.data.repository.AuthRepositoryImpl
+import com.example.ovi.data.repository.EventRepositoryImpl
+import com.example.ovi.data.repository.FakeLockRepository
 import com.example.ovi.domain.repository.AuthRepository
+import com.example.ovi.domain.repository.EventRepository
+import com.example.ovi.domain.repository.LockRepository
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -88,5 +94,30 @@ object AppModule {
         sessionManager: SessionManager
     ): AuthRepository {
         return AuthRepositoryImpl(authService, database,sessionManager)
+    }
+
+
+    @Provides
+    fun provideEventDao(database: AppDatabase): EventDao {
+        return database.EventDao()
+    }
+
+    @Provides
+    fun provideLockDao(database: AppDatabase): LockDao {
+        return database.LockDao()
+    }
+
+    @Provides
+    @Singleton
+    fun provideLockRepository(): LockRepository {
+        return FakeLockRepository()
+    }
+
+    @Provides
+    @Singleton
+    fun provideEventRepository(
+        eventDao: EventDao
+    ): EventRepository {
+        return EventRepositoryImpl(eventDao)
     }
 }

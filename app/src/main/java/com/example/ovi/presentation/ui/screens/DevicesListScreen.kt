@@ -10,11 +10,11 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.Color
 import com.example.ovi.presentation.viewmodel.DevicesViewModel
+import com.example.ovi.ui.theme.Green40
 
 @Composable
 fun DevicesListScreen(
@@ -25,17 +25,14 @@ fun DevicesListScreen(
     val devices by viewModel.devices.collectAsState()
 
     LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
-
+        modifier = Modifier.fillMaxSize().padding(16.dp)
     ) {
-        items(devices) { dev ->
+        items(devices) { lock ->
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 8.dp)
-                    .clickable { onDeviceClick(dev.id) },
+                    .clickable { onDeviceClick(lock.id) },
                 shape = MaterialTheme.shapes.large,
                 elevation = CardDefaults.cardElevation(6.dp)
             ){
@@ -44,19 +41,23 @@ fun DevicesListScreen(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Column{
-                        Text(dev.name, style = MaterialTheme.typography.titleMedium)
+                        Text(lock.name, style = MaterialTheme.typography.titleMedium)
                         Text(
-                            text = "Status: ${dev.status}",
-                            color = if (dev.status == "ON") Color.Green else Color.Red
+                            text = if (lock.isConnected) "Connected" else "Disconnected",
+                            color = if (lock.isConnected) Green40 else Color.Gray
+                        )
+                        Text(
+                            text = "Battery: ${lock.batteryLevel}%",
+                            style = MaterialTheme.typography.bodySmall
                         )
                     }
 
                     Icon(
                         imageVector =
-                            if (dev.locked) Icons.Default.Lock else Icons.Default.LockOpen,
+                            if (lock.isLocked) Icons.Default.Lock else Icons.Default.LockOpen,
                         contentDescription = null,
                         tint =
-                            if (dev.locked) Color.Red else Color.Green
+                            if (lock.isLocked) Color.Red else Green40
                     )
                 }
             }
