@@ -1,4 +1,4 @@
-package com.example.ovi.ui.device
+package com.example.ovi.presentation.ui.screens
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
@@ -10,7 +10,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import com.example.ovi.ui.devices.DevicesViewModel
+import com.example.ovi.presentation.viewmodel.DevicesViewModel
 
 @Composable
 fun DeviceScreen(

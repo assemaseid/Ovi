@@ -1,5 +1,7 @@
 package com.example.ovi.data.repository
 
+import com.example.ovi.data.api.AuthService
+import com.example.ovi.data.local.SessionManager
 import com.example.ovi.data.local.database.AppDatabase
 import com.example.ovi.data.local.entity.UserEntity
 import com.example.ovi.data.mapper.toDomain
@@ -7,9 +9,12 @@ import com.example.ovi.data.mapper.toEntity
 import com.example.ovi.domain.model.User
 import com.example.ovi.domain.repository.AuthRepository
 import java.util.UUID
+import javax.inject.Inject
 
-class AuthRepositoryImpl (
-    private val database: AppDatabase
+class AuthRepositoryImpl @Inject constructor(
+    private val authService: AuthService,
+    private val database: AppDatabase,
+    private val sessionManager: SessionManager
 ): AuthRepository {
     private val userDao = database.userDao()
 
@@ -30,6 +35,13 @@ class AuthRepositoryImpl (
                 userDao.updateUserToken(userEntity.id, token)
 
                 val user = userEntity.toDomain().copy(jwtToken = token)
+
+                sessionManager.saveUserSession(
+                    userId = user.id,
+                    email = user.email,
+                    name = user.name,
+                    jwtToken = token
+                )
                 Result.success(user)
             }
         }
@@ -49,18 +61,32 @@ class AuthRepositoryImpl (
                 return Result.failure(Exception("User already exists"))
             }
 
-            val userId = UUID.randomUUID().toString().toInt()
+
             val userEntity = UserEntity(
-                id = userId,
+                id = 0,
                 email = email,
                 name = name,
                 passwordHash = password.hashCode().toString(),
-                jwtToken = "mock-jwt-${System.currentTimeMillis()}"
+                jwtToken = "mock-jwt-${System.currentTimeMillis()}",
+                lastLogin = System.currentTimeMillis(),
+                createdAt = System.currentTimeMillis()
             )
             userDao.insertUser(userEntity)
+            val insertedUser = userDao.getUserByEmail(email)
+            if (insertedUser != null) {
+                val user = insertedUser.toDomain()
 
-            val user = userEntity.toDomain()
-            return Result.success(user)
+                sessionManager.saveUserSession(
+                    userId = user.id,
+                    email = user.email,
+                    name = user.name,
+                    jwtToken = user.jwtToken
+                )
+                Result.success(user)
+            } else {
+                Result.failure(Exception("Failed to register user"))
+
+            }
         }catch (e: Exception) {
             Result.failure(e)
         }
@@ -68,14 +94,23 @@ class AuthRepositoryImpl (
 
 
     override suspend fun logout() {
+        sessionManager.clearSession()
     }
 
     override suspend fun getCurrentUser(): User? {
-        return null
-    }
+        return try {
+            if (!sessionManager.isLoggedIn()) {
+                return null
+            }
 
-    override suspend fun saveUser(user: User) {
-        userDao.insertUser(user.toEntity())
-    }
+            val userId = sessionManager.getUserId()
+            if (userId == -1) {
+                return null
+            }
 
+            userDao.getUserById(userId)?.toDomain()
+        } catch (e: Exception) {
+            null
+        }
+    }
 }

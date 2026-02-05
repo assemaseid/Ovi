@@ -16,13 +16,13 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.ovi.presentation.viewmodel.AuthViewModel
 import com.example.ovi.ui.theme.OviTheme
-
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AuthScreen(
-    viewModel: AuthViewModel = viewModel(),
+fun AuthScreen (
+    viewModel: AuthViewModel = hiltViewModel(),
     onNavigateToMain: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -34,17 +34,14 @@ fun AuthScreen(
 
     val authState by viewModel.authState.collectAsState()
 
-    // Обработка успешной авторизации
     LaunchedEffect(authState) {
         when (authState) {
             is AuthViewModel.AuthState.Success -> {
-                // Через 1 секунду переходим на главный экран
                 kotlinx.coroutines.delay(1000)
                 onNavigateToMain()
                 viewModel.resetState()
             }
             else -> {
-                // Ничего не делаем
             }
         }
     }
@@ -124,7 +121,6 @@ fun AuthScreen(
                 isError = authState is AuthViewModel.AuthState.Error
             )
 
-            // Показываем ошибку, если есть
             if (authState is AuthViewModel.AuthState.Error) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
@@ -134,7 +130,6 @@ fun AuthScreen(
                 )
             }
 
-            // Показываем успех, если есть
             if (authState is AuthViewModel.AuthState.Success) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
@@ -192,7 +187,6 @@ fun AuthScreen(
                 )
             }
 
-            // Кнопка для быстрого тестирования
             TextButton(
                 onClick = { onNavigateToMain() },
                 modifier = Modifier.padding(top = 32.dp)

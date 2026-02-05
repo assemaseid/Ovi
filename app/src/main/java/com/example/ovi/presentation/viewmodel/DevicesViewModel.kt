@@ -1,16 +1,12 @@
-package com.example.ovi.ui.devices
+package com.example.ovi.presentation.viewmodel
 
 import androidx.lifecycle.ViewModel
-import kotlinx.coroutines.flow.StateFlow
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import javax.inject.Inject
 
-data class DeviceItem(
-    val id: String,
-    val name: String,
-    val status: String,
-    val locked: Boolean
-)
-class DevicesViewModel : ViewModel(){
+class DevicesViewModel: ViewModel(){
 
     private val _devices = MutableStateFlow(
         listOf(
@@ -34,4 +30,3 @@ class DevicesViewModel : ViewModel(){
         return _devices.value.find { it.id == deviceId }
     }
 }
-

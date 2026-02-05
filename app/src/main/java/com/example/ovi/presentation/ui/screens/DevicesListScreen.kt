@@ -1,4 +1,4 @@
-package com.example.ovi.ui.devices
+package com.example.ovi.presentation.ui.screens
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -10,15 +10,18 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.Color
+import com.example.ovi.presentation.viewmodel.DevicesViewModel
 
 @Composable
-fun DeviceListScreen(
+fun DevicesListScreen(
     viewModel: DevicesViewModel,
     onDeviceClick: (String) -> Unit
 ) {
+
     val devices by viewModel.devices.collectAsState()
 
     LazyColumn(
@@ -32,7 +35,7 @@ fun DeviceListScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 8.dp)
-                    .clickable {onDeviceClick(dev.id) },
+                    .clickable { onDeviceClick(dev.id) },
                 shape = MaterialTheme.shapes.large,
                 elevation = CardDefaults.cardElevation(6.dp)
             ){

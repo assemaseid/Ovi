@@ -27,7 +27,6 @@ abstract class AppDatabase: RoomDatabase() {
                     AppDatabase::class.java,
                     "ovi_database"
                 )
-                    .fallbackToDestructiveMigration(false)
                     .build()
                 INSTANCE = instance
                 instance
