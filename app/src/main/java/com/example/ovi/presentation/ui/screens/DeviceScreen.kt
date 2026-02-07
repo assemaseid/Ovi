@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material3.*
@@ -20,15 +21,29 @@ import com.example.ovi.ui.theme.Green40
 @Composable
 fun DeviceScreen(
     deviceId: String,
-    viewModel: DevicesViewModel
+    viewModel: DevicesViewModel,
+    onBackClick: () -> Unit
 ) {
     val devices by viewModel.devices.collectAsState()
     val lock = devices.find { it.id == deviceId } ?: return
 
+
+
     Box(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier.fillMaxSize().statusBarsPadding(),
         contentAlignment = Alignment.Center
     ) {
+        IconButton(
+            onClick = onBackClick,
+            modifier = Modifier.align(Alignment.TopStart).padding(16.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.ArrowBack,
+                contentDescription = "Back",
+                tint = MaterialTheme.colorScheme.onBackground
+            )
+        }
+
         Column(
             modifier = Modifier
                 .fillMaxWidth()

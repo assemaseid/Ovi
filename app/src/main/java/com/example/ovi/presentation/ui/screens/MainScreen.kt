@@ -96,7 +96,10 @@ fun MainNavigationGraph(
             if (deviceId != null) {
                 DeviceScreen(
                     deviceId = deviceId,
-                    viewModel = devicesViewModel
+                    viewModel = devicesViewModel,
+                    onBackClick = {
+                        navController.popBackStack()
+                    }
                 )
             }
         }

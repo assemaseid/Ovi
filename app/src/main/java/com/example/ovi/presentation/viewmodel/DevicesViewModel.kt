@@ -2,6 +2,7 @@ package com.example.ovi.presentation.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.ovi.domain.ble.BleManager
 import com.example.ovi.domain.model.EventType
 import com.example.ovi.domain.model.LockEvent
 import com.example.ovi.domain.model.SmartLock
@@ -19,7 +20,8 @@ import javax.inject.Inject
 @HiltViewModel
 class DevicesViewModel @Inject constructor(
     private val lockRepository: LockRepository,
-    private val eventRepository: EventRepository
+    private val eventRepository: EventRepository,
+    private val bleManager: BleManager
 ): ViewModel(){
 
     private val _devices = MutableStateFlow<List<SmartLock>>(emptyList())

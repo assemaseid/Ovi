@@ -120,4 +120,12 @@ object AppModule {
     ): EventRepository {
         return EventRepositoryImpl(eventDao)
     }
+
+    @Provides
+    @Singleton
+    fun provideBleManager(
+        @ApplicationContext context: Context
+    ): com.example.ovi.domain.ble.BleManager {
+        return com.example.ovi.data.ble.AndroidBleManager(context)
+    }
 }
