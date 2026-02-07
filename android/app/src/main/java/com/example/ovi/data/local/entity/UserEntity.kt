@@ -12,5 +12,5 @@ data class UserEntity(
     val passwordHash: String = "",
     val jwtToken: String? = null,
     val lastLogin: Long = System.currentTimeMillis(),
-    val createdAt: Long = System.currentTimeMillis(),
+    val createdAt: Long = System.currentTimeMillis()
 )
