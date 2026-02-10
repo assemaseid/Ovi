@@ -10,5 +10,6 @@ data class EventEntity(
     val type: String,
     val timestamp: Long,
     val success: Boolean,
-    val method: String
+    val method: String,
+    val signature: String? = null
 )

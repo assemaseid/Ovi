@@ -13,14 +13,14 @@ import com.example.ovi.data.local.entity.UserEntity
 
 @Database(
     entities = [UserEntity::class, EventEntity::class, LockEntity::class],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 
 abstract class AppDatabase: RoomDatabase() {
     abstract fun userDao(): UserDao
-    abstract fun EventDao(): EventDao
-    abstract fun LockDao(): LockDao
+    abstract fun eventDao(): EventDao
+    abstract fun lockDao(): LockDao
 
     companion object {
         @Volatile
@@ -33,6 +33,7 @@ abstract class AppDatabase: RoomDatabase() {
                     AppDatabase::class.java,
                     "ovi_database"
                 )
+                    .fallbackToDestructiveMigration()
                     .build()
                 INSTANCE = instance
                 instance

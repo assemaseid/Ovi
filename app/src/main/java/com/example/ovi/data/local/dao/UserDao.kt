@@ -10,23 +10,23 @@ import com.example.ovi.data.local.entity.UserEntity
 //можно оставить мин: добавление; изменение; удаление; получение
 @Dao
 interface UserDao {
-    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertUser(user: UserEntity)
 
-    @Query("SELECT * FROM users WHERE email = :email")
+    @Query("SELECT * FROM users WHERE email = :email LIMIT 1")
     suspend fun getUserByEmail(email: String): UserEntity?
 
     @Query("SELECT * FROM users WHERE id = :id LIMIT 1")
-    suspend fun getUserById(id: Int): UserEntity?
+    suspend fun getUserById(id: String): UserEntity?
 
     @Query("UPDATE users SET jwtToken = :token WHERE id = :userId")
-    suspend fun updateUserToken(userId: Int, token: String?)
+    suspend fun updateUserToken(userId: String, token: String?)
 
     @Query("UPDATE users SET lastLogin = :timestamp WHERE id = :userId")
-    suspend fun updateLastLogin(userId: Int, timestamp: Long)
+    suspend fun updateLastLogin(userId: String, timestamp: Long)
 
     @Query("DELETE FROM users WHERE id = :userId")
-    suspend fun deleteUser(userId: Int)
+    suspend fun deleteUser(userId: String)
 
 }
 //"/login

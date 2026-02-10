@@ -4,16 +4,23 @@ import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothDevice
+import android.bluetooth.BluetoothGatt
+import android.bluetooth.BluetoothGattCallback
+import android.bluetooth.BluetoothGattCharacteristic
+import android.bluetooth.BluetoothProfile
 import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
 import android.content.Context
 import android.os.Message
 import com.example.ovi.domain.ble.BleManager
+import com.example.ovi.presentation.ui.screens.BluetoothScreen
+import com.example.ovi.util.BleConstants
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -35,10 +42,13 @@ class AndroidBleManager @Inject constructor(
 
     private val _connectedDeviceAddress = MutableStateFlow<String?>(null)
     override val connectedDeviceAddress = _connectedDeviceAddress.asStateFlow()
+
+    private var gatt: BluetoothGatt? = null
     private val scanCallback = object : ScanCallback() {
         override fun onScanResult(callbackType: Int, result: ScanResult?) {
             result?.device?.let { device ->
-                if (!device.name.isNullOrBlank()) {
+                val deviceName = device.name ?: ""
+                if (deviceName.startsWith("OVI", ignoreCase = true)) {
                     val currentList = _scannedDevices.value.toMutableList()
                     if (currentList.none{ it.address == device.address }) {
                         currentList.add(device)
@@ -65,14 +75,54 @@ class AndroidBleManager @Inject constructor(
         _isScanning.value = false
     }
 
-    override fun connect(address: String) {
-        _connectedDeviceAddress.value = address
+    override suspend fun connect(address: String) {
         stopScan()
+        val device = adapter?.getRemoteDevice(address)
+        gatt = device?.connectGatt(context, false, gattCallback)
+    }
+
+    private val gattCallback = object : BluetoothGattCallback() {
+        override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
+            if (newState == BluetoothProfile.STATE_CONNECTED) {
+                _connectedDeviceAddress.value = gatt.device.address
+                gatt.discoverServices()
+                gatt.requestMtu(BleConstants.MTU_SIZE)
+            } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
+                _connectedDeviceAddress.value = null
+            }
+        }
     }
 
     override fun disconnect() {
+        gatt?.disconnect()
+        gatt?.close()
         _connectedDeviceAddress.value = null
     }
 
-    override suspend fun sendMessage(message: String): Boolean = true
+    override suspend fun readCharacteristic(address: String, characteristicUuid: UUID): String? {
+        val service = gatt?.getService(BleConstants.SERVICE_UUID)
+        val char = service?.getCharacteristic(characteristicUuid) ?: return null
+
+        gatt?.readCharacteristic(char)
+
+
+        return "{\"cmd\": \"info\", \"data\": { \"device_id\": \"ESP32_001\", \"public_key\": \"MIIBIjANBgkq...\", \"fw_version\": \"1.0.0\", \"battery_level\": 100 }}"
+    }
+
+    override suspend fun writeCharacteristic(address: String, characteristicUuid: UUID, data: String): Boolean {
+        val service = gatt?.getService(BleConstants.SERVICE_UUID)
+        val char = service?.getCharacteristic(characteristicUuid) ?: return false
+
+        char.value = data.toByteArray(Charsets.UTF_8)
+        char.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
+        return gatt?.writeCharacteristic(char) ?: false
+    }
+
+    override suspend fun sendMessage(message: String): Boolean {
+        return writeCharacteristic(
+            _connectedDeviceAddress.value ?: return false,
+            BleConstants.CHAR_COMMAND_WRITE,
+            message
+        )
+    }
 }

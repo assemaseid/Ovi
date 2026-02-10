@@ -10,6 +10,7 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.Color
@@ -23,6 +24,12 @@ fun DevicesListScreen(
 ) {
 
     val devices by viewModel.devices.collectAsState()
+
+    if (devices.isEmpty()) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text("No locks paired yet.", color = Color.Gray)
+        }
+    }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize().padding(16.dp)
@@ -43,12 +50,12 @@ fun DevicesListScreen(
                     Column{
                         Text(lock.name, style = MaterialTheme.typography.titleMedium)
                         Text(
-                            text = if (lock.isConnected) "Connected" else "Disconnected",
-                            color = if (lock.isConnected) Green40 else Color.Gray
+                            text = "Firmware: ${lock.firmwareVersion ?: "Unknown"}",
+                            style = MaterialTheme.typography.bodySmall
                         )
                         Text(
                             text = "Battery: ${lock.batteryLevel}%",
-                            style = MaterialTheme.typography.bodySmall
+                            color = if (lock.batteryLevel < 20) Color.Red else Color.Unspecified
                         )
                     }
 

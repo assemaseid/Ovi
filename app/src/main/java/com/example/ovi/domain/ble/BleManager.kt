@@ -2,7 +2,7 @@ package com.example.ovi.domain.ble
 
 import android.bluetooth.BluetoothDevice
 import kotlinx.coroutines.flow.StateFlow
-import okhttp3.Address
+import java.util.UUID
 
 interface BleManager {
     val isScanning: StateFlow<Boolean>
@@ -11,7 +11,10 @@ interface BleManager {
 
     fun startScan()
     fun stopScan()
-    fun connect(address: String)
+    suspend fun connect(address: String)
     fun disconnect()
     suspend fun sendMessage(message: String): Boolean
+
+    suspend fun readCharacteristic(address: String, characteristicUuid: UUID): String?
+    suspend fun writeCharacteristic(address: String, characteristicUuid: UUID, data: String): Boolean
 }

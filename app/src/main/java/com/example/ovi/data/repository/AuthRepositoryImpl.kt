@@ -2,47 +2,52 @@ package com.example.ovi.data.repository
 
 import com.example.ovi.data.api.AuthService
 import com.example.ovi.data.local.SessionManager
-import com.example.ovi.data.local.database.AppDatabase
+import com.example.ovi.data.local.dao.UserDao
 import com.example.ovi.data.local.entity.UserEntity
 import com.example.ovi.data.mapper.toDomain
-import com.example.ovi.data.mapper.toEntity
+import com.example.ovi.data.remote.dto.LoginRequest
+import com.example.ovi.data.remote.dto.RegisterRequest
 import com.example.ovi.domain.model.User
 import com.example.ovi.domain.repository.AuthRepository
-import java.util.UUID
 import javax.inject.Inject
 
 class AuthRepositoryImpl @Inject constructor(
     private val authService: AuthService,
-    private val database: AppDatabase,
+    private val userDao: UserDao,
     private val sessionManager: SessionManager
 ): AuthRepository {
-    private val userDao = database.userDao()
 
     override suspend fun login(
         email: String,
         password: String
     ): Result<User> {
         return try {
-            val userEntity = userDao.getUserByEmail(email)
+            val response = authService.login(LoginRequest(email, password))
 
-            if (userEntity == null) {
-                Result.failure(Exception("User not found"))
-            } else if (userEntity.passwordHash != password.hashCode().toString()) {
-                Result.failure(Exception("Invalid password"))
-            } else {
-                userDao.updateLastLogin(userEntity.id, System.currentTimeMillis())
-                val token = "mock-jwt-${System.currentTimeMillis()}"
-                userDao.updateUserToken(userEntity.id, token)
-
-                val user = userEntity.toDomain().copy(jwtToken = token)
+            if (response.isSuccessful && response.body() != null) {
+                val body = response.body()!!
 
                 sessionManager.saveUserSession(
-                    userId = user.id,
-                    email = user.email,
-                    name = user.name,
-                    jwtToken = token
+                    userId = body.user_id,
+                    email = email,
+                    name = "User",
+                    jwtToken = body.access_token
                 )
-                Result.success(user)
+
+                val userEntity = UserEntity(
+                    id = body.user_id,
+                    email = email,
+                    name = "User",
+                    passwordHash = null,
+                    jwtToken = body.access_token,
+                    lastLogin = System.currentTimeMillis(),
+                    createdAt = System.currentTimeMillis()
+                )
+                userDao.insertUser(userEntity)
+
+                Result.success(userEntity.toDomain())
+            } else {
+                Result.failure(Exception("Login failed: ${response.code()}"))
             }
         }
         catch (e: Exception) {
@@ -56,38 +61,23 @@ class AuthRepositoryImpl @Inject constructor(
         name: String
     ): Result<User> {
         return try {
-            val existingUser = userDao.getUserByEmail(email)
-            if (existingUser != null) {
-                return Result.failure(Exception("User already exists"))
-            }
+            val request = RegisterRequest(email, password, name)
+            val response = authService.register(request)
 
-
-            val userEntity = UserEntity(
-                id = 0,
-                email = email,
-                name = name,
-                passwordHash = password.hashCode().toString(),
-                jwtToken = "mock-jwt-${System.currentTimeMillis()}",
-                lastLogin = System.currentTimeMillis(),
-                createdAt = System.currentTimeMillis()
-            )
-            userDao.insertUser(userEntity)
-            val insertedUser = userDao.getUserByEmail(email)
-            if (insertedUser != null) {
-                val user = insertedUser.toDomain()
-
-                sessionManager.saveUserSession(
-                    userId = user.id,
-                    email = user.email,
-                    name = user.name,
-                    jwtToken = user.jwtToken
+            if (response.isSuccessful && response.body() != null) {
+                val body = response.body()!!
+                val user = User(
+                    id = body.user_id,
+                    email = body.email,
+                    name = name,
+                    jwtToken = null
                 )
                 Result.success(user)
             } else {
                 Result.failure(Exception("Failed to register user"))
 
             }
-        }catch (e: Exception) {
+        } catch (e: Exception) {
             Result.failure(e)
         }
     }
@@ -98,19 +88,8 @@ class AuthRepositoryImpl @Inject constructor(
     }
 
     override suspend fun getCurrentUser(): User? {
-        return try {
-            if (!sessionManager.isLoggedIn()) {
-                return null
-            }
-
-            val userId = sessionManager.getUserId()
-            if (userId == -1) {
-                return null
-            }
-
-            userDao.getUserById(userId)?.toDomain()
-        } catch (e: Exception) {
-            null
-        }
+        if (!sessionManager.isLoggedIn()) return null
+        val userId = sessionManager.getUserId() ?: return null
+        return userDao.getUserById(userId)?.toDomain()
     }
 }

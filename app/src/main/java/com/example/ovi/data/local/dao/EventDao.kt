@@ -13,4 +13,7 @@ interface EventDao {
 
     @Insert
     suspend fun insertEvent(event: EventEntity)
+
+    @Query("DELETE FROM events WHERE lockId = :lockId")
+    suspend fun deleteEventsForLock(lockId: String)
 }

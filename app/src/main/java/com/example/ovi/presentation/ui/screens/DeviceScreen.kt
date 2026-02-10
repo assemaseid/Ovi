@@ -15,6 +15,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.ovi.presentation.viewmodel.BluetoothViewModel
 import com.example.ovi.presentation.viewmodel.DevicesViewModel
 import com.example.ovi.ui.theme.Green40
 
@@ -22,12 +24,14 @@ import com.example.ovi.ui.theme.Green40
 fun DeviceScreen(
     deviceId: String,
     viewModel: DevicesViewModel,
+    bleViewModel: BluetoothViewModel = hiltViewModel(),
     onBackClick: () -> Unit
 ) {
     val devices by viewModel.devices.collectAsState()
     val lock = devices.find { it.id == deviceId } ?: return
 
-
+    val connectedAddress by bleViewModel.connectedAddress.collectAsState()
+    val isCurrentlyConnected = connectedAddress != null
 
     Box(
         modifier = Modifier.fillMaxSize().statusBarsPadding(),
@@ -79,12 +83,12 @@ fun DeviceScreen(
             )
 
             Surface(
-                color = if (lock.isConnected) Green40 else Color.Gray,
+                color = if (isCurrentlyConnected) Green40 else Color.Gray,
                 shape = RoundedCornerShape(16.dp),
                 modifier = Modifier.padding(top = 8.dp)
             ) {
                 Text(
-                    text = if (lock.isConnected) "Connected" else "Offline",
+                    text = if (isCurrentlyConnected) "Connected" else "Offline",
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
                     color = Color.White,
                     style = MaterialTheme.typography.labelMedium

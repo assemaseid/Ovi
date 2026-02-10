@@ -2,12 +2,12 @@ package com.example.ovi.domain.model
 
 data class SmartLock(
     val id: String,
+    val hardwareId: String,
+    val ownerUuid: String,
     val name: String,
+    val publicKey: String,
     val batteryLevel: Int, // 0-100%
-    val isConnected: Boolean,
     val isLocked: Boolean,
+    val firmwareVersion: String?,
     val lastSynced: Long, // timestamp
-    val macAddress: String? = null,
-    val publicKey: String? = null,
-    val schedule: PinSchedule? = null
 )

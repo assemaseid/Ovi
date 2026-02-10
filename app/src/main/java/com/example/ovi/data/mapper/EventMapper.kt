@@ -22,6 +22,7 @@ fun LockEvent.toEntity(): EventEntity {
         type = type.name,
         timestamp = timestamp,
         success = success,
-        method = method.name
+        method = method.name,
+        signature = null
     )
 }

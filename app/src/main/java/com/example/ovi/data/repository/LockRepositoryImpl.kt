@@ -1,36 +1,79 @@
-/*package com.example.ovi.data.repository
+package com.example.ovi.data.repository
 
+import com.example.ovi.data.api.LockService
 import com.example.ovi.data.local.dao.LockDao
 import com.example.ovi.data.mapper.toDomain
+import com.example.ovi.data.mapper.toEntity
+import com.example.ovi.data.remote.dto.UnlockTokenRequest
+import com.example.ovi.domain.ble.BleManager
 import com.example.ovi.domain.model.SmartLock
 import com.example.ovi.domain.repository.LockRepository
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 
 class LockRepositoryImpl @Inject constructor(
+    private val lockService: LockService,
+    private val bleManager: BleManager,
     private val lockDao: LockDao
-) : LockRepository{
+) : LockRepository {
 
-    override suspend fun getPairedLocks(): List<SmartLock> {
-        return lockDao.getAllLocks().first().map { it.toDomain() }
-    }
+    override suspend fun getPairedLocks(): List<SmartLock> =
+        lockDao.getAllLocks().first().map { it.toDomain() }
+
+    override suspend fun addLock(lock: SmartLock) =
+        lockDao.insertLock(lock.toEntity())
 
     override suspend fun unlock(lockId: String): Boolean {
-        val lock = lockDao.getAllLocks().first().find {it.id == lockId}
-        lock?.let {
-            lockDao.updateLock(it.copy(isLocked = false, lastSynced = System.currentTimeMillis()))
+        return try {
+
+            val request = UnlockTokenRequest(device_uuid = lockId)
+
+            val response = lockService.getUnlockToken(request)
+
+            if (!response.isSuccessful || response.body() == null) {
+                return false
+            }
+
+            val body = response.body()!!
+
+            val bleCommandJson = """
+                {
+                   "v": 1,
+                   "t": "unlock",
+                   "n": "${body.token.nonce}",
+                   "e": ${body.token.expires_at},
+                   "s": "${body.signature.value}" 
+                }
+            """.trimIndent()
+
+            val bleSuccess = bleManager.sendMessage(bleCommandJson)
+
+            if (bleSuccess) {
+                lockDao.getLockById(lockId)?.let { entity ->
+                    lockDao.updateLock(entity.copy(
+                        isLocked = false,
+                        lastSynced = System.currentTimeMillis()
+                    ))
+                }
+            }
+            bleSuccess
+        } catch (e: Exception) {
+            e.printStackTrace()
+            return false
         }
-        return true
     }
 
     override suspend fun lock(lockId: String): Boolean {
-        val lock = lockDao.getAllLocks().first().find { it.id == lockId }
-        lock?.let {
-            lockDao.updateLock(it.copy(isLocked = true, lastSynced = System.currentTimeMillis()))
+        return try {
+            lockDao.getLockById(lockId)?.let { entity ->
+                lockDao.updateLock(entity.copy(
+                    isLocked = true,
+                    lastSynced = System.currentTimeMillis()
+                ))
+                true
+            } ?: false
+        } catch (e: Exception) {
+            false
         }
-        return true
     }
-
 }
-maybe will be used in future
- */

@@ -13,6 +13,9 @@ interface LockDao {
     @Query("SELECT * FROM locks")
     fun getAllLocks(): Flow<List<LockEntity>>
 
+    @Query("SELECT * FROM locks WHERE id = :lockId LIMIT 1")
+    suspend fun getLockById(lockId: String): LockEntity?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertLock(lock: LockEntity)
 

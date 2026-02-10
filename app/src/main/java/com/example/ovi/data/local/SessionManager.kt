@@ -17,13 +17,13 @@ class SessionManager @Inject constructor(
     }
 
     fun saveUserSession(
-        userId: Int,
+        userId: String,
         email: String,
         name: String,
         jwtToken: String?
     ) {
         sharedPreferences.edit()
-            .putInt(KEY_USER_ID, userId)
+            .putString(KEY_USER_ID, userId)
             .putString(KEY_EMAIL, email)
             .putString(KEY_NAME, name)
             .putString(KEY_JWT_TOKEN, jwtToken)
@@ -32,11 +32,11 @@ class SessionManager @Inject constructor(
     }
 
     fun isLoggedIn(): Boolean {
-        return sharedPreferences.getBoolean(KEY_IS_LOGGED_IN, false)
+        return sharedPreferences.getBoolean(KEY_IS_LOGGED_IN, false) && getJwtToken() != null
     }
 
-    fun getUserId(): Int {
-        return sharedPreferences.getInt(KEY_USER_ID, -1)
+    fun getUserId(): String? {
+        return sharedPreferences.getString(KEY_USER_ID, null)
     }
 
     fun getEmail(): String? {
@@ -62,7 +62,7 @@ class SessionManager @Inject constructor(
 
     fun getUserData(): Map<String, String?> {
         return mapOf(
-            "userId" to getUserId().toString(),
+            "userId" to getUserId(),
             "email" to getEmail(),
             "name" to getName(),
             "jwtToken" to getJwtToken()

@@ -17,7 +17,7 @@ fun User.toEntity(): UserEntity {
         id = id,
         email = email,
         name = name,
-        passwordHash = "",
+        passwordHash = null,
         jwtToken = jwtToken,
         lastLogin = System.currentTimeMillis(),
         createdAt = System.currentTimeMillis()

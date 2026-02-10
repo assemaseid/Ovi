@@ -3,14 +3,20 @@ package com.example.ovi.di
 import android.app.Application
 import android.content.Context
 import android.content.SharedPreferences
+import coil.intercept.Interceptor
 import com.example.ovi.data.api.AuthService
+import com.example.ovi.data.api.LockService
+import com.example.ovi.data.ble.AndroidBleManager
 import com.example.ovi.data.local.SessionManager
 import com.example.ovi.data.local.dao.EventDao
 import com.example.ovi.data.local.dao.LockDao
+import com.example.ovi.data.local.dao.UserDao
 import com.example.ovi.data.local.database.AppDatabase
+import com.example.ovi.data.remote.AuthInterceptor
 import com.example.ovi.data.repository.AuthRepositoryImpl
 import com.example.ovi.data.repository.EventRepositoryImpl
-import com.example.ovi.data.repository.FakeLockRepository
+import com.example.ovi.data.repository.LockRepositoryImpl
+import com.example.ovi.domain.ble.BleManager
 import com.example.ovi.domain.repository.AuthRepository
 import com.example.ovi.domain.repository.EventRepository
 import com.example.ovi.domain.repository.LockRepository
@@ -32,15 +38,18 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideOkHttpClient(): OkHttpClient {
+    fun provideOkHttpClient(
+        authInterceptor: AuthInterceptor
+    ): OkHttpClient {
         val loggingInterceptor = HttpLoggingInterceptor().apply {
             level = HttpLoggingInterceptor.Level.BODY
         }
+
         return OkHttpClient.Builder()
-            .addInterceptor (loggingInterceptor)
+            .addInterceptor(authInterceptor)
+            .addInterceptor(loggingInterceptor)
             .connectTimeout(30, TimeUnit. SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
-            .writeTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit. SECONDS)
             .build()
     }
     @Provides
@@ -56,8 +65,15 @@ object AppModule {
     @Provides
     @Singleton
     fun provideAuthService(retrofit: Retrofit): AuthService {
-        return retrofit.create(AuthService::class.java)
+      return retrofit.create(AuthService::class.java)
     }
+
+    @Provides
+    @Singleton
+    fun provideLockService(retrofit: Retrofit): LockService {
+        return retrofit.create(LockService::class.java)
+    }
+
 
     @Provides
     @Singleton
@@ -76,7 +92,6 @@ object AppModule {
     }
 
 
-
     @Provides
     @Singleton
     fun provideSessionManager(
@@ -87,30 +102,38 @@ object AppModule {
 
 
     @Provides
-    @Singleton
-    fun provideAuthRepository(
-        authService: AuthService,
-        database: AppDatabase,
-        sessionManager: SessionManager
-    ): AuthRepository {
-        return AuthRepositoryImpl(authService, database,sessionManager)
-    }
-
-
-    @Provides
     fun provideEventDao(database: AppDatabase): EventDao {
-        return database.EventDao()
+        return database.eventDao()
     }
 
     @Provides
     fun provideLockDao(database: AppDatabase): LockDao {
-        return database.LockDao()
+        return database.lockDao()
+    }
+
+    @Provides
+    fun provideUserDao(database: AppDatabase): UserDao {
+        return database.userDao()
     }
 
     @Provides
     @Singleton
-    fun provideLockRepository(): LockRepository {
-        return FakeLockRepository()
+    fun provideAuthRepository(
+        authService: AuthService,
+        userDao: UserDao,
+        sessionManager: SessionManager
+    ): AuthRepository {
+        return AuthRepositoryImpl(authService, userDao, sessionManager)
+    }
+
+    @Provides
+    @Singleton
+    fun provideLockRepository(
+        lockDao: LockDao,
+        lockService: LockService,
+        bleManager: BleManager
+    ): LockRepository {
+        return LockRepositoryImpl(lockService, bleManager, lockDao)
     }
 
     @Provides
@@ -125,7 +148,8 @@ object AppModule {
     @Singleton
     fun provideBleManager(
         @ApplicationContext context: Context
-    ): com.example.ovi.domain.ble.BleManager {
-        return com.example.ovi.data.ble.AndroidBleManager(context)
+    ): BleManager {
+        return AndroidBleManager(context)
     }
+
 }

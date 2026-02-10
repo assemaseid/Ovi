@@ -59,12 +59,10 @@ fun BluetoothScreen(
     ) {
         Spacer(Modifier.height(40.dp))
 
-        // --- Header Section ---
         Box(
             modifier = Modifier.fillMaxWidth(),
             contentAlignment = Alignment.Center
         ) {
-            // Pulse circle background
             if (isScanning) {
                 Surface(
                     shape = CircleShape,
@@ -105,7 +103,6 @@ fun BluetoothScreen(
 
         Spacer(Modifier.height(32.dp))
 
-        // --- Styled Scan Button ---
         Button(
             onClick = { if (isScanning) viewModel.stopBleScan() else viewModel.startBleScan() },
             modifier = Modifier
@@ -124,7 +121,6 @@ fun BluetoothScreen(
 
         Spacer(Modifier.height(24.dp))
 
-        // --- Device List Section ---
         Text(
             text = "FOUND DEVICES",
             style = MaterialTheme.typography.labelLarge,
@@ -143,7 +139,7 @@ fun BluetoothScreen(
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { viewModel.connectToDevice(device) },
+                        .clickable { viewModel.pairAndConnect(device) },
                     shape = RoundedCornerShape(20.dp),
                     colors = CardDefaults.cardColors(
                         containerColor = if (isConnected) Green40.copy(0.05f) else MaterialTheme.colorScheme.surfaceVariant.copy(
@@ -158,7 +154,6 @@ fun BluetoothScreen(
                             .fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Small icon indicating device type
                         Surface(
                             shape = CircleShape,
                             color = if (isConnected) Green40 else Color.Gray.copy(alpha = 0.2f),
