@@ -11,12 +11,44 @@ val PurpleGrey40 = Color(0xFF625b71)
 val Pink40 = Color(0xFF7D5260)
 
 
-val DeepBlue = Color(0xFF1E2A78)      // #1E2A78
-val TechnologyBlue = Color(0xFF2F3E9E) // #2F3E9E
-val NeonBlue = Color(0xFF00B7FF)      // #00B7FF
-val BrightBlue = Color(0xFF0099F7)    // #0099F7
-val LightGray = Color(0xFFF5F6FA)     // #F5F6FA
-val DarkBackground = Color(0xFF10131A) // #10131A
-val LightError = Color(0xFFD32F2F)
-val DarkSurface = Color(0xFF1E1E1E)
-val DarkError = Color(0xFFCF6679)
+// Background colors (Dark gradient)
+val BackgroundDark1 = Color(0xFF0F0F1E)
+val BackgroundDark2 = Color(0xFF1A1A2E)
+val BackgroundDark3 = Color(0xFF16213E)
+
+// Primary accent color (Cyan)
+val CyanAccent = Color(0xFF00FFF5)
+val CyanAccentDark = Color(0xFF00CCC5)
+
+// Text colors
+val TextWhite = Color.White
+val TextWhiteSecondary = Color.White.copy(alpha = 0.8f)
+val TextWhiteTertiary = Color.White.copy(alpha = 0.6f)
+val TextWhiteFaded = Color.White.copy(alpha = 0.5f)
+val TextWhiteDisabled = Color.White.copy(alpha = 0.4f)
+
+// Glass/Surface colors
+val GlassSurface = Color.White.copy(alpha = 0.08f)
+val GlassBorder = Color.White.copy(alpha = 0.2f)
+val GlassBorderFocused = Color.White.copy(alpha = 0.3f)
+
+// Button colors
+val ButtonGray = Color.White.copy(alpha = 0.2f)
+val ButtonGrayDisabled = Color.Gray.copy(alpha = 0.1f)
+
+// Status colors
+val ErrorRed = Color(0xFFFF6B6B)
+val SuccessGreen = Color(0xFF51CF66)
+val WarningYellow = Color(0xFFFFD93D)
+
+// TextField colors
+val TextFieldCursor = CyanAccent
+val TextFieldIndicatorFocused = Color.White.copy(alpha = 0.3f)
+val TextFieldIndicatorUnfocused = Color.White.copy(alpha = 0.2f)
+val TextFieldText = Color.White
+val TextFieldTextUnfocused = Color.White.copy(alpha = 0.7f)
+val TextFieldLabel = Color.White.copy(alpha = 0.5f)
+val TextFieldIcon = Color.White.copy(alpha = 0.5f)
+
+// Particle colors
+val ParticleCyan = Color(0xFF00FFF5)

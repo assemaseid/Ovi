@@ -1,14 +1,16 @@
 package com.example.ovi.data.repository
 
 import com.example.ovi.data.api.AuthService
+import com.example.ovi.data.dto.LoginRequest
+import com.example.ovi.data.dto.RegisterRequest
 import com.example.ovi.data.local.SessionManager
 import com.example.ovi.data.local.database.AppDatabase
-import com.example.ovi.data.local.entity.UserEntity
 import com.example.ovi.data.mapper.toDomain
 import com.example.ovi.data.mapper.toEntity
 import com.example.ovi.domain.model.User
 import com.example.ovi.domain.repository.AuthRepository
-import java.util.UUID
+import retrofit2.HttpException
+import java.io.IOException
 import javax.inject.Inject
 
 class AuthRepositoryImpl @Inject constructor(
@@ -23,30 +25,39 @@ class AuthRepositoryImpl @Inject constructor(
         password: String
     ): Result<User> {
         return try {
-            val userEntity = userDao.getUserByEmail(email)
+            val request = LoginRequest(email = email, password = password)
+            val response = authService.login(request)
 
-            if (userEntity == null) {
-                Result.failure(Exception("User not found"))
-            } else if (userEntity.passwordHash != password.hashCode().toString()) {
-                Result.failure(Exception("Invalid password"))
-            } else {
-                userDao.updateLastLogin(userEntity.id, System.currentTimeMillis())
-                val token = "mock-jwt-${System.currentTimeMillis()}"
-                userDao.updateUserToken(userEntity.id, token)
 
-                val user = userEntity.toDomain().copy(jwtToken = token)
+            val user = response.user.toDomain(jwtToken = response.accessToken)
 
-                sessionManager.saveUserSession(
-                    userId = user.id,
-                    email = user.email,
-                    name = user.name,
-                    jwtToken = token
-                )
-                Result.success(user)
+            sessionManager.saveUserSession(
+                userId = user.id,
+                email = user.email,
+                name = user.name,
+                jwtToken = response.accessToken
+            )
+
+            val userEntity = response.user.toEntity(jwtToken = response.accessToken)
+            userDao.insertUser(userEntity)
+
+
+            Result.success(user)
+
+        } catch (e: HttpException) {
+            val errorMessage = when (e.code()) {
+                401 -> "Invalid email or password"
+                404 -> "User not found"
+                500 -> "Server error. Please try again later"
+                else -> "Login failed: ${e.message()}"
             }
-        }
-        catch (e: Exception) {
-            Result.failure(e)
+            Result.failure(Exception(errorMessage))
+
+        } catch (e: IOException) {
+            Result.failure(Exception("Network error. Check your internet connection"))
+
+        } catch (e: Exception) {
+            Result.failure(Exception("Login failed: ${e.message}"))
         }
     }
 
@@ -56,39 +67,42 @@ class AuthRepositoryImpl @Inject constructor(
         name: String
     ): Result<User> {
         return try {
-            val existingUser = userDao.getUserByEmail(email)
-            if (existingUser != null) {
-                return Result.failure(Exception("User already exists"))
-            }
-
-
-            val userEntity = UserEntity(
-                id = 0,
+            val request = RegisterRequest(
                 email = email,
-                name = name,
-                passwordHash = password.hashCode().toString(),
-                jwtToken = "mock-jwt-${System.currentTimeMillis()}",
-                lastLogin = System.currentTimeMillis(),
-                createdAt = System.currentTimeMillis()
+                password = password,
+                name = name
             )
-            userDao.insertUser(userEntity)
-            val insertedUser = userDao.getUserByEmail(email)
-            if (insertedUser != null) {
-                val user = insertedUser.toDomain()
+            val response = authService.register(request)
 
-                sessionManager.saveUserSession(
-                    userId = user.id,
-                    email = user.email,
-                    name = user.name,
-                    jwtToken = user.jwtToken
-                )
-                Result.success(user)
-            } else {
-                Result.failure(Exception("Failed to register user"))
+//            val user = response.user.toDomain(jwtToken = response.accessToken)
+//
+////            sessionManager.saveUserSession(
+////                userId = user.id,
+////                email = user.email,
+////                name = user.name,
+////                jwtToken = response.accessToken
+////            )
+//
+//            val userEntity = response.user.toEntity(jwtToken = response.accessToken)
+////            userDao.insertUser(userEntity)
+//
+//            Result.success(user)
+            login(email, password)
 
+        } catch (e: HttpException) {
+            val errorMessage = when (e.code()) {
+                400 -> "Invalid registration data"
+                409 -> "User with this email already exists"
+                500 -> "Server error. Please try again later"
+                else -> "Registration failed: ${e.message()}"
             }
-        }catch (e: Exception) {
-            Result.failure(e)
+            Result.failure(Exception(errorMessage))
+
+        } catch (e: IOException) {
+            Result.failure(Exception("Network error. Check your internet connection"))
+
+        } catch (e: Exception) {
+            Result.failure(Exception("Registration failed: ${e.message}"))
         }
     }
 

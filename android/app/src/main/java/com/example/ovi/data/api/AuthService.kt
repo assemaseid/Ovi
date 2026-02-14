@@ -1,36 +1,18 @@
 package com.example.ovi.data.api
 
-
+import com.example.ovi.data.dto.LoginRequest
+import com.example.ovi.data.dto.LoginResponse
+import com.example.ovi.data.dto.RegisterRequest
+import com.example.ovi.data.dto.RegisterResponse
 import retrofit2.http.Body
 import retrofit2.http.POST
 
 interface AuthService {
-    @POST("auth/login")
+    @POST("jwt/login_user/")
     suspend fun login(@Body request: LoginRequest): LoginResponse
 
-    @POST("auth/register")
+    @POST("jwt/register_user/")
     suspend fun register(@Body request: RegisterRequest): RegisterResponse
 }
 
-data class LoginRequest(
-    val email: String,
-    val password: String
-)
 
-data class LoginResponse(
-    val access_token: String,
-    val refresh_token: String,
-    val user_id: String
-)
-
-data class RegisterRequest(
-    val email: String,
-    val password: String,
-    val name: String? = null,
-    val phone: String? = null
-)
-
-data class RegisterResponse(
-    val user_id: String,
-    val email: String
-)
