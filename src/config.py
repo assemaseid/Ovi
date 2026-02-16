@@ -13,23 +13,35 @@ class AuthJWT(BaseModel):
     refresh_token_expire_days: int = 30
 
 class Settings(BaseSettings):
-    DB_USER: str
-    DB_PASS: str
-    DB_HOST: str
-    DB_PORT: str
-    DB_NAME: str
+    POSTGRES_USER: str
+    POSTGRES_DB: str
+    POSTGRES_HOST: str
+    POSTGRES_PORT: int
+    POSTGRES_PASSWORD: str
     
     @property
-    def DATABASE_URL_asyncpg(self):
+    def db_url(self):
         return "postgresql+asyncpg://{}:{}@{}:{}/{}".format(
-            self.DB_USER,
-            self.DB_PASS,
-            self.DB_HOST,
-            self.DB_PORT,
-            self.DB_NAME,
+            self.POSTGRES_USER,
+            self.POSTGRES_PASSWORD,
+            self.POSTGRES_HOST,
+            self.POSTGRES_PORT,
+            self.POSTGRES_DB,
         )
-    
+
+    @property
+    def alembic_db_url(self):
+        return 'postgresql://{}:{}@{}:{}/{}'.format(
+            self.POSTGRES_USER,
+            self.POSTGRES_PASSWORD,
+            self.POSTGRES_HOST,
+            self.POSTGRES_PORT,
+            self.POSTGRES_DB,
+        )
+
     auth_jwt: AuthJWT = Field(default_factory=AuthJWT)
-    model_config = SettingsConfigDict(env_file=".env")
+    model_config = SettingsConfigDict(env_file=".env",
+                                      extra="ignore",
+                                      )
 
 settings = Settings()

@@ -14,7 +14,7 @@ local.properties
 __pycache__/
 *.py[codz]
 *$py.class
-.DS_Store
+**/.DS_Store
 
 # C extensions
 *.so
