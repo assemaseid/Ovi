@@ -6,7 +6,7 @@ from sqlalchemy import String
 from .config import settings
 
 engine = create_async_engine(
-    url=settings.DATABASE_URL_asyncpg,
+    url=settings.db_url,
     pool_pre_ping = True,
     echo=True,
     pool_size=5,
@@ -20,7 +20,7 @@ async_session_factory = async_sessionmaker(
     autocommit=False,
     )
 
-str_256 = Annotated[str,256]
+str_256 = Annotated[str, 256]
 
 
 class Base(DeclarativeBase):

@@ -1,4 +1,6 @@
 from datetime import timedelta
+
+from src.app.schemas.auth import TokenResponse
 from src.app.schemas.user import UserResponseSchema
 from src.config  import settings
 from src.app.security import jwt_utils
@@ -24,8 +26,8 @@ def create_token(
 
 def create_access_token(user: UserResponseSchema) -> str:
     jwt_payload = {
-        "sub": user.username,
-        "username": user.username,
+        "sub": str(user.id),
+        "username": user.name,
         "email": user.email,
     }
     
@@ -39,9 +41,19 @@ def create_access_token(user: UserResponseSchema) -> str:
 def create_refresh_token(user: UserResponseSchema) -> str:
     
     jwt_payload = {
-        "sub": user.username
+        "sub": str(user.id),
     } 
     return create_token(token_type=REFRESH_TOKEN_TYPE,
                         token_data=jwt_payload,
-                        expire_timedelta=timedelta(days=settings.auth_jwt.refresh_token_expire_days),
+                        expire_timedelta=timedelta(
+                            days=settings.auth_jwt.refresh_token_expire_days),
                          )
+
+def create_token_pair(user: UserResponseSchema):
+    access_token = create_access_token(user)
+    refresh_token = create_refresh_token(user)
+    return TokenResponse(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        user_data=user.model_dump(),
+    )
