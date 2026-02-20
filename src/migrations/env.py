@@ -5,16 +5,17 @@ from sqlalchemy import pool
 
 from alembic import context
 
-from src.config import settings
+from src.config import settings, Settings
 from src.database import Base
 from src.app.models.user import User
+from src.app.models.auth import TokenBlacklist
 
 config = context.config
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-config.set_main_option("sqlalchemy.url", settings.db_url + "?async_fallback=True")
+config.set_main_option("sqlalchemy.url", Settings().alembic_db_url)
 
 target_metadata = Base.metadata
 
