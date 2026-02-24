@@ -4,9 +4,7 @@ import com.example.ovi.data.api.AuthService
 import com.example.ovi.data.dto.LoginRequest
 import com.example.ovi.data.dto.RegisterRequest
 import com.example.ovi.data.local.SessionManager
-import com.example.ovi.data.local.database.AppDatabase
 import com.example.ovi.data.mapper.toDomain
-import com.example.ovi.data.mapper.toEntity
 import com.example.ovi.domain.model.User
 import com.example.ovi.domain.repository.AuthRepository
 import retrofit2.HttpException
@@ -15,11 +13,8 @@ import javax.inject.Inject
 
 class AuthRepositoryImpl @Inject constructor(
     private val authService: AuthService,
-    private val database: AppDatabase,
     private val sessionManager: SessionManager
 ): AuthRepository {
-    private val userDao = database.userDao()
-
     override suspend fun login(
         email: String,
         password: String
@@ -27,7 +22,6 @@ class AuthRepositoryImpl @Inject constructor(
         return try {
             val request = LoginRequest(email = email, password = password)
             val response = authService.login(request)
-
 
             val user = response.user.toDomain(jwtToken = response.accessToken)
 
@@ -37,10 +31,6 @@ class AuthRepositoryImpl @Inject constructor(
                 name = user.name,
                 jwtToken = response.accessToken
             )
-
-            val userEntity = response.user.toEntity(jwtToken = response.accessToken)
-            userDao.insertUser(userEntity)
-
 
             Result.success(user)
 
@@ -72,21 +62,8 @@ class AuthRepositoryImpl @Inject constructor(
                 password = password,
                 name = name
             )
-            val response = authService.register(request)
+            authService.register(request)
 
-//            val user = response.user.toDomain(jwtToken = response.accessToken)
-//
-////            sessionManager.saveUserSession(
-////                userId = user.id,
-////                email = user.email,
-////                name = user.name,
-////                jwtToken = response.accessToken
-////            )
-//
-//            val userEntity = response.user.toEntity(jwtToken = response.accessToken)
-////            userDao.insertUser(userEntity)
-//
-//            Result.success(user)
             login(email, password)
 
         } catch (e: HttpException) {
@@ -107,8 +84,15 @@ class AuthRepositoryImpl @Inject constructor(
     }
 
 
-    override suspend fun logout() {
-        sessionManager.clearSession()
+    override suspend fun logout(): Result<Exception> {
+        try {
+            authService.logout()
+            return Result.success(Exception("Logout successful"))
+        } catch (e: Exception) {
+            return Result.failure(Exception("Logout failed: ${e.message}"))
+        } finally {
+            sessionManager.clearSession()
+        }
     }
 
     override suspend fun getCurrentUser(): User? {
@@ -122,7 +106,13 @@ class AuthRepositoryImpl @Inject constructor(
                 return null
             }
 
-            userDao.getUserById(userId)?.toDomain()
+            return User(
+                id = userId,
+                email = sessionManager.getEmail() ?: return null,
+                name = sessionManager.getName() ?: return null,
+                jwtToken = sessionManager.getJwtToken()
+            )
+
         } catch (e: Exception) {
             null
         }

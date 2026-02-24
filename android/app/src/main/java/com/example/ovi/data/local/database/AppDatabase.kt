@@ -4,17 +4,16 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
-import com.example.ovi.data.local.dao.UserDao
-import com.example.ovi.data.local.entity.UserEntity
+import com.example.ovi.data.local.entity.LockEntity
+
 
 @Database(
-    entities = [UserEntity::class],
-    version = 1,
+    entities = [LockEntity::class],
+    version = 3,
     exportSchema = false
 )
 
 abstract class AppDatabase: RoomDatabase() {
-    abstract fun userDao(): UserDao
 
     companion object {
         @Volatile

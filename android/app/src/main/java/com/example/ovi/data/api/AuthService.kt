@@ -8,11 +8,14 @@ import retrofit2.http.Body
 import retrofit2.http.POST
 
 interface AuthService {
-    @POST("jwt/login_user/")
+    @POST("login_user/")
     suspend fun login(@Body request: LoginRequest): LoginResponse
 
-    @POST("jwt/register_user/")
+    @POST("register_user/")
     suspend fun register(@Body request: RegisterRequest): RegisterResponse
+
+    @POST("logout/")
+    suspend fun logout()
 }
 
 

@@ -5,7 +5,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import com.example.ovi.data.api.AuthService
 import com.example.ovi.data.local.SessionManager
-import com.example.ovi.data.local.database.AppDatabase
+//import com.example.ovi.data.local.database.AppDatabase
 import com.example.ovi.data.repository.AuthRepositoryImpl
 import com.example.ovi.domain.repository.AuthRepository
 import dagger.Module
@@ -47,7 +47,7 @@ object AppModule {
     @Singleton
     fun provideRetrofit(okHttpClient: OkHttpClient): Retrofit {
         return Retrofit.Builder()
-            .baseUrl("http://10.0.2.2:8000/api/v1/")
+            .baseUrl("http://10.0.2.2:8000/api/v1/auth/")
             .client(okHttpClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
@@ -59,13 +59,13 @@ object AppModule {
         return retrofit.create(AuthService::class.java)
     }
 
-    @Provides
-    @Singleton
-    fun provideAppDatabase(
-        @ApplicationContext context: Context
-    ): AppDatabase {
-        return AppDatabase.getDatabase(context)
-    }
+//    @Provides
+//    @Singleton
+//    fun provideAppDatabase(
+//        @ApplicationContext context: Context
+//    ): AppDatabase {
+//        return AppDatabase.getDatabase(context)
+//    }
 
     @Provides
     @Singleton
@@ -90,9 +90,8 @@ object AppModule {
     @Singleton
     fun provideAuthRepository(
         authService: AuthService,
-        database: AppDatabase,
         sessionManager: SessionManager
     ): AuthRepository {
-        return AuthRepositoryImpl(authService, database,sessionManager)
+        return AuthRepositoryImpl(authService,sessionManager)
     }
 }

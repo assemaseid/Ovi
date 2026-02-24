@@ -77,9 +77,9 @@ fun AuthScreen(
             .background(
                 brush = Brush.linearGradient(
                     colors = listOf(
-                        Color(0xFF50AEEE),
-                        Color(0xFF03A9F4),
-                        Color(0xFF0277AD)
+                        Color(0xFF8FC6FC),
+                        Color(0xFF7ED2F8),
+                        Color(0xFFC6EAF8)
                     ),
                     start = Offset(
                         x = 500f * cos(animatedOffset * PI / 180).toFloat(),
@@ -102,14 +102,14 @@ fun AuthScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            // Logo from resources
+
             Image(
                 painter = painterResource(id = R.drawable.ovi),
                 contentDescription = "OVI Logo",
                 modifier = Modifier
-                    .size(220.dp)
-                    .padding(bottom = 16.dp)
+                    .size(250.dp)
             )
+
 
             Text(
                 text = "SECURE ACCESS",
@@ -126,7 +126,7 @@ fun AuthScreen(
                     .fillMaxWidth()
                     .padding(horizontal = 8.dp),
                 shape = RoundedCornerShape(24.dp),
-                color = Color.White.copy(alpha = 0.1f),
+                color = Color(0xFF03A9F4).copy(alpha = 0.3f),
                 tonalElevation = 0.dp
             ) {
                 Column(
