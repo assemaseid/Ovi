@@ -1,7 +1,6 @@
 package com.example.ovi.presentation.navigation
 
 
-import androidx.compose.material3.Text
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.compose.runtime.Composable
@@ -10,8 +9,6 @@ import com.example.ovi.presentation.ui.screens.AuthScreen
 import com.example.ovi.presentation.ui.screens.MainScreen
 import com.example.ovi.presentation.ui.screens.PersonalScreen
 import com.example.ovi.presentation.ui.screens.SplashScreen
-
-//import com.example.ovi.presentation.ui.screens.SplashScreen
 
 
 @Composable
