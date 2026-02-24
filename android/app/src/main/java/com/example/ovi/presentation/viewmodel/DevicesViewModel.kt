@@ -1,32 +1,59 @@
 package com.example.ovi.presentation.viewmodel
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.example.ovi.data.local.dao.LockDao
+import com.example.ovi.data.mapper.toLockDomain
+import com.example.ovi.domain.model.EventType
+import com.example.ovi.domain.model.LockEvent
+import com.example.ovi.domain.model.SmartLock
+import com.example.ovi.domain.model.UnlockMethod
+import com.example.ovi.domain.repository.EventRepository
+import com.example.ovi.domain.repository.LockRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-class DevicesViewModel: ViewModel(){
+@HiltViewModel
+class DevicesViewModel @Inject constructor(
+    private val lockRepository: LockRepository,
+    private val lockDao: LockDao,
+    private val eventRepository: EventRepository
+): ViewModel(){
 
-    private val _devices = MutableStateFlow(
-        listOf(
-            DeviceItem("lock-1", "Smart Lock #1", "ON", true),
-            DeviceItem("lock-2", "Smart Lock #2", "OFF", true),
-            DeviceItem("lock-3", "Garage Lock", "ON", false)
+    val devices: StateFlow<List<SmartLock>> = lockDao.getAllLocks()
+        .map { entities -> entities.map { it.toLockDomain() } }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
         )
-    )
 
-    val devices: StateFlow<List<DeviceItem>> = _devices
+    fun toggleLock(lockId: String){
+        viewModelScope.launch {
+            val lock = devices.value.find { it.id == lockId } ?: return@launch
 
-    fun toggleLock(deviceId: String){
-        _devices.value = _devices.value.map { device ->
-            if (device.id == deviceId) {
-                device.copy(locked = !device.locked)
-            } else device
+            val success = if (lock.isLocked) {
+                lockRepository.unlock(lockId)
+            } else {
+                lockRepository.lock(lockId)
+            }
+
+            eventRepository.addEvent(
+                LockEvent(
+                    id = "",
+                    lockId = lockId,
+                    timestamp = System.currentTimeMillis(),
+                    type = if (lock.isLocked) EventType.UNLOCK else EventType.LOCK,
+                    success = success,
+                    method = UnlockMethod.BLUETOOTH
+                )
+            )
+
         }
-    }
-
-    fun getDevice(deviceId: String): DeviceItem? {
-        return _devices.value.find { it.id == deviceId }
     }
 }

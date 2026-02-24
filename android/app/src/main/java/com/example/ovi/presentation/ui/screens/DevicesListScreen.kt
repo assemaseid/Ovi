@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.Color
 import com.example.ovi.presentation.viewmodel.DevicesViewModel
+import com.example.ovi.ui.theme.Green40
 
 @Composable
 fun DevicesListScreen(
@@ -24,18 +25,21 @@ fun DevicesListScreen(
 
     val devices by viewModel.devices.collectAsState()
 
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
+    if (devices.isEmpty()) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text("No locks paired yet.", color = Color.Gray)
+        }
+    }
 
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().padding(16.dp)
     ) {
-        items(devices) { dev ->
+        items(devices) { lock ->
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 8.dp)
-                    .clickable { onDeviceClick(dev.id) },
+                    .clickable { onDeviceClick(lock.id) },
                 shape = MaterialTheme.shapes.large,
                 elevation = CardDefaults.cardElevation(6.dp)
             ){
@@ -44,19 +48,23 @@ fun DevicesListScreen(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Column{
-                        Text(dev.name, style = MaterialTheme.typography.titleMedium)
+                        Text(lock.name, style = MaterialTheme.typography.titleMedium)
                         Text(
-                            text = "Status: ${dev.status}",
-                            color = if (dev.status == "ON") Color.Green else Color.Red
+                            text = "Firmware: ${lock.firmwareVersion ?: "Unknown"}",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        Text(
+                            text = "Battery: ${lock.batteryLevel}%",
+                            color = if (lock.batteryLevel < 20) Color.Red else Color.Unspecified
                         )
                     }
 
                     Icon(
                         imageVector =
-                            if (dev.locked) Icons.Default.Lock else Icons.Default.LockOpen,
+                            if (lock.isLocked) Icons.Default.Lock else Icons.Default.LockOpen,
                         contentDescription = null,
                         tint =
-                            if (dev.locked) Color.Red else Color.Green
+                            if (lock.isLocked) Color.Red else Green40
                     )
                 }
             }
