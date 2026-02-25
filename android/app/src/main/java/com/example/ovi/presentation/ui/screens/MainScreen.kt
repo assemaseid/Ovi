@@ -1,14 +1,7 @@
 package com.example.ovi.presentation.ui.screens
 
-
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -29,30 +22,21 @@ import com.example.ovi.presentation.navigation.BottomNavigationBar
 import com.example.ovi.presentation.viewmodel.DevicesViewModel
 import com.example.ovi.ui.theme.AccentBlue
 
-
 @Composable
 fun MainScreen(
     onLogout: () -> Unit = {}
 ) {
-
     val mainNavController = rememberNavController()
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-    ) {
+    Box(modifier = Modifier.fillMaxSize()) {
         MainNavigationGraph(
             navController = mainNavController,
             onLogout = onLogout
         )
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-        ) {
+        Box(modifier = Modifier.align(Alignment.BottomCenter)) {
             BottomNavigationBar(navController = mainNavController)
         }
     }
 }
-
 
 @Composable
 fun NavBarItem(
@@ -86,20 +70,22 @@ fun NavBarItem(
 
 const val DEVICE_ID_KEY = "deviceId"
 const val DEVICE_ROUTE = "device"
+
 @Composable
 fun MainNavigationGraph(
     navController: NavHostController,
     onLogout: () -> Unit
 ) {
     val devicesViewModel: DevicesViewModel = hiltViewModel()
+
     NavHost(
         navController = navController,
         startDestination = BottomNavItem.Devices.route,
     ) {
         composable(BottomNavItem.Devices.route) {
-            DevicesListScreen(viewModel = devicesViewModel,
+            DevicesListScreen(
+                viewModel = devicesViewModel,
                 onDeviceClick = { deviceId ->
-
                     navController.navigate("$DEVICE_ROUTE/$deviceId")
                 },
                 onAddDevice = {
@@ -107,6 +93,7 @@ fun MainNavigationGraph(
                 }
             )
         }
+
         composable(
             route = "$DEVICE_ROUTE/{$DEVICE_ID_KEY}",
             arguments = listOf(navArgument(DEVICE_ID_KEY) { type = NavType.StringType })
@@ -116,18 +103,50 @@ fun MainNavigationGraph(
                 DeviceScreen(
                     deviceId = deviceId,
                     viewModel = devicesViewModel,
-                    onBack = { navController.popBackStack() }
+                    onBack = { navController.popBackStack() },
+                    navController = navController  // ← вот это было missing
                 )
             }
+        }
+
+        composable(
+            route = "event_log/{lockId}/{lockName}",
+            arguments = listOf(
+                navArgument("lockId") { type = NavType.StringType },
+                navArgument("lockName") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val lockId = backStackEntry.arguments?.getString("lockId") ?: ""
+            val lockName = backStackEntry.arguments?.getString("lockName") ?: "Lock"
+            EventLogScreen(
+                lockId = lockId,
+                lockName = lockName,
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(
+            route = "auto_pin/{lockId}/{lockName}",
+            arguments = listOf(
+                navArgument("lockId") { type = NavType.StringType },
+                navArgument("lockName") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val lockId = backStackEntry.arguments?.getString("lockId") ?: ""
+            val lockName = backStackEntry.arguments?.getString("lockName") ?: "Lock"
+            AutoPinScreen(
+                lockId = lockId,
+                lockName = lockName,
+                onBack = { navController.popBackStack() }
+            )
         }
 
         composable(BottomNavItem.Bluetooth.route) {
             BluetoothScreen()
         }
+
         composable(BottomNavItem.Personal.route) {
-            PersonalScreen(
-                onLogout = onLogout
-            )
+            PersonalScreen(onLogout = onLogout)
         }
     }
 }

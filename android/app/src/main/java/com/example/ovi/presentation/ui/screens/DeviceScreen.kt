@@ -23,22 +23,27 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
 import com.example.ovi.R
+import com.example.ovi.presentation.navigation.Screen
 import com.example.ovi.presentation.viewmodel.DevicesViewModel
 import com.example.ovi.ui.theme.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+
 @Composable
 fun DeviceScreen(
     deviceId: String,
     viewModel: DevicesViewModel,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    navController: NavController
 ) {
     val device = viewModel.devices.collectAsState().value.find { it.id == deviceId }
     var isLocked by remember { mutableStateOf(device?.locked ?: true) }
     var isLoading by remember { mutableStateOf(false) }
     var statusMessage by remember { mutableStateOf<String?>(null) }
+    var showChangePinSheet by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
@@ -118,12 +123,11 @@ fun DeviceScreen(
 
             Text(
                 text = if (isLocked) "Locked" else "Unlocked",
-                fontSize = 20.sp,
+                fontSize = 23.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = if (isLocked) Color(0xFFEF9A9A) else Color(0xFF81C784)
             )
 
-            // Статус сообщение (результат unlock)
             statusMessage?.let {
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
@@ -135,7 +139,6 @@ fun DeviceScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Карточка с данными
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(20.dp),
@@ -198,10 +201,10 @@ fun DeviceScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(text = "Last opened", fontSize = 14.sp, color = TextHint)
+                        Text(text = "Last opened", fontSize = 16.sp, color = TextHint)
                         Text(
                             text = device?.lastSeen ?: "—",
-                            fontSize = 14.sp,
+                            fontSize = 16.sp,
                             color = TextWhite
                         )
                     }
@@ -218,8 +221,8 @@ fun DeviceScreen(
                 onClick = {
                     scope.launch {
                         isLoading = true
-                        statusMessage = "Requesting token..."
-                        delay(1000) // имитация запроса к серверу
+                        statusMessage = "Requesting..."
+                        delay(1000)
                         statusMessage = "Sending via BLE..."
                         delay(800)
                         isLocked = !isLocked
@@ -267,7 +270,6 @@ fun DeviceScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Три кнопки действий
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -275,25 +277,41 @@ fun DeviceScreen(
                 ActionButton(
                     icon = Icons.Default.Pin,
                     label = "Change PIN",
-                    onClick = { /* TODO */ },
+                    onClick = { showChangePinSheet = true },
                     modifier = Modifier.weight(1f)
                 )
                 ActionButton(
                     icon = Icons.Default.Schedule,
                     label = "Auto PIN",
-                    onClick = { /* TODO */ },
+                    onClick = { navController.navigate(
+                        "auto_pin/${deviceId}/${device?.name ?: "Lock"}"
+                    ) },
                     modifier = Modifier.weight(1f)
                 )
                 ActionButton(
                     icon = Icons.Default.History,
                     label = "Event Log",
-                    onClick = { /* TODO */ },
+                    onClick = {
+                        navController.navigate(
+                            Screen.EventLog.createRoute(deviceId, device?.name ?: "Lock")
+                        )
+                    },
                     modifier = Modifier.weight(1f)
                 )
             }
 
             Spacer(modifier = Modifier.height(24.dp))
         }
+    }
+
+    if (showChangePinSheet) {
+        ChangePinBottomSheet(
+            lockName = device?.name ?: "Lock",
+            onDismiss = { showChangePinSheet = false },
+            onConfirm = { newPin ->
+                // TODO: отправить на сервер
+            }
+        )
     }
 }
 
@@ -312,7 +330,7 @@ fun ActionButton(
         onClick = onClick
     ) {
         Column(
-            modifier = Modifier.padding(vertical = 14.dp),
+            modifier = Modifier.padding(vertical = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
