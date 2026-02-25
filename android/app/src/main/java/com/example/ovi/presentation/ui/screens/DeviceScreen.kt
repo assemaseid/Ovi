@@ -41,7 +41,6 @@ fun DeviceScreen(
     var statusMessage by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
 
-    // Анимация пульса на иконке замка
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
     val pulseScale by infiniteTransition.animateFloat(
         initialValue = 1f,
@@ -91,28 +90,11 @@ fun DeviceScreen(
                     color = TextWhite,
                     modifier = Modifier.weight(1f)
                 )
-                // Online индикатор
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(8.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFF81C784))
-                    )
-                    Text(
-                        text = "Online",
-                        fontSize = 12.sp,
-                        color = TextWhite.copy(alpha = 0.8f)
-                    )
-                }
+
             }
 
             Spacer(modifier = Modifier.height(28.dp))
 
-            // Большая иконка замка с пульсом
             Box(
                 modifier = Modifier
                     .size(150.dp)
@@ -127,16 +109,16 @@ fun DeviceScreen(
                 Image(
                     painter = painterResource(id = R.drawable.lock),
                     contentDescription = "Lock",
-                    modifier = Modifier.size(100.dp)
+                    modifier = Modifier.size(120.dp)
                 )
             }
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Статус
+
             Text(
                 text = if (isLocked) "Locked" else "Unlocked",
-                fontSize = 18.sp,
+                fontSize = 20.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = if (isLocked) Color(0xFFEF9A9A) else Color(0xFF81C784)
             )
@@ -167,17 +149,18 @@ fun DeviceScreen(
                     ) {
                         Text(
                             text = "Battery",
-                            fontSize = 12.sp,
+                            fontSize = 16.sp,
                             color = TextHint
                         )
                         val batteryColor = when {
-                            (device?.battery_level ?: 0) > 50 -> Color(0xFF81C784)
-                            (device?.battery_level ?: 0) > 20 -> Color(0xFFFFB74D)
+                            (device?.battery_level ?: 0) > 85 -> Color(0xFF81C784)
+                            (device?.battery_level ?: 0) > 50 -> Color(0xFFFFB74D)
+                            (device?.battery_level ?: 0) > 20 -> Color(0xFFFF7F4D)
                             else -> Color(0xFFEF5350)
                         }
                         Text(
                             text = "${device?.battery_level ?: 0}%",
-                            fontSize = 12.sp,
+                            fontSize = 16.sp,
                             color = batteryColor,
                             fontWeight = FontWeight.Medium
                         )
@@ -192,8 +175,9 @@ fun DeviceScreen(
                     ) {
                         val batteryLevel = device?.battery_level ?: 0
                         val batteryColor = when {
-                            batteryLevel > 50 -> Color(0xFF81C784)
-                            batteryLevel > 20 -> Color(0xFFFFB74D)
+                            batteryLevel > 85 -> Color(0xFF81C784)
+                            batteryLevel > 50 -> Color(0xFFFFB74D)
+                            batteryLevel > 20 -> Color(0xFFFF7F4D)
                             else -> Color(0xFFEF5350)
                         }
                         Box(
@@ -214,10 +198,10 @@ fun DeviceScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(text = "Last opened", fontSize = 12.sp, color = TextHint)
+                        Text(text = "Last opened", fontSize = 14.sp, color = TextHint)
                         Text(
                             text = device?.lastSeen ?: "—",
-                            fontSize = 12.sp,
+                            fontSize = 14.sp,
                             color = TextWhite
                         )
                     }
@@ -340,8 +324,8 @@ fun ActionButton(
             )
             Text(
                 text = label,
-                fontSize = 11.sp,
-                color = TextWhite.copy(alpha = 0.8f),
+                fontSize = 13.sp,
+                color = TextWhite.copy(alpha = 0.9f),
                 fontWeight = FontWeight.Medium
             )
         }
