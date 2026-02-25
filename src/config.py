@@ -18,6 +18,13 @@ class Settings(BaseSettings):
     POSTGRES_HOST: str
     POSTGRES_PORT: int
     POSTGRES_PASSWORD: str
+
+    MQTT_HOST: str
+    MQTT_PORT: str
+    MQTT_USERNAME: str
+    MQTT_PASSWORD: str
+    MQTT_CLIENT_ID: str
+
     
     @property
     def db_url(self):
