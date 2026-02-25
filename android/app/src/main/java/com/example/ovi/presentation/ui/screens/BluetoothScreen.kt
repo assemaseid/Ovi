@@ -16,35 +16,37 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.background
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.BluetoothSearching
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.ovi.presentation.viewmodel.BluetoothViewModel
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Lock
-import com.example.ovi.ui.theme.Green40
+import com.example.ovi.ui.theme.*
 import kotlinx.coroutines.launch
 
-@SuppressLint("MissingPermission")
 @OptIn(ExperimentalMaterial3Api::class)
+@SuppressLint("MissingPermission")
 @Composable
 fun BluetoothScreen(
     viewModel: BluetoothViewModel = hiltViewModel()
@@ -69,7 +71,7 @@ fun BluetoothScreen(
             viewModel.startBleScan()
         } else {
             scope.launch {
-                snackbarHostState.showSnackbar("Bluetooth permissions are required to scan for devices")
+                snackbarHostState.showSnackbar("Bluetooth permissions are required")
             }
         }
     }
@@ -80,11 +82,8 @@ fun BluetoothScreen(
         val allGranted = blePermissions.all {
             ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
         }
-        if (allGranted) {
-            viewModel.startBleScan()
-        } else {
-            permissionLauncher.launch(blePermissions)
-        }
+        if (allGranted) viewModel.startBleScan()
+        else permissionLauncher.launch(blePermissions)
     }
 
     fun checkAndStartScan() {
@@ -96,19 +95,16 @@ fun BluetoothScreen(
         val allGranted = blePermissions.all {
             ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
         }
-        if (allGranted) {
-            viewModel.startBleScan()
-        } else {
-            permissionLauncher.launch(blePermissions)
-        }
+        if (allGranted) viewModel.startBleScan()
+        else permissionLauncher.launch(blePermissions)
     }
 
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
-    val alpha by infiniteTransition.animateFloat(
+    val pulseAlpha by infiniteTransition.animateFloat(
         initialValue = 0.4f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween (1000, easing = LinearEasing),
+            animation = tween(1000, easing = LinearEasing),
             repeatMode = RepeatMode.Reverse
         ),
         label = "alpha"
@@ -117,149 +113,212 @@ fun BluetoothScreen(
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { innerPadding ->
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .padding(innerPadding)
-            .padding(horizontal = 20.dp)
-    ) {
-        Spacer(Modifier.height(40.dp))
 
-        Box(
-            modifier = Modifier.fillMaxWidth(),
-            contentAlignment = Alignment.Center
+        // Градиентный фон на весь экран
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(BgTop, BgBottom)
+                    )
+                )
+                .padding(innerPadding)
+                .padding(horizontal = 20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            if (isScanning) {
+
+            Spacer(Modifier.height(48.dp))
+
+            // Заголовок
+            Text(
+                text = "Pair Lock",
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold,
+                color = TextWhite,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 32.dp)
+            )
+
+            // Иконка с анимацией пульса
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier.size(140.dp)
+            ) {
+                if (isScanning) {
+                    Surface(
+                        shape = CircleShape,
+                        color = AccentBlue.copy(alpha = 0.15f * pulseAlpha),
+                        modifier = Modifier.size(140.dp)
+                    ) {}
+                    Surface(
+                        shape = CircleShape,
+                        color = AccentBlue.copy(alpha = 0.08f * pulseAlpha),
+                        modifier = Modifier.size(110.dp)
+                    ) {}
+                }
                 Surface(
                     shape = CircleShape,
-                    color = Green40.copy(alpha = 0.1f * alpha),
-                    modifier = Modifier.size(120.dp)
-                ) {}
+                    color = if (isScanning) AccentBlue.copy(alpha = 0.2f)
+                    else Color.White.copy(alpha = 0.1f),
+                    modifier = Modifier.size(80.dp)
+                ) {
+                    Icon(
+                        imageVector = if (isScanning) Icons.Default.BluetoothSearching
+                        else Icons.Default.Bluetooth,
+                        contentDescription = null,
+                        modifier = Modifier.padding(20.dp),
+                        tint = if (isScanning) AccentBlue else Color.Gray
+                    )
+                }
             }
 
-            Surface(
-                shape = CircleShape,
-                color = if (isScanning) Green40.copy(alpha = 0.15f) else Color.Gray.copy(alpha = 0.1f),
-                modifier = Modifier.size(80.dp)
+            Spacer(Modifier.height(16.dp))
+
+            // Статус текст
+            Text(
+                text = if (isScanning) "Searching for OVI Locks…" else "Ready to scan",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = TextWhite
+            )
+            Text(
+                text = if (isScanning) "Keep your lock close to the phone"
+                else "Tap the button below to find nearby locks",
+                fontSize = 13.sp,
+                color = TextWhite.copy(alpha = 0.5f),
+                modifier = Modifier.padding(top = 4.dp, bottom = 28.dp)
+            )
+
+            // Кнопка Scan / Stop
+            Button(
+                onClick = {
+                    if (isScanning) viewModel.stopBleScan()
+                    else checkAndStartScan()
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (isScanning) Color(0xFFEF5350).copy(alpha = 0.85f)
+                    else AccentBlue
+                )
             ) {
                 Icon(
-                    imageVector = if (isScanning) Icons.Default.BluetoothSearching else Icons.Default.Bluetooth,
+                    imageVector = if (isScanning) Icons.Default.BluetoothSearching
+                    else Icons.Default.Bluetooth,
                     contentDescription = null,
-                    modifier = Modifier.padding(20.dp),
-                    tint = if (isScanning) Green40 else Color.Gray
+                    tint = Color.White,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = if (isScanning) "Stop Scanning" else "Start Scanning",
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color.White
                 )
             }
-        }
 
-        Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(28.dp))
 
-        Text(
-            text = if (isScanning) "Searching for OVI Locks" else "Bluetooth Scanner",
-            style = MaterialTheme.typography.headlineMedium,
-            modifier = Modifier.align(Alignment.CenterHorizontally),
-            color = MaterialTheme.colorScheme.onBackground
-        )
-
-        Text(
-            text = if (isScanning) "Keep your lock close to the phone" else "Tap scan to find nearby devices",
-            style = MaterialTheme.typography.bodyMedium,
-            color = Color.Gray,
-            modifier = Modifier.align(Alignment.CenterHorizontally)
-        )
-
-        Spacer(Modifier.height(32.dp))
-
-        Button(
-            onClick = { if (isScanning) viewModel.stopBleScan() else checkAndStartScan() },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp),
-            shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = if (isScanning) Color.Red.copy(alpha = 0.8f) else Green40
-            )
-        ) {
-            Text(
-                text = if (isScanning) "STOP SCANNING" else "START SCANNING",
-                style = MaterialTheme.typography.titleMedium
-            )
-        }
-
-        Spacer(Modifier.height(24.dp))
-
-        Text(
-            text = "FOUND DEVICES",
-            style = MaterialTheme.typography.labelLarge,
-            color = Color.Gray,
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
-
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            contentPadding = PaddingValues(bottom = 24.dp)
-        ) {
-            items(scannedDevices) { device ->
-                val isConnected = connectedAddress == device.address
-
-                Card(
+            // Заголовок списка
+            if (scannedDevices.isNotEmpty()) {
+                Text(
+                    text = "FOUND DEVICES",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TextWhite.copy(alpha = 0.4f),
+                    letterSpacing = 1.5.sp,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { viewModel.pairAndConnect(device) },
-                    shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = if (isConnected) Green40.copy(0.05f) else MaterialTheme.colorScheme.surfaceVariant.copy(
-                            alpha = 0.5f
-                        )
-                    ),
-                    border = if (isConnected) BorderStroke(1.dp, Green40) else null
-                ) {
-                    Row(
+                        .padding(bottom = 10.dp)
+                )
+            }
+
+            // Список найденных устройств
+            LazyColumn(
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+                contentPadding = PaddingValues(bottom = 80.dp) // отступ под bottom bar
+            ) {
+                items(scannedDevices) { device ->
+                    val isConnected = connectedAddress == device.address
+
+                    Card(
                         modifier = Modifier
-                            .padding(16.dp)
-                            .fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
+                            .fillMaxWidth()
+                            .clickable { viewModel.pairAndConnect(device) },
+                        shape = RoundedCornerShape(18.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (isConnected)
+                                AccentBlue.copy(alpha = 0.12f)
+                            else
+                                Color.White.copy(alpha = 0.07f)
+                        ),
+                        border = if (isConnected) BorderStroke(1.dp, AccentBlue)
+                        else BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
                     ) {
-                        Surface(
-                            shape = CircleShape,
-                            color = if (isConnected) Green40 else Color.Gray.copy(alpha = 0.2f),
-                            modifier = Modifier.size(40.dp)
+                        Row(
+                            modifier = Modifier
+                                .padding(14.dp)
+                                .fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Lock,
-                                contentDescription = null,
-                                modifier = Modifier.padding(10.dp),
-                                tint = if (isConnected) Color.White else Color.Gray
-                            )
-                        }
+                            // Иконка замка
+                            Surface(
+                                shape = CircleShape,
+                                color = if (isConnected) AccentBlue
+                                else Color.White.copy(alpha = 0.1f),
+                                modifier = Modifier.size(42.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Lock,
+                                    contentDescription = null,
+                                    modifier = Modifier.padding(10.dp),
+                                    tint = if (isConnected) Color.White
+                                    else Color.White.copy(alpha = 0.5f)
+                                )
+                            }
 
-                        Spacer(Modifier.width(16.dp))
+                            Spacer(Modifier.width(14.dp))
 
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = device.name ?: "Unknown Device",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Text(
-                                text = device.address,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = Color.Gray
-                            )
-                        }
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = device.name ?: "Unknown Device",
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = TextWhite
+                                )
+                                Text(
+                                    text = device.address,
+                                    fontSize = 12.sp,
+                                    color = TextWhite.copy(alpha = 0.4f)
+                                )
+                            }
 
-                        if (isConnected) {
-                            Icon(
-                                imageVector = Icons.Default.CheckCircle,
-                                contentDescription = null,
-                                tint = Green40
-                            )
+                            if (isConnected) {
+                                Icon(
+                                    imageVector = Icons.Default.CheckCircle,
+                                    contentDescription = "Connected",
+                                    tint = AccentBlue,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
                         }
                     }
                 }
             }
+
+            // Пустое состояние — нет устройств и не сканирует
+            if (scannedDevices.isEmpty() && !isScanning) {
+                Spacer(Modifier.height(16.dp))
+                Text(
+                    text = "No devices found yet",
+                    fontSize = 14.sp,
+                    color = TextWhite.copy(alpha = 0.3f)
+                )
+            }
         }
-    }
     }
 }

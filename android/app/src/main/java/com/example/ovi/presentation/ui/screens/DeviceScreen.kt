@@ -1,126 +1,351 @@
 package com.example.ovi.presentation.ui.screens
 
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.LockOpen
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
-import com.example.ovi.presentation.viewmodel.BluetoothViewModel
+import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
+import com.example.ovi.R
+import com.example.ovi.presentation.navigation.Screen
 import com.example.ovi.presentation.viewmodel.DevicesViewModel
-import com.example.ovi.ui.theme.Green40
+import com.example.ovi.ui.theme.*
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+
 
 @Composable
 fun DeviceScreen(
     deviceId: String,
     viewModel: DevicesViewModel,
-    bleViewModel: BluetoothViewModel = hiltViewModel(),
-    onBackClick: () -> Unit
+    onBack: () -> Unit,
+    navController: NavController
 ) {
-    val devices by viewModel.devices.collectAsState()
-    val lock = devices.find { it.id == deviceId } ?: return
+    val device = viewModel.devices.collectAsState().value.find { it.id == deviceId }
+    var isLocked by remember { mutableStateOf(device?.locked ?: true) }
+    var isLoading by remember { mutableStateOf(false) }
+    var statusMessage by remember { mutableStateOf<String?>(null) }
+    var showChangePinSheet by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
 
-    val connectedAddress by bleViewModel.connectedAddress.collectAsState()
-    val isCurrentlyConnected = connectedAddress != null
+    val infiniteTransition = rememberInfiniteTransition(label = "pulse")
+    val pulseScale by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.06f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1000, easing = EaseInOut),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "pulse"
+    )
 
     Box(
-        modifier = Modifier.fillMaxSize().statusBarsPadding(),
-        contentAlignment = Alignment.Center
-    ) {
-        IconButton(
-            onClick = onBackClick,
-            modifier = Modifier.align(Alignment.TopStart).padding(16.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Default.ArrowBack,
-                contentDescription = "Back",
-                tint = MaterialTheme.colorScheme.onBackground
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                brush = Brush.verticalGradient(
+                    colors = listOf(BgTop, BgBottom)
+                )
             )
-        }
-
+    ) {
         Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp)
+                .navigationBarsPadding(),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Surface(
-                shape = CircleShape,
-                color = if (lock.isLocked) Color.Red.copy(alpha = 0.15f) else Green40.copy(alpha = 0.2f),
-                border = BorderStroke(
-                    width = 2.dp,
-                    color = if (lock.isLocked) Color.Red.copy(alpha = 0.5f) else Green40.copy(alpha = 0.5f)
-                ),
-                modifier = Modifier.size(180.dp)
+            Spacer(modifier = Modifier.height(48.dp))
+
+            // TopBar
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Box(contentAlignment = Alignment.Center){
+                IconButton(onClick = onBack) {
                     Icon(
-                        imageVector = if (lock.isLocked) Icons.Default.Lock else Icons.Default.LockOpen,
+                        imageVector = Icons.Default.ArrowBack,
+                        contentDescription = "Back",
+                        tint = TextWhite
+                    )
+                }
+                Text(
+                    text = device?.name ?: "Lock",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TextWhite,
+                    modifier = Modifier.weight(1f)
+                )
+
+            }
+
+            Spacer(modifier = Modifier.height(28.dp))
+
+            Box(
+                modifier = Modifier
+                    .size(150.dp)
+                    .scale(if (!isLocked) pulseScale else 1f)
+                    .clip(CircleShape)
+                    .background(
+                        if (isLocked) Color.White.copy(alpha = 0.12f)
+                        else Color(0xFF81C784).copy(alpha = 0.2f)
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Image(
+                    painter = painterResource(id = R.drawable.lock),
+                    contentDescription = "Lock",
+                    modifier = Modifier.size(120.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+
+            Text(
+                text = if (isLocked) "Locked" else "Unlocked",
+                fontSize = 23.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = if (isLocked) Color(0xFFEF9A9A) else Color(0xFF81C784)
+            )
+
+            statusMessage?.let {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = it,
+                    fontSize = 12.sp,
+                    color = TextWhite.copy(alpha = 0.7f)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                color = Color.White.copy(alpha = 0.15f)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    // Батарея
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = "Battery",
+                            fontSize = 16.sp,
+                            color = TextHint
+                        )
+                        val batteryColor = when {
+                            (device?.battery_level ?: 0) > 85 -> Color(0xFF81C784)
+                            (device?.battery_level ?: 0) > 50 -> Color(0xFFFFB74D)
+                            (device?.battery_level ?: 0) > 20 -> Color(0xFFFF7F4D)
+                            else -> Color(0xFFEF5350)
+                        }
+                        Text(
+                            text = "${device?.battery_level ?: 0}%",
+                            fontSize = 16.sp,
+                            color = batteryColor,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(6.dp)
+                            .clip(RoundedCornerShape(3.dp))
+                            .background(Color.White.copy(alpha = 0.15f))
+                    ) {
+                        val batteryLevel = device?.battery_level ?: 0
+                        val batteryColor = when {
+                            batteryLevel > 85 -> Color(0xFF81C784)
+                            batteryLevel > 50 -> Color(0xFFFFB74D)
+                            batteryLevel > 20 -> Color(0xFFFF7F4D)
+                            else -> Color(0xFFEF5350)
+                        }
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(batteryLevel / 100f)
+                                .fillMaxHeight()
+                                .clip(RoundedCornerShape(3.dp))
+                                .background(batteryColor)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+                    Divider(color = Color.White.copy(alpha = 0.1f))
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // Last seen
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(text = "Last opened", fontSize = 16.sp, color = TextHint)
+                        Text(
+                            text = device?.lastSeen ?: "—",
+                            fontSize = 16.sp,
+                            color = TextWhite
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Кнопка Unlock/Lock — главная
+            Button(
+                onClick = {
+                    scope.launch {
+                        isLoading = true
+                        statusMessage = "Requesting..."
+                        delay(1000)
+                        statusMessage = "Sending via BLE..."
+                        delay(800)
+                        isLocked = !isLocked
+                        statusMessage = if (!isLocked) "Unlocked successfully" else "Locked"
+                        isLoading = false
+                        delay(2000)
+                        statusMessage = null
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                enabled = !isLoading,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (isLocked)
+                        Color(0xFF81C784).copy(alpha = 0.9f)
+                    else
+                        Color(0xFFEF9A9A).copy(alpha = 0.9f),
+                    disabledContainerColor = Color.White.copy(alpha = 0.2f)
+                ),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(22.dp),
+                        strokeWidth = 2.dp,
+                        color = Color.White
+                    )
+                } else {
+                    Icon(
+                        imageVector = if (isLocked) Icons.Default.LockOpen else Icons.Default.Lock,
                         contentDescription = null,
-                        modifier = Modifier.size(64.dp),
-                        tint = if (lock.isLocked) Color.Red else Green40
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = if (isLocked) "Unlock" else "Lock",
+                        color = Color.White,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 16.sp
                     )
                 }
             }
 
-            Spacer(Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
-            Text(
-                text = lock.name,
-                style = MaterialTheme.typography.headlineLarge,
-                fontWeight = FontWeight.Bold
-            )
-
-            Surface(
-                color = if (isCurrentlyConnected) Green40 else Color.Gray,
-                shape = RoundedCornerShape(16.dp),
-                modifier = Modifier.padding(top = 8.dp)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Text(
-                    text = if (isCurrentlyConnected) "Connected" else "Offline",
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
-                    color = Color.White,
-                    style = MaterialTheme.typography.labelMedium
+                ActionButton(
+                    icon = Icons.Default.Pin,
+                    label = "Change PIN",
+                    onClick = { showChangePinSheet = true },
+                    modifier = Modifier.weight(1f)
+                )
+                ActionButton(
+                    icon = Icons.Default.Schedule,
+                    label = "Auto PIN",
+                    onClick = { navController.navigate(
+                        "auto_pin/${deviceId}/${device?.name ?: "Lock"}"
+                    ) },
+                    modifier = Modifier.weight(1f)
+                )
+                ActionButton(
+                    icon = Icons.Default.History,
+                    label = "Event Log",
+                    onClick = {
+                        navController.navigate(
+                            Screen.EventLog.createRoute(deviceId, device?.name ?: "Lock")
+                        )
+                    },
+                    modifier = Modifier.weight(1f)
                 )
             }
 
-            Spacer(Modifier.height(40.dp))
+            Spacer(modifier = Modifier.height(24.dp))
+        }
+    }
 
-            Text(
-                text = "Battery: ${lock.batteryLevel}%",
-                style = MaterialTheme.typography.bodyLarge,
-                color = if (lock.batteryLevel < 20) Color.Red else Color.Unspecified
-            )
-
-            Spacer(Modifier.height(56.dp))
-
-            Button(
-                onClick = { viewModel.toggleLock(lock.id) },
-                modifier = Modifier
-                    .fillMaxWidth(0.7f)
-                    .height(60.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (lock.isLocked) Green40 else Color.Red
-                ),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Text(
-                    text = if (lock.isLocked) "UNLOCK" else "LOCK",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = Color.White
-                )
+    if (showChangePinSheet) {
+        ChangePinBottomSheet(
+            lockName = device?.name ?: "Lock",
+            onDismiss = { showChangePinSheet = false },
+            onConfirm = { newPin ->
+                // TODO: отправить на сервер
             }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ActionButton(
+    icon: ImageVector,
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(16.dp),
+        color = Color.White.copy(alpha = 0.15f),
+        onClick = onClick
+    ) {
+        Column(
+            modifier = Modifier.padding(vertical = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = label,
+                tint = TextWhite,
+                modifier = Modifier.size(22.dp)
+            )
+            Text(
+                text = label,
+                fontSize = 13.sp,
+                color = TextWhite.copy(alpha = 0.9f),
+                fontWeight = FontWeight.Medium
+            )
         }
     }
 }

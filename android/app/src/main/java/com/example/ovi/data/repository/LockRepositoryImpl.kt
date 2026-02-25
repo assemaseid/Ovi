@@ -3,8 +3,6 @@ package com.example.ovi.data.repository
 import com.example.ovi.data.api.LockService
 import com.example.ovi.data.dto.UnlockTokenRequest
 import com.example.ovi.data.local.dao.LockDao
-import com.example.ovi.data.mapper.toDomain
-import com.example.ovi.data.mapper.toEntity
 import com.example.ovi.data.mapper.toLockDomain
 import com.example.ovi.data.mapper.toLockEntity
 import com.example.ovi.domain.ble.BleManager
@@ -27,9 +25,7 @@ class LockRepositoryImpl @Inject constructor(
 
     override suspend fun unlock(lockId: String): Boolean {
         return try {
-
             val request = UnlockTokenRequest(device_uuid = lockId)
-
             val response = lockService.getUnlockToken(request)
 
             if (!response.isSuccessful || response.body() == null) {
@@ -38,14 +34,13 @@ class LockRepositoryImpl @Inject constructor(
 
             val body = response.body() ?: return false
 
-
             val bleCommandJson = """
                 {
                    "v": 1,
                    "t": "unlock",
                    "n": "${body.token.nonce}",
                    "e": ${body.token.expires_at},
-                   "s": "${body.signature.value}" 
+                   "s": "${body.signature.value}"
                 }
             """.trimIndent()
 
@@ -62,7 +57,7 @@ class LockRepositoryImpl @Inject constructor(
             bleSuccess
         } catch (e: Exception) {
             e.printStackTrace()
-            return false
+            false
         }
     }
 

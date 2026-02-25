@@ -8,7 +8,5 @@ import dagger.hilt.android.HiltAndroidApp
 class OviApplication : Application() {
 
 //    hilt изучить
-    //создать объект классов ViewModel, Repository
-//    did not create but rey to call
-//    needed AppModule with Single tone
+
 }

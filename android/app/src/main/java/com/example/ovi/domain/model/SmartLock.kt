@@ -6,7 +6,7 @@ data class SmartLock(
     val ownerUuid: String,
     val name: String,
     val publicKey: String,
-    val batteryLevel: Int, // 0-100%
+    val batteryLevel: Int,
     val isLocked: Boolean,
     val firmwareVersion: String?,
     val lastSynced: Long

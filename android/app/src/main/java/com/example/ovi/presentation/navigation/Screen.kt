@@ -6,6 +6,9 @@ sealed class Screen(val route: String) {
     object Main : Screen("main_screen")
     object Personal : Screen("personal_screen")
 
-    object DeviceList : Screen("device_list_screen")
-    object Device : Screen("device_screen")
+    object EventLog : Screen("event_log/{lockId}/{lockName}") {
+        fun createRoute(lockId: String, lockName: String) = "event_log/$lockId/$lockName"
+    }
+
+
 }

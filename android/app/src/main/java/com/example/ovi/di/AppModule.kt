@@ -7,9 +7,9 @@ import com.example.ovi.data.api.AuthService
 import com.example.ovi.data.api.LockService
 import com.example.ovi.data.ble.AndroidBleManager
 import com.example.ovi.data.local.SessionManager
+import com.example.ovi.data.local.database.AppDatabase
 import com.example.ovi.data.local.dao.EventDao
 import com.example.ovi.data.local.dao.LockDao
-import com.example.ovi.data.local.database.AppDatabase
 import com.example.ovi.data.repository.AuthRepositoryImpl
 import com.example.ovi.data.repository.EventRepositoryImpl
 import com.example.ovi.data.repository.LockRepositoryImpl
@@ -99,10 +99,9 @@ object AppModule {
     @Singleton
     fun provideAuthRepository(
         authService: AuthService,
-        database: AppDatabase,
         sessionManager: SessionManager
     ): AuthRepository {
-        return AuthRepositoryImpl(authService, database,sessionManager)
+        return AuthRepositoryImpl(authService,sessionManager)
     }
 
     @Provides

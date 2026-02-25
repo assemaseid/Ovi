@@ -6,15 +6,16 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import com.example.ovi.data.local.dao.*
 import com.example.ovi.data.local.entity.*
+import com.example.ovi.data.local.entity.LockEntity
+
 
 @Database(
-    entities = [UserEntity::class, EventEntity:: class, LockEntity::class],
-    version = 3,
+    entities = [EventEntity:: class, LockEntity::class],
+    version = 4,
     exportSchema = false
 )
 
 abstract class AppDatabase: RoomDatabase() {
-    abstract fun userDao(): UserDao
     abstract fun eventDao(): EventDao
     abstract fun lockDao(): LockDao
 

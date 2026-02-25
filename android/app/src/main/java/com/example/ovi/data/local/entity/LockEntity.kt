@@ -5,7 +5,7 @@ import androidx.room.PrimaryKey
 
 @Entity(tableName = "locks")
 data class LockEntity(
-    @PrimaryKey val id: String,
+    @PrimaryKey val deviceId: String,
     val hardwareId: String,
     val ownerUuid: String,
     val name: String,
