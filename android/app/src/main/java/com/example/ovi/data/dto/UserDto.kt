@@ -12,9 +12,4 @@ data class UserDto(
     @SerializedName("name")
     val name: String?,
 
-    @SerializedName("created_at")
-    val createdAt: Long?,
-
-    @SerializedName("last_login")
-    val lastLogin: Long?
 )

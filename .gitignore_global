@@ -1,0 +1,12 @@
+# Android / Gradle
+**/.gradle
+**/build
+**/.idea
+**/.kotlin
+
+# Local config
+local.properties
+
+# OS
+.DS_Store
+

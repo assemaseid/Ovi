@@ -7,10 +7,9 @@ import com.example.ovi.data.api.AuthService
 import com.example.ovi.data.api.LockService
 import com.example.ovi.data.ble.AndroidBleManager
 import com.example.ovi.data.local.SessionManager
-//import com.example.ovi.data.local.database.AppDatabase
+import com.example.ovi.data.local.database.AppDatabase
 import com.example.ovi.data.local.dao.EventDao
 import com.example.ovi.data.local.dao.LockDao
-import com.example.ovi.data.local.database.AppDatabase
 import com.example.ovi.data.repository.AuthRepositoryImpl
 import com.example.ovi.data.repository.EventRepositoryImpl
 import com.example.ovi.data.repository.LockRepositoryImpl
@@ -57,7 +56,7 @@ object AppModule {
     @Singleton
     fun provideRetrofit(okHttpClient: OkHttpClient): Retrofit {
         return Retrofit.Builder()
-            .baseUrl("http://10.0.2.2:8000/api/v1/auth/")
+            .baseUrl("http://10.0.2.2:8000/api/v1/")
             .client(okHttpClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
@@ -69,13 +68,13 @@ object AppModule {
         return retrofit.create(AuthService::class.java)
     }
 
-//    @Provides
-//    @Singleton
-//    fun provideAppDatabase(
-//        @ApplicationContext context: Context
-//    ): AppDatabase {
-//        return AppDatabase.getDatabase(context)
-//    }
+    @Provides
+    @Singleton
+    fun provideAppDatabase(
+        @ApplicationContext context: Context
+    ): AppDatabase {
+        return AppDatabase.getDatabase(context)
+    }
 
     @Provides
     @Singleton

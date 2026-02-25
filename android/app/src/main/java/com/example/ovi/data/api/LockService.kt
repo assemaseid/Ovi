@@ -6,9 +6,9 @@ import retrofit2.http.POST
 import retrofit2.Response
 
 interface LockService {
-    @POST("api/v1/devices/register")
+    @POST("devices/register")
     suspend fun registerDevice(@Body request: DeviceRegistrationRequest): Response<DeviceRegistrationResponse>
 
-    @POST("api/v1/commands/unlock")
+    @POST("commands/unlock")
     suspend fun getUnlockToken(@Body request: UnlockTokenRequest): Response<UnlockTokenResponse>
 }

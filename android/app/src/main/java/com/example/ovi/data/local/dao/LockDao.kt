@@ -13,7 +13,7 @@ interface LockDao {
     @Query("SELECT * FROM locks")
     fun getAllLocks(): Flow<List<LockEntity>>
 
-    @Query("SELECT * FROM locks WHERE id = :lockId LIMIT 1")
+    @Query("SELECT * FROM locks WHERE deviceId = :lockId LIMIT 1")
     suspend fun getLockById(lockId: String): LockEntity?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -22,6 +22,6 @@ interface LockDao {
     @Update
     suspend fun updateLock(lock: LockEntity)
 
-    @Query("DELETE FROM locks WHERE id = :lockId")
+    @Query("DELETE FROM locks WHERE deviceId = :lockId")
     suspend fun deleteLock(lockId: String)
 }

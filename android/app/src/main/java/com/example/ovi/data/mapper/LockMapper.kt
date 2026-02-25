@@ -5,7 +5,7 @@ import com.example.ovi.domain.model.SmartLock
 
 fun LockEntity.toLockDomain(): SmartLock {
     return SmartLock(
-        id = this.id,
+        id = this.deviceId,
         hardwareId = this.hardwareId,
         ownerUuid = this.ownerUuid,
         name = this.name,
@@ -19,7 +19,7 @@ fun LockEntity.toLockDomain(): SmartLock {
 
 fun SmartLock.toLockEntity(): LockEntity {
     return LockEntity(
-        id = this.id,
+        deviceId = this.id,
         hardwareId = this.hardwareId,
         ownerUuid = this.ownerUuid,
         name = this.name,
