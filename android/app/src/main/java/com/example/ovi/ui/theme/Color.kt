@@ -10,13 +10,15 @@ val Purple40 = Color(0xFF6650a4)
 val PurpleGrey40 = Color(0xFF625b71)
 val Pink40 = Color(0xFF7D5260)
 
-
-val DeepBlue = Color(0xFF1E2A78)      // #1E2A78
-val TechnologyBlue = Color(0xFF2F3E9E) // #2F3E9E
-val NeonBlue = Color(0xFF00B7FF)      // #00B7FF
-val BrightBlue = Color(0xFF0099F7)    // #0099F7
-val LightGray = Color(0xFFF5F6FA)     // #F5F6FA
-val DarkBackground = Color(0xFF10131A) // #10131A
-val LightError = Color(0xFFD32F2F)
-val DarkSurface = Color(0xFF1E1E1E)
-val DarkError = Color(0xFFCF6679)
+val BgTop = Color(0xFF328EDE)
+val BgMiddle = Color(0xFF7EC8E3)
+val BgBottom = Color(0xFFBDEBFC)
+val AccentBlue = Color(0xFF2E6FA3)
+val TextWhite = Color.White
+val TextHint = Color.White.copy(alpha = 0.6f)
+val ErrorRed = Color(0xFFFF6B6B)
+val BorderUnfocused = Color.White.copy(alpha = 0.5f)
+val BorderFocused = Color.White
+val InputText = Color(0xFF1A3A52)
+val SignInBtn = Color(0xFF2E7DBF).copy(alpha = 0.6f)
+val CardBackground = Color(0xFF3A85B8).copy(alpha = 0.45f)

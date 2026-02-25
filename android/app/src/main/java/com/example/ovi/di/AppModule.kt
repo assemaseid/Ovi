@@ -5,7 +5,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import com.example.ovi.data.api.AuthService
 import com.example.ovi.data.local.SessionManager
-import com.example.ovi.data.local.database.AppDatabase
+//import com.example.ovi.data.local.database.AppDatabase
 import com.example.ovi.data.repository.AuthRepositoryImpl
 import com.example.ovi.domain.repository.AuthRepository
 import dagger.Module
@@ -14,7 +14,6 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import okhttp3.OkHttpClient
-import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
@@ -26,22 +25,29 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideOkHttpClient(): OkHttpClient {
-        val loggingInterceptor = HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BODY
-        }
+    fun provideOkHttpClient(sessionManager: SessionManager): OkHttpClient {
         return OkHttpClient.Builder()
-            .addInterceptor (loggingInterceptor)
-            .connectTimeout(30, TimeUnit. SECONDS)
+            .addInterceptor { chain ->
+                val token = sessionManager.getJwtToken()
+                val request = if (token != null) {
+                    chain.request().newBuilder()
+                        .addHeader("Authorization", "Bearer $token")
+                        .build()
+                } else {
+                    chain.request()
+                }
+                chain.proceed(request)
+            }
+
+            .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
-            .writeTimeout(30, TimeUnit.SECONDS)
             .build()
     }
     @Provides
     @Singleton
     fun provideRetrofit(okHttpClient: OkHttpClient): Retrofit {
         return Retrofit.Builder()
-            .baseUrl("https://api.com/")  // change URL
+            .baseUrl("http://10.0.2.2:8000/api/v1/auth/")
             .client(okHttpClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
@@ -53,13 +59,13 @@ object AppModule {
         return retrofit.create(AuthService::class.java)
     }
 
-    @Provides
-    @Singleton
-    fun provideAppDatabase(
-        @ApplicationContext context: Context
-    ): AppDatabase {
-        return AppDatabase.getDatabase(context)
-    }
+//    @Provides
+//    @Singleton
+//    fun provideAppDatabase(
+//        @ApplicationContext context: Context
+//    ): AppDatabase {
+//        return AppDatabase.getDatabase(context)
+//    }
 
     @Provides
     @Singleton
@@ -84,9 +90,8 @@ object AppModule {
     @Singleton
     fun provideAuthRepository(
         authService: AuthService,
-        database: AppDatabase,
         sessionManager: SessionManager
     ): AuthRepository {
-        return AuthRepositoryImpl(authService, database,sessionManager)
+        return AuthRepositoryImpl(authService,sessionManager)
     }
 }

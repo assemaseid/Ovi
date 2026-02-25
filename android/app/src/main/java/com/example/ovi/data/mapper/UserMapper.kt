@@ -1,25 +1,13 @@
 package com.example.ovi.data.mapper
 
-import com.example.ovi.data.local.entity.UserEntity
+import com.example.ovi.data.dto.UserDto
 import com.example.ovi.domain.model.User
 
-fun UserEntity.toDomain(): User {
+fun UserDto.toDomain(jwtToken: String? = null): User {
     return User(
-        id = id,
-        email = email,
-        name = name,
+        id = this.id,
+        email = this.email,
+        name = this.name ?: "User",
         jwtToken = jwtToken
-    )
-}
-
-fun User.toEntity(): UserEntity {
-    return UserEntity(
-        id = id,
-        email = email,
-        name = name,
-        passwordHash = "",
-        jwtToken = jwtToken,
-        lastLogin = System.currentTimeMillis(),
-        createdAt = System.currentTimeMillis()
     )
 }

@@ -2,9 +2,8 @@ package com.example.ovi.presentation.navigation
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bluetooth
-import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.ui.graphics.vector.ImageVector
 
 sealed class BottomNavItem (
@@ -15,12 +14,7 @@ sealed class BottomNavItem (
     object Devices : BottomNavItem(
         route = "devices",
         title = "Locks",
-        icon = Icons.Default.List
-    )
-    object Settings : BottomNavItem(
-        route = "settings",
-        title = "Settings",
-        icon = Icons.Default.Settings
+        icon = Icons.Default.Lock
     )
     object Bluetooth : BottomNavItem(
         route = "bluetooth",
