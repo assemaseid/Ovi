@@ -76,7 +76,6 @@ fun DeviceScreen(
         ) {
             Spacer(modifier = Modifier.height(48.dp))
 
-            // TopBar
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
@@ -145,7 +144,6 @@ fun DeviceScreen(
                 color = Color.White.copy(alpha = 0.15f)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    // Батарея
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
@@ -196,7 +194,6 @@ fun DeviceScreen(
                     Divider(color = Color.White.copy(alpha = 0.1f))
                     Spacer(modifier = Modifier.height(14.dp))
 
-                    // Last seen
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
@@ -216,7 +213,6 @@ fun DeviceScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Кнопка Unlock/Lock — главная
             Button(
                 onClick = {
                     scope.launch {

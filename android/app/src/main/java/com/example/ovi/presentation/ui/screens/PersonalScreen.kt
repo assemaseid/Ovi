@@ -109,7 +109,6 @@ fun PersonalScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // Карточка с данными
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(20.dp),

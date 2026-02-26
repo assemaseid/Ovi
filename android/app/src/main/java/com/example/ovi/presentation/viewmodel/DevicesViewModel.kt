@@ -25,6 +25,7 @@ class DevicesViewModel: ViewModel(){
     }
 }
 
+//на потом когда бэк будет готов уберу хардкод
 //import androidx.lifecycle.ViewModel
 //import androidx.lifecycle.viewModelScope
 //import com.example.ovi.data.local.dao.LockDao

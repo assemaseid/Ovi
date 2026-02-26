@@ -82,7 +82,6 @@ fun DevicesListScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             if (devices.isEmpty()) {
-                // Пустое состояние
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
@@ -151,7 +150,6 @@ fun LockCard(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // Верх — иконка замка + батарейка
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,

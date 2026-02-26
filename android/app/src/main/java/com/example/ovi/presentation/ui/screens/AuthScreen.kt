@@ -23,7 +23,6 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.ovi.R
 import com.example.ovi.presentation.viewmodel.AuthViewModel
-import com.example.ovi.ui.theme.AccentBlue
 import com.example.ovi.ui.theme.BgBottom
 import com.example.ovi.ui.theme.BgMiddle
 import com.example.ovi.ui.theme.BgTop
@@ -66,7 +65,6 @@ fun AuthScreen(
                 )
             )
     ) {
-        // Декоративный круг
         Box(
             modifier = Modifier
                 .size(350.dp)
@@ -88,7 +86,6 @@ fun AuthScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            // Логотип
             Image(
                 painter = painterResource(id = R.drawable.ovi),
                 contentDescription = "OVI Logo",
@@ -107,7 +104,6 @@ fun AuthScreen(
 
             Spacer(modifier = Modifier.height(36.dp))
 
-            // Карточка
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(24.dp),
@@ -164,7 +160,6 @@ fun AuthScreen(
                         )
                     }
 
-                    // Кнопка Sign In / Create Account
                     Button(
                         onClick = {
                             if (isLoginMode) viewModel.login(email, password)
@@ -198,7 +193,6 @@ fun AuthScreen(
                         }
                     }
 
-                    // Кнопка Sign Up / Back
                     Button(
                         onClick = {
                             isLoginMode = !isLoginMode
@@ -222,7 +216,6 @@ fun AuthScreen(
                 }
             }
 
-            // Skip
             TextButton(
                 onClick = { onNavigateToMain() },
                 modifier = Modifier.padding(top = 16.dp)

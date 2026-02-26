@@ -30,7 +30,6 @@ fun AutoPinScreen(
     lockName: String,
     onBack: () -> Unit
 ) {
-    // Тестовые данные — потом подключишь через ViewModel
     var currentPin by remember { mutableStateOf("••••••") }
     var pinVisible by remember { mutableStateOf(false) }
     var isLoadingPin by remember { mutableStateOf(false) }
@@ -40,7 +39,6 @@ fun AutoPinScreen(
     var isSaving by remember { mutableStateOf(false) }
     var saveSuccess by remember { mutableStateOf(false) }
 
-    // Следующая ротация — текущее время + выбранный период
     val nextRotation = remember(selectedHours) {
         System.currentTimeMillis() + selectedHours * 60 * 60 * 1000L
     }
@@ -64,7 +62,6 @@ fun AutoPinScreen(
         ) {
             Spacer(modifier = Modifier.height(48.dp))
 
-            // Top bar
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -95,7 +92,6 @@ fun AutoPinScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // --- Карточка текущего PIN ---
             Column(modifier = Modifier.padding(horizontal = 16.dp)) {
 
                 Surface(
@@ -128,7 +124,6 @@ fun AutoPinScreen(
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        // PIN display
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -152,7 +147,6 @@ fun AutoPinScreen(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            // Показать / скрыть PIN
                             OutlinedButton(
                                 onClick = { pinVisible = !pinVisible },
                                 modifier = Modifier.weight(1f).height(44.dp),
@@ -177,12 +171,10 @@ fun AutoPinScreen(
                                 )
                             }
 
-                            // Обновить PIN с сервера
                             Button(
                                 onClick = {
                                     isLoadingPin = true
                                     // TODO: viewModel.fetchCurrentPin(lockId)
-                                    // Имитация загрузки
                                     currentPin = "482917"
                                     pinVisible = true
                                     isLoadingPin = false
@@ -214,7 +206,6 @@ fun AutoPinScreen(
 
                         Spacer(modifier = Modifier.height(12.dp))
 
-                        // Следующая ротация
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -241,7 +232,6 @@ fun AutoPinScreen(
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                // --- Карточка настроек ---
                 Surface(
                     shape = RoundedCornerShape(20.dp),
                     color = Color.White.copy(alpha = 0.12f),
@@ -269,7 +259,6 @@ fun AutoPinScreen(
                             )
                         }
 
-                        // Период ротации
                         Text(
                             text = "Rotation period",
                             fontSize = 14.sp,
@@ -310,42 +299,40 @@ fun AutoPinScreen(
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        // Показывать на дисплее замка
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = "Show PIN on lock display",
-                                    fontSize = 15.sp,
-                                    color = TextWhite,
-                                    fontWeight = FontWeight.Medium
-                                )
-                                Text(
-                                    text = "Display new PIN for 10 sec after rotation",
-                                    fontSize = 12.sp,
-                                    color = TextWhite.copy(alpha = 0.45f),
-                                    modifier = Modifier.padding(top = 2.dp)
-                                )
-                            }
-                            Switch(
-                                checked = showOnDisplay,
-                                onCheckedChange = { showOnDisplay = it },
-                                colors = SwitchDefaults.colors(
-                                    checkedThumbColor = Color.White,
-                                    checkedTrackColor = AccentBlue,
-                                    uncheckedThumbColor = Color.White.copy(alpha = 0.6f),
-                                    uncheckedTrackColor = Color.White.copy(alpha = 0.15f)
-                                )
-                            )
-                        }
+//                        Row(
+//                            modifier = Modifier.fillMaxWidth(),
+//                            verticalAlignment = Alignment.CenterVertically
+//                        ) {
+//                            Column(modifier = Modifier.weight(1f)) {
+//                                Text(
+//                                    text = "Show PIN on lock display",
+//                                    fontSize = 15.sp,
+//                                    color = TextWhite,
+//                                    fontWeight = FontWeight.Medium
+//                                )
+//                                Text(
+//                                    text = "Display new PIN for 10 sec after rotation",
+//                                    fontSize = 12.sp,
+//                                    color = TextWhite.copy(alpha = 0.45f),
+//                                    modifier = Modifier.padding(top = 2.dp)
+//                                )
+//                            }
+//                            Switch(
+//                                checked = showOnDisplay,
+//                                onCheckedChange = { showOnDisplay = it },
+//                                colors = SwitchDefaults.colors(
+//                                    checkedThumbColor = Color.White,
+//                                    checkedTrackColor = AccentBlue,
+//                                    uncheckedThumbColor = Color.White.copy(alpha = 0.6f),
+//                                    uncheckedTrackColor = Color.White.copy(alpha = 0.15f)
+//                                )
+//                            )
+//                        }
                     }
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Кнопка Save
                 AnimatedVisibility(visible = saveSuccess) {
                     Box(
                         modifier = Modifier

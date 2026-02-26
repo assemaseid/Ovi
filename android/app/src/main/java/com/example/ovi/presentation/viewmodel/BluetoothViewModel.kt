@@ -76,7 +76,6 @@ class BluetoothViewModel @Inject constructor(
                         }
                     }
                 } catch (e: Exception) {
-                    // Backend unavailable — device will still be saved locally
                 }
 
                 val newLock = SmartLock(
