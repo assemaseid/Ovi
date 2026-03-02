@@ -3,6 +3,7 @@ package com.example.ovi.di
 import android.app.Application
 import android.content.Context
 import android.content.SharedPreferences
+import android.net.ConnectivityManager
 import com.example.ovi.data.api.AuthService
 import com.example.ovi.data.api.LockService
 import com.example.ovi.data.ble.AndroidBleManager
@@ -47,11 +48,12 @@ object AppModule {
                 }
                 chain.proceed(request)
             }
-
-            .connectTimeout(30, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
+            .connectTimeout(10, TimeUnit.SECONDS)
+            .readTimeout(10, TimeUnit.SECONDS)
+            .writeTimeout(10, TimeUnit.SECONDS)
             .build()
     }
+
     @Provides
     @Singleton
     fun provideRetrofit(okHttpClient: OkHttpClient): Retrofit {
@@ -64,45 +66,36 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideAuthService(retrofit: Retrofit): AuthService {
-        return retrofit.create(AuthService::class.java)
-    }
+    fun provideAuthService(retrofit: Retrofit): AuthService = retrofit.create(AuthService::class.java)
 
     @Provides
     @Singleton
-    fun provideAppDatabase(
-        @ApplicationContext context: Context
-    ): AppDatabase {
-        return AppDatabase.getDatabase(context)
-    }
+    fun provideLockService(retrofit: Retrofit): LockService = retrofit.create(LockService::class.java)
 
     @Provides
     @Singleton
-    fun provideSharedPreferences(
-        application: Application
-    ): SharedPreferences {
-        return application.getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
-    }
-
-
+    fun provideAppDatabase(@ApplicationContext context: Context): AppDatabase =
+        AppDatabase.getDatabase(context)
 
     @Provides
     @Singleton
-    fun provideSessionManager(
-        sharedPreferences: SharedPreferences
-    ): SessionManager {
-        return SessionManager(sharedPreferences)
-    }
-
+    fun provideSharedPreferences(application: Application): SharedPreferences =
+        application.getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
 
     @Provides
     @Singleton
-    fun provideAuthRepository(
-        authService: AuthService,
-        sessionManager: SessionManager
-    ): AuthRepository {
-        return AuthRepositoryImpl(authService,sessionManager)
-    }
+    fun provideSessionManager(sharedPreferences: SharedPreferences): SessionManager =
+        SessionManager(sharedPreferences)
+    
+    @Provides
+    @Singleton
+    fun provideConnectivityManager(@ApplicationContext context: Context): ConnectivityManager =
+        context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+
+    @Provides
+    @Singleton
+    fun provideAuthRepository(authService: AuthService, sessionManager: SessionManager): AuthRepository =
+        AuthRepositoryImpl(authService, sessionManager)
 
     @Provides
     @Singleton
@@ -114,7 +107,13 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideLockRepository(ls: LockService, bm: BleManager, ld: LockDao): LockRepository = LockRepositoryImpl(ls, bm, ld)
+    fun provideLockRepository(
+        ls: LockService,
+        bm: BleManager,
+        ld: LockDao,
+        sm: SessionManager,
+        cm: ConnectivityManager
+    ): LockRepository = LockRepositoryImpl(ls, bm, ld, sm, cm)
 
     @Provides
     @Singleton
@@ -122,15 +121,6 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideBleManager(@ApplicationContext context: Context): BleManager {
-        return AndroidBleManager(context)
-    }
-
-    @Provides
-    @Singleton
-    fun provideLockService(retrofit: Retrofit): LockService {
-        return retrofit.create(LockService::class.java)
-    }
-
-
+    fun provideBleManager(@ApplicationContext context: Context): BleManager =
+        AndroidBleManager(context)
 }

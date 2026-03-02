@@ -107,6 +107,13 @@ fun DevicesListScreen(
                             color = TextWhite.copy(alpha = 0.35f),
                             fontSize = 13.sp
                         )
+                        TextButton(onClick = { viewModel.seedTestData() }) {
+                            Text(
+                                text = "Seed test data",
+                                color = TextWhite.copy(alpha = 0.45f),
+                                fontSize = 12.sp
+                            )
+                        }
                     }
                 }
             } else {

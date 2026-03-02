@@ -63,3 +63,10 @@ data class BleData(
     val fw_version: String,
     val battery_level: Int
 )
+
+data class PinChangeRequest(val new_pin: String)
+
+data class PinChangeResponse(
+    val status: String,
+    val message: String
+)

@@ -25,6 +25,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.BluetoothSearching
 import androidx.compose.material.icons.filled.CheckCircle
@@ -49,6 +50,7 @@ import kotlinx.coroutines.launch
 @SuppressLint("MissingPermission")
 @Composable
 fun BluetoothScreen(
+    onBack: () -> Unit = {},
     viewModel: BluetoothViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
@@ -131,15 +133,26 @@ fun BluetoothScreen(
             Spacer(Modifier.height(48.dp))
 
             // Заголовок
-            Text(
-                text = "Pair Lock",
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Bold,
-                color = TextWhite,
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 32.dp)
-            )
+                    .padding(bottom = 32.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = onBack) {
+                    Icon(
+                        imageVector = Icons.Default.ArrowBack,
+                        contentDescription = "Back",
+                        tint = TextWhite
+                    )
+                }
+                Text(
+                    text = "Pair Lock",
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TextWhite
+                )
+            }
 
             // Иконка с анимацией пульса
             Box(
