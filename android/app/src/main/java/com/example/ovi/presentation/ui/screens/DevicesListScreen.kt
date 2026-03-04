@@ -166,7 +166,7 @@ fun LockCard(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(100.dp)
+                        .size(80.dp)
                         .clip(RoundedCornerShape(12.dp))
                         .background(Color.White.copy(alpha = 0.08f)),
                     contentAlignment = Alignment.Center
@@ -187,17 +187,6 @@ fun LockCard(
                     color = TextWhite,
                     maxLines = 1
                 )
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(6.dp)
-                            .clip(RoundedCornerShape(50))
-                    )
-
-                }
                 BatteryIndicator(level = device.battery_level)
 
             }
