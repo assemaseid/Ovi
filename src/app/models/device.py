@@ -13,6 +13,7 @@ class Device(Base):
     #IDs
     device_uuid: Mapped[uuid_pk]
     hardware_id: Mapped[str_64] = mapped_column(unique=True)
+    hw_version: Mapped[str]
 
     owner_uuid: Mapped[Optional[uuid_fk]] = mapped_column(ForeignKey("users.id"))
 
