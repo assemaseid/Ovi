@@ -1911,17 +1911,6 @@ rediscluster = ["redis (>=4.2.0,!=4.5.2,!=4.5.3)"]
 valkey = ["valkey (>=6)"]
 
 [[package]]
-name = "logger"
-version = "1.4"
-description = "Python logging helper"
-optional = false
-python-versions = "*"
-groups = ["main"]
-files = [
-    {file = "logger-1.4.tar.gz", hash = "sha256:4ecac57133c6376fa215f0fe6b4dc4d60e4d1ad8be005cab4e8a702df682f8b3"},
-]
-
-[[package]]
 name = "logging"
 version = "0.4.9.6"
 description = "A logging module for Python"
@@ -4154,4 +4143,4 @@ propcache = ">=0.2.1"
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12,<4.0"
-content-hash = "cd45a7e062d241ce38a64394a23f3cc72fe320592803fbdb98914874d37d5f7f"
+content-hash = "ebc1f3d8486a895aa626d7e64b25c8440d9dc94a5a5e733c196d2e947806ac4a"
