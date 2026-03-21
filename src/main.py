@@ -5,16 +5,16 @@ from src.app.api.v1 import auth
 from starlette.middleware.cors import CORSMiddleware
 
 from src.app.queries.orm import AsyncOrm
-from src.app.services.device_service import mqtt_service
+from src.app.services import mqtt_service
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await AsyncOrm.create_tables()
     await AsyncOrm.insert_users()
-    await mqtt_service.connect()
-    await mqtt_service.subscribe("devices/#")
+    # await mqtt_service.connect()
+    # await mqtt_service.subscribe("devices/#")
+    # await mqtt_service.disconnect()
     yield
-    await mqtt_service.disconnect()
 
 def create_app() -> FastAPI:
     api_v1 = APIRouter(prefix="/api/v1")
