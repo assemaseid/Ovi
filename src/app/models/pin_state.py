@@ -20,3 +20,5 @@ class PinState(Base):
     grace_until: Mapped[datetime]
     rotation_counter: Mapped[int] = mapped_column(default=0)
     updated_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+    # device: Mapped["Device"] = relationship(back_populates="pin_state")
