@@ -1,4 +1,4 @@
-from sqlalchemy import func, ForeignKey
+from sqlalchemy import func, ForeignKey, DateTime
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.dialects.postgresql import JSONB
 from typing import Optional
@@ -17,11 +17,8 @@ class Grant(Base):
     permissions: Mapped[list] = mapped_column(
         JSONB, default=lambda: ["read_status", "unlock"]
     )
-    valid_from: Mapped[datetime] = mapped_column(server_default=func.now())
-    valid_until: Mapped[datetime]
+    valid_from: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now())
+    valid_until: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     created_by: Mapped[uuid_fk] = mapped_column(ForeignKey("users.user_uuid"))
-    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
-
-    # device: Mapped[Optional["Device"]] = relationship(back_populates="grants")
-    # user: Mapped[Optional["User"]] = relationship(foreign_keys=[user_uuid], back_populates="grants")
-    # creator: Mapped[Optional["User"]] = relationship(foreign_keys=[created_by], back_populates="grants_created")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

@@ -1,3 +1,4 @@
+from uuid import UUID
 import hashlib
 from datetime import datetime
 
@@ -50,16 +51,16 @@ async def validate_user_auth(
         raise unauthed_exec
     
     if not jwt_password.validate_pwd(
-             password=login_data.password,
-             hashed_password=user.password
+             password=login_data.hashed_password,
+             hashed_password=user.hashed_password
              ):
         raise unauthed_exec
     
-    # if not user.is_active:
-    #     raise HTTPException(
-    #         status_code=status.HTTP_403_FORBIDDEN,
-    #         detail="user inactive",
-    #     )
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="user inactive",
+        )
          
     return UserResponseSchema.model_validate(user)
 
@@ -77,11 +78,10 @@ async def register_user(
             detail="email already exist",
         )
 
-    hashed_password = jwt_password.hash_password(user_data.password)
+    hashed_password = jwt_password.hash_password(user_data.hashed_password)
 
     new_user = User(
-        name=user_data.name,
-        password=hashed_password,
+        hashed_password=hashed_password,
         email=user_data.email,
     )
     session.add(new_user)
@@ -102,7 +102,6 @@ async def refresh_access_token(session: SessionDep,
                                refresh_token_request: RefreshTokenRequest):
     try:
         payload = jwt_utils.decode_jwt(refresh_token_request.refresh_token)
-        print(payload, "\n\n\n\n")
 
         if payload.get("type") != "refresh":
             raise HTTPException(
@@ -110,8 +109,8 @@ async def refresh_access_token(session: SessionDep,
                 detail="invalid token type",
             )
 
-        user_id = int(payload.get("sub"))
-        result = await session.execute(select(User).where(User.id == user_id))
+        user_uuid = UUID(payload.get("sub"))
+        result = await session.execute(select(User).where(User.user_uuid == user_uuid))
         user = result.scalars().first()
 
         if not user:
@@ -131,14 +130,14 @@ async def refresh_access_token(session: SessionDep,
             detail=str(e),
         )
 
-"""Logout с добавлнием refresh_token в blacklist"""
+"""Logout с добавлением refresh_token в blacklist"""
 @router.post("/logout/")
 async def logout(session: SessionDep,
                  refresh_token_request: RefreshTokenRequest):
     ...
     try:
         payload = jwt_utils.decode_jwt(refresh_token_request.refresh_token)
-        user_id = int(payload.get("sub"))
+        user_uuid = UUID(payload.get("sub"))
         exp_timestamp = payload.get("exp")
 
         token_hash = hashlib.sha256(
@@ -151,7 +150,7 @@ async def logout(session: SessionDep,
 
         if not existing.scalars().first():
             blacklisted = TokenBlacklist(
-                user_id=user_id,
+                user_uuid=user_uuid,
                 token_hash=token_hash,
                 expires_at=datetime.fromtimestamp(exp_timestamp),
             )
@@ -160,7 +159,7 @@ async def logout(session: SessionDep,
 
         return {
             "message": "Successfully logged out",
-            "user_id": f"{user_id}",
+            "user_uuid": f"{user_uuid}",
         }
 
     except Exception as e:

@@ -1,4 +1,6 @@
 from typing import Annotated
+from uuid import UUID
+
 from annotated_types import MinLen, MaxLen
 from pydantic import (
     BaseModel,
@@ -8,16 +10,14 @@ from pydantic import (
 
 # for incoming data (registration, creating user)
 class UserCreateSchema(BaseModel):
-    name: Annotated[str, MinLen(3), MaxLen(20)]
     email: EmailStr
-    password: Annotated[str, MinLen(8)]
+    hashed_password: Annotated[str, MinLen(8)]
 
 # for outgoing data (what is returned to the client)
 class UserResponseSchema(BaseModel):
-    id: int
-    name: str
+    user_uuid: UUID
     email: EmailStr | None = None
-    # is_active: bool
+    is_active: bool
 
     model_config = ConfigDict(from_attributes=True)
 
