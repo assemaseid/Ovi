@@ -14,7 +14,7 @@ class Device(Base):
     __tablename__ = "devices"
 
     device_uuid: Mapped[uuid_pk]
-    hardware_id: Mapped[str]
+    hardware_id: Mapped[str] = mapped_column(unique=True, nullable=False)
     public_key: Mapped[str] = mapped_column(Text)
     owner_uuid: Mapped[uuid_fk] = mapped_column(ForeignKey("users.user_uuid"))
     config: Mapped[dict] = mapped_column(JSONB, default=dict)
