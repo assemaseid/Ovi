@@ -134,7 +134,6 @@ async def refresh_access_token(session: SessionDep,
 @router.post("/logout/")
 async def logout(session: SessionDep,
                  refresh_token_request: RefreshTokenRequest):
-    ...
     try:
         payload = jwt_utils.decode_jwt(refresh_token_request.refresh_token)
         user_uuid = UUID(payload.get("sub"))
