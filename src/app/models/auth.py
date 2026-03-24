@@ -4,16 +4,16 @@ from typing import Optional
 from sqlalchemy import Integer, String, DateTime, func, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column
 
-from src.database import Base, uuid_fk
+from src.database import Base, uuid_fk, str_64,str_256
 
 
 class TokenBlacklist(Base):
-    __tablename__ = "token_blacklist"
+    __tablename__ = "revoked_tokens"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    token_hash: Mapped[str] = mapped_column(String(256), unique=True, index=True)
-    user_uuid: Mapped[Optional[uuid_fk]] = mapped_column(ForeignKey("users.user_uuid"))
-    expires_at: Mapped[DateTime] = mapped_column(DateTime, index=True)
-    revoked_at: Mapped[DateTime] = mapped_column(DateTime, server_default=func.now())
-
-    # user: Mapped[Optional["User"]] = relationship(back_populates="revoked_tokens")
+    token_id: Mapped[str_64] = mapped_column(Integer, primary_key=True)
+    token_hash: Mapped[str_256] = mapped_column(unique=True, index=True)
+    user_uuid: Mapped[uuid_fk] = mapped_column(ForeignKey("users.user_uuid"))
+    revoked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True),
+                                                 server_default=func.now())
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True),
+                                                 index=True)
