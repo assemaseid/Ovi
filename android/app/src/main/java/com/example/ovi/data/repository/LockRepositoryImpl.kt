@@ -70,7 +70,6 @@ class LockRepositoryImpl @Inject constructor(
             
             val plainCommand = """{"v":1,"t":"unlock","n":"${body.token.nonce}","e":${body.token.expires_at},"s":"${body.signature.value}"}"""
 
-            // Issue #2: AES-GCM encrypt the command before sending over BLE
             val sessionKey = sessionManager.getSessionKey(lockId)
             val blePayload = if (sessionKey != null) {
                 CryptoUtils.aesGcmEncryptToBase64(plainCommand.toByteArray(Charsets.UTF_8), sessionKey)

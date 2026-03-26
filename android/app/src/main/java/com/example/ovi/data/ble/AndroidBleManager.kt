@@ -60,6 +60,9 @@ class AndroidBleManager @Inject constructor(
     private val _deviceRssi = MutableStateFlow<Map<String, Int>>(emptyMap())
     override val deviceRssi: StateFlow<Map<String, Int>> = _deviceRssi.asStateFlow()
 
+    private val _isServicesReady = MutableStateFlow(false)
+    override val isServicesReady: StateFlow<Boolean> = _isServicesReady.asStateFlow()
+
     private var gatt: BluetoothGatt? = null
     
     private val readMutex = Mutex()
@@ -124,6 +127,7 @@ class AndroidBleManager @Inject constructor(
         stopScan()
         isManualDisconnect = false
         reconnectAttempts = 0
+        _isServicesReady.value = false
 
         val device = adapter?.getRemoteDevice(address) ?: return
         gatt = device.connectGatt(context, false, gattCallback)
@@ -146,6 +150,7 @@ class AndroidBleManager @Inject constructor(
         gatt?.close()
         gatt = null
         _connectedDeviceAddress.value = null
+        _isServicesReady.value = false
         reconnectAttempts = 0
     }
     
@@ -178,6 +183,7 @@ class AndroidBleManager @Inject constructor(
 
         override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
             if (status != BluetoothGatt.GATT_SUCCESS) return
+            _isServicesReady.value = true
             gatt.requestMtu(BleConstants.MTU_SIZE)
         }
 

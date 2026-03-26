@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.ovi.presentation.viewmodel.BluetoothViewModel
+import com.example.ovi.presentation.viewmodel.OnboardingState
 import com.example.ovi.ui.theme.*
 import kotlinx.coroutines.launch
 
@@ -57,8 +58,23 @@ fun BluetoothScreen(
     val isScanning by viewModel.isScanning.collectAsState()
     val scannedDevices by viewModel.scannedDevices.collectAsState()
     val connectedAddress by viewModel.connectedAddress.collectAsState()
+    val onboardingState by viewModel.onboardingState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+
+    LaunchedEffect(onboardingState) {
+        when (val state = onboardingState) {
+            is OnboardingState.Success -> {
+                snackbarHostState.showSnackbar("Lock added successfully!")
+                viewModel.resetOnboardingState()
+            }
+            is OnboardingState.Error -> {
+                snackbarHostState.showSnackbar("Error: ${state.message}")
+                viewModel.resetOnboardingState()
+            }
+            else -> {}
+        }
+    }
 
     val blePermissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
         arrayOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT)
@@ -116,7 +132,6 @@ fun BluetoothScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { innerPadding ->
 
-        // Градиентный фон на весь экран
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -132,7 +147,6 @@ fun BluetoothScreen(
 
             Spacer(Modifier.height(48.dp))
 
-            // Заголовок
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -154,7 +168,6 @@ fun BluetoothScreen(
                 )
             }
 
-            // Иконка с анимацией пульса
             Box(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier.size(140.dp)
@@ -189,7 +202,6 @@ fun BluetoothScreen(
 
             Spacer(Modifier.height(16.dp))
 
-            // Статус текст
             Text(
                 text = if (isScanning) "Searching for OVI Locks…" else "Ready to scan",
                 fontSize = 16.sp,
@@ -204,7 +216,6 @@ fun BluetoothScreen(
                 modifier = Modifier.padding(top = 4.dp, bottom = 28.dp)
             )
 
-            // Кнопка Scan / Stop
             Button(
                 onClick = {
                     if (isScanning) viewModel.stopBleScan()
@@ -234,9 +245,40 @@ fun BluetoothScreen(
                 )
             }
 
-            Spacer(Modifier.height(28.dp))
+            Spacer(Modifier.height(16.dp))
 
-            // Заголовок списка
+            val statusText = when (onboardingState) {
+                is OnboardingState.Connecting -> "Connecting to lock..."
+                is OnboardingState.ReadingInfo -> "Reading device info..."
+                is OnboardingState.Registering -> "Registering with server..."
+                is OnboardingState.Configuring -> "Configuring lock..."
+                else -> null
+            }
+            if (statusText != null) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = AccentBlue.copy(alpha = 0.15f)),
+                    border = BorderStroke(1.dp, AccentBlue.copy(alpha = 0.4f))
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            color = AccentBlue,
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(Modifier.width(10.dp))
+                        Text(text = statusText, fontSize = 13.sp, color = TextWhite)
+                    }
+                }
+                Spacer(Modifier.height(12.dp))
+            }
+
+            Spacer(Modifier.height(12.dp))
+
             if (scannedDevices.isNotEmpty()) {
                 Text(
                     text = "FOUND DEVICES",
@@ -250,7 +292,6 @@ fun BluetoothScreen(
                 )
             }
 
-            // Список найденных устройств
             LazyColumn(
                 verticalArrangement = Arrangement.spacedBy(10.dp),
                 contentPadding = PaddingValues(bottom = 80.dp) // отступ под bottom bar
@@ -278,7 +319,6 @@ fun BluetoothScreen(
                                 .fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            // Иконка замка
                             Surface(
                                 shape = CircleShape,
                                 color = if (isConnected) AccentBlue
@@ -323,7 +363,6 @@ fun BluetoothScreen(
                 }
             }
 
-            // Пустое состояние — нет устройств и не сканирует
             if (scannedDevices.isEmpty() && !isScanning) {
                 Spacer(Modifier.height(16.dp))
                 Text(

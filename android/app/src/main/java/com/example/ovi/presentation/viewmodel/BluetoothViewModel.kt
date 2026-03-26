@@ -77,7 +77,15 @@ class BluetoothViewModel @Inject constructor(
                 _onboardingState.value = OnboardingState.Error("Connection timed out")
                 return
             }
-            
+
+            val servicesReady = withTimeoutOrNull(10_000L) {
+                bleManager.isServicesReady.first { it }
+            }
+            if (servicesReady == null) {
+                _onboardingState.value = OnboardingState.Error("Service discovery timed out")
+                return
+            }
+
             _onboardingState.value = OnboardingState.ReadingInfo
             val rawInfo = bleManager.readCharacteristic(device.address, BleConstants.CHAR_INFO_READ)
             if (rawInfo == null) {
@@ -119,7 +127,7 @@ class BluetoothViewModel @Inject constructor(
                     }
                 }
             } catch (e: Exception) {
-                // Backend unavailable — device will still be saved locally with a local ID
+                // Backend unavailable for now — device will still be saved locally with a local ID
             }
             
             val sessionKey = CryptoUtils.generateSessionKey()
