@@ -7,5 +7,4 @@ interface LockRepository {
     suspend fun addLock(lock: SmartLock)
     suspend fun unlock(lockId: String): Boolean
     suspend fun lock(lockId: String): Boolean
-    suspend fun changePin(deviceId: String, newPin: String): Boolean
 }

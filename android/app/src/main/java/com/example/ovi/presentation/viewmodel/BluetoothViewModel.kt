@@ -13,7 +13,6 @@ import com.example.ovi.domain.ble.BleManager
 import com.example.ovi.domain.model.SmartLock
 import com.example.ovi.domain.repository.LockRepository
 import com.example.ovi.util.BleConstants
-import com.example.ovi.util.CryptoUtils
 import com.google.gson.Gson
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -69,7 +68,7 @@ class BluetoothViewModel @Inject constructor(
         try {
             _onboardingState.value = OnboardingState.Connecting
             bleManager.connect(device.address)
-            
+
             val connected = withTimeoutOrNull(BleConstants.BLE_CONNECTION_TIMEOUT_MS) {
                 bleManager.connectedDeviceAddress.first { it != null }
             }
@@ -102,18 +101,18 @@ class BluetoothViewModel @Inject constructor(
 
             val deviceName = try { device.name ?: "Smart Lock" } catch (_: SecurityException) { "Smart Lock" }
             var lockId = UUID.randomUUID().toString()
-            
+
             _onboardingState.value = OnboardingState.Registering
             var serverPublicKey: String? = null
             try {
                 val registrationRequest = DeviceRegistrationRequest(
                     device = DeviceInfo(
-                        device_id = info.data.device_id,
+                        hardware_id = info.data.device_id,
                         public_key = info.data.public_key,
                         type = "smart_lock_v2"
                     ),
                     owner_info = OwnerInfo(
-                        user_id = sessionManager.getUserId().toString(),
+                        user_uuid = sessionManager.getUserId().toString(),
                         location = "Home"
                     )
                 )
@@ -127,16 +126,13 @@ class BluetoothViewModel @Inject constructor(
                     }
                 }
             } catch (e: Exception) {
-                // Backend unavailable for now — device will still be saved locally with a local ID
+                // Backend unavailable — device will still be saved locally with a local ID
             }
-            
-            val sessionKey = CryptoUtils.generateSessionKey()
-            
+
             _onboardingState.value = OnboardingState.Configuring
             if (serverPublicKey != null) {
                 val configPacket = JSONObject().apply {
                     put("server_public_key", serverPublicKey)
-                    put("session_key", android.util.Base64.encodeToString(sessionKey, android.util.Base64.NO_WRAP))
                 }.toString()
 
                 val writeOk = bleManager.writeCharacteristic(
@@ -148,7 +144,7 @@ class BluetoothViewModel @Inject constructor(
                     _onboardingState.value = OnboardingState.Error("Failed to write config to device")
                     return
                 }
-                
+
                 val notified = withTimeoutOrNull(10_000L) {
                     bleManager.notifications.first { (uuid, value) ->
                         uuid == BleConstants.CHAR_STATUS_NOTIFY && value.contains("configured")
@@ -158,10 +154,8 @@ class BluetoothViewModel @Inject constructor(
                     _onboardingState.value = OnboardingState.Error("Lock did not confirm configuration")
                     return
                 }
-                
-                sessionManager.saveSessionKey(lockId, sessionKey)
             }
-            
+
             val newLock = SmartLock(
                 id = lockId,
                 hardwareId = info.data.device_id,

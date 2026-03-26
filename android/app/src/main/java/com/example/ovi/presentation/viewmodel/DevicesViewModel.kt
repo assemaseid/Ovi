@@ -117,20 +117,6 @@ class DevicesViewModel @Inject constructor(
         }
     }
 
-    fun changePin(deviceId: String, newPin: String) {
-        viewModelScope.launch {
-            _operationState.value = LockOperationState.Loading
-            val success = lockRepository.changePin(deviceId, newPin)
-            _operationState.value = if (success) {
-                LockOperationState.Success("PIN changed successfully")
-            } else {
-                LockOperationState.Error("Failed to change PIN")
-            }
-            delay(2_000)
-            _operationState.value = LockOperationState.Idle
-        }
-    }
-
     /** fake locks for testing */
     fun seedTestData() {
         viewModelScope.launch {

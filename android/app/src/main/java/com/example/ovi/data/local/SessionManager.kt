@@ -1,7 +1,6 @@
 package com.example.ovi.data.local
 
 import android.content.SharedPreferences
-import android.util.Base64
 import com.example.ovi.util.CryptoUtils
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -16,7 +15,6 @@ class SessionManager @Inject constructor(
         private const val KEY_NAME = "name"
         private const val KEY_JWT_TOKEN = "jwt_token"
         private const val KEY_IS_LOGGED_IN = "is_logged_in"
-        private const val KEY_SESSION_KEY_PREFIX = "session_key_"
     }
 
     fun saveUserSession(userId: Int, email: String, name: String, jwtToken: String?) {
@@ -45,18 +43,6 @@ class SessionManager @Inject constructor(
         return (System.currentTimeMillis() / 1000) >= expirySeconds
     }
     
-    fun saveSessionKey(deviceId: String, key: ByteArray) {
-        sharedPreferences.edit()
-            .putString(KEY_SESSION_KEY_PREFIX + deviceId, Base64.encodeToString(key, Base64.NO_WRAP))
-            .apply()
-    }
-    
-    fun getSessionKey(deviceId: String): ByteArray? {
-        val encoded = sharedPreferences.getString(KEY_SESSION_KEY_PREFIX + deviceId, null)
-            ?: return null
-        return try { Base64.decode(encoded, Base64.NO_WRAP) } catch (e: Exception) { null }
-    }
-
     fun clearSession() {
         sharedPreferences.edit()
             .remove(KEY_USER_ID)

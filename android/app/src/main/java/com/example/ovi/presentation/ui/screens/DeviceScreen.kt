@@ -49,8 +49,6 @@ fun DeviceScreen(
         is LockOperationState.Error -> s.message
         else -> null
     }
-    var showChangePinSheet by remember { mutableStateOf(false) }
-
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
     val pulseScale by infiniteTransition.animateFloat(
         initialValue = 1f,
@@ -267,12 +265,6 @@ fun DeviceScreen(
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 ActionButton(
-                    icon = Icons.Default.Pin,
-                    label = "Change PIN",
-                    onClick = { showChangePinSheet = true },
-                    modifier = Modifier.weight(1f)
-                )
-                ActionButton(
                     icon = Icons.Default.Schedule,
                     label = "Auto PIN",
                     onClick = { navController.navigate(
@@ -311,16 +303,6 @@ fun DeviceScreen(
         }
     }
 
-    if (showChangePinSheet) {
-        ChangePinBottomSheet(
-            lockName = device?.name ?: "Lock",
-            onDismiss = { showChangePinSheet = false },
-            onConfirm = { newPin ->
-                viewModel.changePin(deviceId, newPin)
-                showChangePinSheet = false
-            }
-        )
-    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
