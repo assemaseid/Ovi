@@ -86,6 +86,9 @@ fun BottomNavigationBar(navController: NavController) {
                         )
                         .clickable {
                             navController.navigate(BottomNavItem.Bluetooth.route) {
+                                popUpTo(navController.graph.startDestinationId) {
+                                    saveState = true
+                                }
                                 launchSingleTop = true
                                 restoreState = true
                             }

@@ -3,8 +3,12 @@ package com.example.ovi.presentation.viewmodel
 import android.bluetooth.BluetoothDevice
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.ovi.data.dto.*
 import com.example.ovi.data.api.LockService
+import com.example.ovi.data.dto.BleDeviceInfo
+import com.example.ovi.data.dto.DeviceInfo
+import com.example.ovi.data.dto.DeviceRegistrationRequest
+import com.example.ovi.data.dto.DeviceRegistrationResponse
+import com.example.ovi.data.dto.OwnerInfo
 import com.example.ovi.data.local.SessionManager
 import com.example.ovi.domain.ble.BleManager
 import com.example.ovi.domain.model.SmartLock
@@ -12,9 +16,26 @@ import com.example.ovi.domain.repository.LockRepository
 import com.example.ovi.util.BleConstants
 import com.google.gson.Gson
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
+import org.json.JSONObject
 import java.util.UUID
 import javax.inject.Inject
+
+sealed class OnboardingState {
+    object Idle : OnboardingState()
+    object Connecting : OnboardingState()
+    object ReadingInfo : OnboardingState()
+    object Registering : OnboardingState()
+    object Configuring : OnboardingState()
+    object Success : OnboardingState()
+    data class Error(val message: String) : OnboardingState()
+}
 
 @HiltViewModel
 class BluetoothViewModel @Inject constructor(
@@ -28,73 +49,159 @@ class BluetoothViewModel @Inject constructor(
     val scannedDevices = bleManager.scannedDevices
     val connectedAddress = bleManager.connectedDeviceAddress
 
+    private val _onboardingState = MutableStateFlow<OnboardingState>(OnboardingState.Idle)
+    val onboardingState: StateFlow<OnboardingState> = _onboardingState.asStateFlow()
+
     fun startBleScan() = bleManager.startScan()
     fun stopBleScan() = bleManager.stopScan()
 
     fun pairAndConnect(device: BluetoothDevice) {
         viewModelScope.launch {
-            try {
-                bleManager.connect(device.address)
-
-                val rawInfo = bleManager.readCharacteristic(device.address, BleConstants.CHAR_INFO_READ)
-                    ?: return@launch
-                val info = Gson().fromJson(rawInfo, BleDeviceInfo::class.java)
-
-                val deviceName = try {
-                    device.name ?: "Smart Lock"
-                } catch (e: SecurityException) {
-                    "Smart Lock (Unknown)"
-                }
-
-                // Default to a local UUID; replaced by the server UUID if registration succeeds
-                var lockId = UUID.randomUUID().toString()
-
-                try {
-                    val registrationRequest = DeviceRegistrationRequest(
-                        device = DeviceInfo(
-                            device_id = info.data.device_id,
-                            public_key = info.data.public_key,
-                            type = "smart_lock_v2"
-                        ),
-                        owner_info = OwnerInfo(
-                            user_id = sessionManager.getUserId()?.toString() ?: "",
-                            location = "Home"
-                        )
-                    )
-
-                    val response = lockService.registerDevice(registrationRequest)
-
-                    if (response.isSuccessful) {
-                        val body = response.body()
-                        if (body != null) {
-                            lockId = body.device_uuid
-                            bleManager.writeCharacteristic(
-                                device.address,
-                                BleConstants.CHAR_COMMAND_WRITE,
-                                body.server_public_key
-                            )
-                        }
-                    }
-                } catch (e: Exception) {
-                }
-
-                val newLock = SmartLock(
-                    id = lockId,
-                    hardwareId = info.data.device_id,
-                    ownerUuid = sessionManager.getUserId()?.toString() ?: "",
-                    name = deviceName,
-                    publicKey = info.data.public_key,
-                    batteryLevel = info.data.battery_level,
-                    isLocked = true,
-                    firmwareVersion = info.data.fw_version,
-                    lastSynced = System.currentTimeMillis()
-                )
-
-                lockRepository.addLock(newLock)
-
-            } catch (e: Exception) {
-                e.printStackTrace()
+            val result = withTimeoutOrNull(60_000L) {
+                runOnboarding(device)
+            }
+            if (result == null) {
+                _onboardingState.value = OnboardingState.Error("Onboarding timed out (60s)")
             }
         }
+    }
+
+    private suspend fun runOnboarding(device: BluetoothDevice) {
+        try {
+            _onboardingState.value = OnboardingState.Connecting
+            bleManager.connect(device.address)
+
+            val connected = withTimeoutOrNull(BleConstants.BLE_CONNECTION_TIMEOUT_MS) {
+                bleManager.connectedDeviceAddress.first { it != null }
+            }
+            if (connected == null) {
+                _onboardingState.value = OnboardingState.Error("Connection timed out")
+                return
+            }
+
+            val servicesReady = withTimeoutOrNull(10_000L) {
+                bleManager.isServicesReady.first { it }
+            }
+            if (servicesReady == null) {
+                _onboardingState.value = OnboardingState.Error("Service discovery timed out")
+                return
+            }
+
+            // Small delay: Android BLE stack may still be busy after CCCD descriptor write
+            delay(500L)
+
+            _onboardingState.value = OnboardingState.ReadingInfo
+            val rawInfo = bleManager.readCharacteristic(device.address, BleConstants.CHAR_INFO_READ)
+            if (rawInfo == null) {
+                _onboardingState.value = OnboardingState.Error("Failed to read device info")
+                return
+            }
+            android.util.Log.d("BLE", "Raw 0x2A00 value: $rawInfo")
+
+            val info = try {
+                Gson().fromJson(rawInfo, BleDeviceInfo::class.java)
+            } catch (e: Exception) {
+                android.util.Log.e("BLE", "JSON parse failed: ${e.message}, raw=$rawInfo")
+                _onboardingState.value = OnboardingState.Error("Invalid device info format")
+                return
+            }
+
+            val deviceName = try { device.name ?: "Smart Lock" } catch (_: SecurityException) { "Smart Lock" }
+            var lockId = UUID.randomUUID().toString()
+
+            _onboardingState.value = OnboardingState.Registering
+            var registrationBody: DeviceRegistrationResponse? = null
+            try {
+                val registrationRequest = DeviceRegistrationRequest(
+                    device = DeviceInfo(
+                        hardware_id = info.data.device_id,
+                        public_key = info.data.public_key,
+                        type = "smart_lock_v2"
+                    ),
+                    owner_info = OwnerInfo(
+                        user_uuid = sessionManager.getUserId().toString(),
+                        location = "Home"
+                    )
+                )
+
+                val response = lockService.registerDevice(registrationRequest)
+                if (response.isSuccessful) {
+                    val body = response.body()
+                    if (body != null) {
+                        lockId = body.device_uuid
+                        registrationBody = body
+                    }
+                }
+            } catch (e: Exception) {
+                // Backend unavailable — device will still be saved locally with a local ID
+            }
+
+            _onboardingState.value = OnboardingState.Configuring
+            val regBody = registrationBody
+            if (regBody != null) {
+                val configPacket = JSONObject().apply {
+                    put("server_public_key", regBody.server_public_key)
+                    put("config", JSONObject().apply {
+                        put("pin_length", regBody.config.pin_length)
+                        put("rotation_hours", regBody.config.rotation_hours)
+                        put("grace_period_minutes", regBody.config.grace_period_minutes)
+                        put("max_attempts", regBody.config.max_attempts)
+                        put("lockout_seconds", regBody.config.lockout_seconds)
+                    })
+                    put("mqtt_config", JSONObject().apply {
+                        put("broker", regBody.mqtt_config.broker)
+                        put("port", regBody.mqtt_config.port)
+                        put("client_id", regBody.mqtt_config.client_id)
+                        put("topics", JSONObject().apply {
+                            put("commands", regBody.mqtt_config.topics.commands)
+                            put("events", regBody.mqtt_config.topics.events)
+                            put("status", regBody.mqtt_config.topics.status)
+                        })
+                    })
+                }.toString()
+
+                val writeOk = bleManager.writeCharacteristic(
+                    device.address,
+                    BleConstants.CHAR_COMMAND_WRITE,
+                    configPacket
+                )
+                if (!writeOk) {
+                    _onboardingState.value = OnboardingState.Error("Failed to write config to device")
+                    return
+                }
+
+                val notified = withTimeoutOrNull(10_000L) {
+                    bleManager.notifications.first { (uuid, value) ->
+                        uuid == BleConstants.CHAR_STATUS_NOTIFY && value.contains("configured")
+                    }
+                }
+                if (notified == null) {
+                    _onboardingState.value = OnboardingState.Error("Lock did not confirm configuration")
+                    return
+                }
+            }
+
+            val newLock = SmartLock(
+                id = lockId,
+                hardwareId = info.data.device_id,
+                ownerUuid = sessionManager.getUserId().toString(),
+                name = deviceName,
+                publicKey = info.data.public_key,
+                batteryLevel = info.data.battery_level,
+                isLocked = true,
+                firmwareVersion = info.data.fw_version,
+                lastSynced = System.currentTimeMillis()
+            )
+            lockRepository.addLock(newLock)
+            _onboardingState.value = OnboardingState.Success
+
+        } catch (e: Exception) {
+            e.printStackTrace()
+            _onboardingState.value = OnboardingState.Error("Unexpected error: ${e.message}")
+        }
+    }
+
+    fun resetOnboardingState() {
+        _onboardingState.value = OnboardingState.Idle
     }
 }

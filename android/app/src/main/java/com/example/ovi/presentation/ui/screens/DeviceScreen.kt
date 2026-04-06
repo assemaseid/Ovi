@@ -27,9 +27,8 @@ import androidx.navigation.NavController
 import com.example.ovi.R
 import com.example.ovi.presentation.navigation.Screen
 import com.example.ovi.presentation.viewmodel.DevicesViewModel
+import com.example.ovi.presentation.viewmodel.LockOperationState
 import com.example.ovi.ui.theme.*
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 
 @Composable
@@ -40,12 +39,16 @@ fun DeviceScreen(
     navController: NavController
 ) {
     val device = viewModel.devices.collectAsState().value.find { it.id == deviceId }
-    var isLocked by remember { mutableStateOf(device?.locked ?: true) }
-    var isLoading by remember { mutableStateOf(false) }
-    var statusMessage by remember { mutableStateOf<String?>(null) }
-    var showChangePinSheet by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
-
+    val operationState by viewModel.operationState.collectAsState()
+    
+    val isLocked = device?.locked ?: true
+    val isLoading = operationState is LockOperationState.Loading
+    val statusMessage: String? = when (val s = operationState) {
+        is LockOperationState.Loading -> "Processing..."
+        is LockOperationState.Success -> s.message
+        is LockOperationState.Error -> s.message
+        else -> null
+    }
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
     val pulseScale by infiniteTransition.animateFloat(
         initialValue = 1f,
@@ -214,20 +217,7 @@ fun DeviceScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             Button(
-                onClick = {
-                    scope.launch {
-                        isLoading = true
-                        statusMessage = "Requesting..."
-                        delay(1000)
-                        statusMessage = "Sending via BLE..."
-                        delay(800)
-                        isLocked = !isLocked
-                        statusMessage = if (!isLocked) "Unlocked successfully" else "Locked"
-                        isLoading = false
-                        delay(2000)
-                        statusMessage = null
-                    }
-                },
+                onClick = { viewModel.toggleLock(deviceId) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
@@ -271,17 +261,11 @@ fun DeviceScreen(
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 ActionButton(
-                    icon = Icons.Default.Pin,
-                    label = "Change PIN",
-                    onClick = { showChangePinSheet = true },
-                    modifier = Modifier.weight(1f)
-                )
-                ActionButton(
                     icon = Icons.Default.Schedule,
                     label = "Auto PIN",
                     onClick = { navController.navigate(
                         "auto_pin/${deviceId}/${device?.name ?: "Lock"}"
-                    ) },
+                    ) { launchSingleTop = true } },
                     modifier = Modifier.weight(1f)
                 )
                 ActionButton(
@@ -290,25 +274,31 @@ fun DeviceScreen(
                     onClick = {
                         navController.navigate(
                             Screen.EventLog.createRoute(deviceId, device?.name ?: "Lock")
-                        )
+                        ) { launchSingleTop = true }
                     },
                     modifier = Modifier.weight(1f)
                 )
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // flip lock state locally (no BLE/network) and fire a local notification
+            TextButton(
+                onClick = { viewModel.toggleLockLocal(deviceId) },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isLoading
+            ) {
+                Text(
+                    text = "Local Toggle (test)",
+                    color = TextWhite.copy(alpha = 0.4f),
+                    fontSize = 12.sp
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 
-    if (showChangePinSheet) {
-        ChangePinBottomSheet(
-            lockName = device?.name ?: "Lock",
-            onDismiss = { showChangePinSheet = false },
-            onConfirm = { newPin ->
-                // TODO: отправить на сервер
-            }
-        )
-    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

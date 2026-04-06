@@ -106,6 +106,13 @@ fun DevicesListScreen(
                             color = TextWhite.copy(alpha = 0.35f),
                             fontSize = 13.sp
                         )
+                        TextButton(onClick = { viewModel.seedTestData() }) {
+                            Text(
+                                text = "Seed test data",
+                                color = TextWhite.copy(alpha = 0.45f),
+                                fontSize = 12.sp
+                            )
+                        }
                     }
                 }
             } else {
@@ -157,7 +164,7 @@ fun LockCard(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(100.dp)
+                        .size(80.dp)
                         .clip(RoundedCornerShape(12.dp))
                         .background(Color.White.copy(alpha = 0.08f)),
                     contentAlignment = Alignment.Center
@@ -178,17 +185,6 @@ fun LockCard(
                     color = TextWhite,
                     maxLines = 1
                 )
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(6.dp)
-                            .clip(RoundedCornerShape(50))
-                    )
-
-                }
                 BatteryIndicator(level = device.battery_level)
 
             }

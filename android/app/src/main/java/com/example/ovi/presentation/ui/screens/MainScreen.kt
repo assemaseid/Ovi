@@ -89,7 +89,13 @@ fun MainNavigationGraph(
                     navController.navigate("$DEVICE_ROUTE/$deviceId")
                 },
                 onAddDevice = {
-                    navController.navigate(BottomNavItem.Bluetooth.route)
+                    navController.navigate(BottomNavItem.Bluetooth.route) {
+                        popUpTo(navController.graph.startDestinationId) {
+                            saveState = true
+                        }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
                 }
             )
         }
@@ -142,7 +148,7 @@ fun MainNavigationGraph(
         }
 
         composable(BottomNavItem.Bluetooth.route) {
-            BluetoothScreen()
+            BluetoothScreen(onBack = { navController.popBackStack() })
         }
 
         composable(BottomNavItem.Personal.route) {

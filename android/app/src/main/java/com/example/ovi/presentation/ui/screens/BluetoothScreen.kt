@@ -25,6 +25,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.BluetoothSearching
 import androidx.compose.material.icons.filled.CheckCircle
@@ -42,6 +43,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.ovi.presentation.viewmodel.BluetoothViewModel
+import com.example.ovi.presentation.viewmodel.OnboardingState
 import com.example.ovi.ui.theme.*
 import kotlinx.coroutines.launch
 
@@ -49,14 +51,30 @@ import kotlinx.coroutines.launch
 @SuppressLint("MissingPermission")
 @Composable
 fun BluetoothScreen(
+    onBack: () -> Unit = {},
     viewModel: BluetoothViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
     val isScanning by viewModel.isScanning.collectAsState()
     val scannedDevices by viewModel.scannedDevices.collectAsState()
     val connectedAddress by viewModel.connectedAddress.collectAsState()
+    val onboardingState by viewModel.onboardingState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+
+    LaunchedEffect(onboardingState) {
+        when (val state = onboardingState) {
+            is OnboardingState.Success -> {
+                snackbarHostState.showSnackbar("Lock added successfully!")
+                viewModel.resetOnboardingState()
+            }
+            is OnboardingState.Error -> {
+                snackbarHostState.showSnackbar("Error: ${state.message}")
+                viewModel.resetOnboardingState()
+            }
+            else -> {}
+        }
+    }
 
     val blePermissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
         arrayOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT)
@@ -129,15 +147,26 @@ fun BluetoothScreen(
 
             Spacer(Modifier.height(48.dp))
 
-            Text(
-                text = "Pair Lock",
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Bold,
-                color = TextWhite,
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 32.dp)
-            )
+                    .padding(bottom = 32.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = onBack) {
+                    Icon(
+                        imageVector = Icons.Default.ArrowBack,
+                        contentDescription = "Back",
+                        tint = TextWhite
+                    )
+                }
+                Text(
+                    text = "Pair Lock",
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TextWhite
+                )
+            }
 
             Box(
                 contentAlignment = Alignment.Center,
@@ -216,7 +245,39 @@ fun BluetoothScreen(
                 )
             }
 
-            Spacer(Modifier.height(28.dp))
+            Spacer(Modifier.height(16.dp))
+
+            val statusText = when (onboardingState) {
+                is OnboardingState.Connecting -> "Connecting to lock..."
+                is OnboardingState.ReadingInfo -> "Reading device info..."
+                is OnboardingState.Registering -> "Registering with server..."
+                is OnboardingState.Configuring -> "Configuring lock..."
+                else -> null
+            }
+            if (statusText != null) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = AccentBlue.copy(alpha = 0.15f)),
+                    border = BorderStroke(1.dp, AccentBlue.copy(alpha = 0.4f))
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            color = AccentBlue,
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(Modifier.width(10.dp))
+                        Text(text = statusText, fontSize = 13.sp, color = TextWhite)
+                    }
+                }
+                Spacer(Modifier.height(12.dp))
+            }
+
+            Spacer(Modifier.height(12.dp))
 
             if (scannedDevices.isNotEmpty()) {
                 Text(
@@ -233,7 +294,7 @@ fun BluetoothScreen(
 
             LazyColumn(
                 verticalArrangement = Arrangement.spacedBy(10.dp),
-                contentPadding = PaddingValues(bottom = 80.dp)
+                contentPadding = PaddingValues(bottom = 80.dp) // отступ под bottom bar
             ) {
                 items(scannedDevices) { device ->
                     val isConnected = connectedAddress == device.address
