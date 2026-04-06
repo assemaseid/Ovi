@@ -55,18 +55,20 @@ class LockRepositoryImpl @Inject constructor(
     private suspend fun attemptUnlock(lockId: String): Boolean {
         return try {
             val requestId = "req_${UUID.randomUUID().toString().replace("-", "").take(12)}"
-            val clientTime = (System.currentTimeMillis() / 1000).toString()
+            val clientTimestamp = System.currentTimeMillis() / 1000
 
             val response = lockService.getUnlockToken(
-                requestId = requestId,
-                clientTime = clientTime,
-                request = UnlockTokenRequest(device_uuid = lockId)
+                request = UnlockTokenRequest(
+                    device_uuid = lockId,
+                    request_id = requestId,
+                    client_timestamp = clientTimestamp
+                )
             )
 
             if (!response.isSuccessful || response.body() == null) return false
             val body = response.body()!!
 
-            val command = """{"cmd":"unlock","req_id":"${UUID.randomUUID()}","timestamp":${clientTime},"token":{"nonce":"${body.token.nonce}","expires":${body.token.expires_at},"device_uuid":"${body.token.device_uuid}","user_uuid":"${body.token.user_uuid}","action":"unlock"},"signature":"${body.signature.value}"}"""
+            val command = """{"cmd":"unlock","req_id":"${UUID.randomUUID()}","timestamp":${clientTimestamp},"token":{"nonce":"${body.token.nonce}","expires":${body.token.expires_at},"device_uuid":"${body.token.device_uuid}","user_uuid":"${body.token.user_uuid}","action":"unlock"},"signature":"${body.signature.value}"}"""
 
             val bleSuccess = bleManager.sendMessage(command)
             if (!bleSuccess) return false

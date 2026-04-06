@@ -47,7 +47,11 @@ data class MqttTopics(
     val status: String
 )
 
-data class UnlockTokenRequest(val device_uuid: String)
+data class UnlockTokenRequest(
+    val device_uuid: String,
+    val request_id: String,
+    val client_timestamp: Long
+)
 
 data class UnlockTokenResponse(
     val token: TokenData,

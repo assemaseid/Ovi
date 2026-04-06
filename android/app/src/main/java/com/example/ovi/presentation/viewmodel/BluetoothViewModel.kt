@@ -4,10 +4,11 @@ import android.bluetooth.BluetoothDevice
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.ovi.data.api.LockService
+import com.example.ovi.data.dto.BleDeviceInfo
 import com.example.ovi.data.dto.DeviceInfo
 import com.example.ovi.data.dto.DeviceRegistrationRequest
+import com.example.ovi.data.dto.DeviceRegistrationResponse
 import com.example.ovi.data.dto.OwnerInfo
-import com.example.ovi.data.dto.BleDeviceInfo
 import com.example.ovi.data.local.SessionManager
 import com.example.ovi.domain.ble.BleManager
 import com.example.ovi.domain.model.SmartLock
@@ -103,7 +104,7 @@ class BluetoothViewModel @Inject constructor(
             var lockId = UUID.randomUUID().toString()
 
             _onboardingState.value = OnboardingState.Registering
-            var serverPublicKey: String? = null
+            var registrationBody: DeviceRegistrationResponse? = null
             try {
                 val registrationRequest = DeviceRegistrationRequest(
                     device = DeviceInfo(
@@ -122,7 +123,7 @@ class BluetoothViewModel @Inject constructor(
                     val body = response.body()
                     if (body != null) {
                         lockId = body.device_uuid
-                        serverPublicKey = body.server_public_key
+                        registrationBody = body
                     }
                 }
             } catch (e: Exception) {
@@ -130,9 +131,27 @@ class BluetoothViewModel @Inject constructor(
             }
 
             _onboardingState.value = OnboardingState.Configuring
-            if (serverPublicKey != null) {
+            val regBody = registrationBody
+            if (regBody != null) {
                 val configPacket = JSONObject().apply {
-                    put("server_public_key", serverPublicKey)
+                    put("server_public_key", regBody.server_public_key)
+                    put("config", JSONObject().apply {
+                        put("pin_length", regBody.config.pin_length)
+                        put("rotation_hours", regBody.config.rotation_hours)
+                        put("grace_period_minutes", regBody.config.grace_period_minutes)
+                        put("max_attempts", regBody.config.max_attempts)
+                        put("lockout_seconds", regBody.config.lockout_seconds)
+                    })
+                    put("mqtt_config", JSONObject().apply {
+                        put("broker", regBody.mqtt_config.broker)
+                        put("port", regBody.mqtt_config.port)
+                        put("client_id", regBody.mqtt_config.client_id)
+                        put("topics", JSONObject().apply {
+                            put("commands", regBody.mqtt_config.topics.commands)
+                            put("events", regBody.mqtt_config.topics.events)
+                            put("status", regBody.mqtt_config.topics.status)
+                        })
+                    })
                 }.toString()
 
                 val writeOk = bleManager.writeCharacteristic(

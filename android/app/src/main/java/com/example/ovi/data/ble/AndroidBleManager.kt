@@ -13,7 +13,10 @@ import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
@@ -75,7 +78,37 @@ class AndroidBleManager @Inject constructor(
 
     private val mainHandler = Handler(Looper.getMainLooper())
     private var connectionTimeoutRunnable: Runnable? = null
-    
+
+    private val bondStateReceiver = object : BroadcastReceiver() {
+        @SuppressLint("MissingPermission")
+        override fun onReceive(context: Context, intent: Intent) {
+            if (intent.action != BluetoothDevice.ACTION_BOND_STATE_CHANGED) return
+            val device = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java)
+            } else {
+                @Suppress("DEPRECATION")
+                intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
+            } ?: return
+            if (device.address != gatt?.device?.address) return
+            when (intent.getIntExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.ERROR)) {
+                BluetoothDevice.BOND_BONDED -> gatt?.discoverServices()
+                BluetoothDevice.BOND_NONE -> {
+                    _connectedDeviceAddress.value = null
+                    gatt?.close()
+                    gatt = null
+                }
+            }
+        }
+    }
+
+    init {
+        val filter = IntentFilter(BluetoothDevice.ACTION_BOND_STATE_CHANGED)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            context.registerReceiver(bondStateReceiver, filter, Context.RECEIVER_EXPORTED)
+        } else {
+            context.registerReceiver(bondStateReceiver, filter)
+        }
+    }
 
     private val scanCallback = object : ScanCallback() {
         override fun onScanResult(callbackType: Int, result: ScanResult?) {
@@ -86,7 +119,6 @@ class AndroidBleManager @Inject constructor(
                 current.add(device)
                 _scannedDevices.value = current
             }
-            // Track RSSI for pre-unlock range check (issue #12)
             _deviceRssi.value = _deviceRssi.value.toMutableMap().also { it[device.address] = result.rssi }
         }
     }
@@ -109,7 +141,6 @@ class AndroidBleManager @Inject constructor(
         try {
             currentScanner.startScan(listOf(filter), settings, scanCallback)
             _isScanning.value = true
-            // Issue #9: 30-second scan window (spec: BLE connection timeout = 30s)
             mainHandler.postDelayed({ stopScan() }, BleConstants.BLE_CONNECTION_TIMEOUT_MS)
         } catch (e: SecurityException) {
             _isScanning.value = false
@@ -163,11 +194,14 @@ class AndroidBleManager @Inject constructor(
                     connectionTimeoutRunnable?.let { mainHandler.removeCallbacks(it) }
                     reconnectAttempts = 0
                     _connectedDeviceAddress.value = gatt.device.address
-                    gatt.discoverServices()
+                    if (gatt.device.bondState == BluetoothDevice.BOND_BONDED) {
+                        gatt.discoverServices()
+                    } else {
+                        gatt.device.createBond()
+                    }
                 }
                 BluetoothProfile.STATE_DISCONNECTED -> {
                     _connectedDeviceAddress.value = null
-                    // Issue #10: auto-reconnect up to MAX_RECONNECT_ATTEMPTS on unexpected disconnect
                     if (!isManualDisconnect && reconnectAttempts < BleConstants.MAX_RECONNECT_ATTEMPTS) {
                         reconnectAttempts++
                         val delay = 1000L * reconnectAttempts
@@ -183,7 +217,6 @@ class AndroidBleManager @Inject constructor(
 
         override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
             if (status != BluetoothGatt.GATT_SUCCESS) return
-            _isServicesReady.value = true
             gatt.requestMtu(BleConstants.MTU_SIZE)
         }
 
@@ -201,7 +234,17 @@ class AndroidBleManager @Inject constructor(
                 gatt.writeDescriptor(cccd)
             }
         }
-        
+
+        override fun onDescriptorWrite(
+            gatt: BluetoothGatt,
+            descriptor: BluetoothGattDescriptor,
+            status: Int
+        ) {
+            if (descriptor.uuid == BleConstants.CCCD_UUID) {
+                _isServicesReady.value = status == BluetoothGatt.GATT_SUCCESS
+            }
+        }
+
         override fun onCharacteristicRead(
             gatt: BluetoothGatt,
             characteristic: BluetoothGattCharacteristic,
