@@ -2,6 +2,7 @@ package com.example.ovi.data.repository
 
 import com.example.ovi.data.api.AuthService
 import com.example.ovi.data.dto.LoginRequest
+import com.example.ovi.data.dto.LogoutRequest
 import com.example.ovi.data.dto.RegisterRequest
 import com.example.ovi.data.local.SessionManager
 import com.example.ovi.data.mapper.toDomain
@@ -29,7 +30,8 @@ class AuthRepositoryImpl @Inject constructor(
                 userId = user.id,
                 email = user.email,
                 name = user.name,
-                jwtToken = response.accessToken
+                jwtToken = response.accessToken,
+                refreshToken = response.refreshToken
             )
 
             Result.success(user)
@@ -64,7 +66,12 @@ class AuthRepositoryImpl @Inject constructor(
             )
             authService.register(request)
 
-            login(email, password)
+            val loginResult = login(email, password)
+            if (loginResult.isSuccess) {
+                sessionManager.saveName(name)
+                return Result.success(loginResult.getOrNull()!!.copy(name = name))
+            }
+            loginResult
 
         } catch (e: HttpException) {
             val errorMessage = when (e.code()) {
@@ -86,7 +93,10 @@ class AuthRepositoryImpl @Inject constructor(
 
     override suspend fun logout(): Result<Exception> {
         try {
-            authService.logout()
+            val refreshToken = sessionManager.getRefreshToken()
+            if (refreshToken != null) {
+                authService.logout(LogoutRequest(refreshToken))
+            }
             return Result.success(Exception("Logout successful"))
         } catch (e: Exception) {
             return Result.failure(Exception("Logout failed: ${e.message}"))

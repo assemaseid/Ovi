@@ -3,7 +3,7 @@ package com.example.ovi.data.dto
 import com.google.gson.annotations.SerializedName
 
 data class UserDto(
-    @SerializedName("uuid")
+    @SerializedName("user_uuid")
     val id: String,
 
     @SerializedName("email")
