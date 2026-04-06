@@ -21,6 +21,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.os.ParcelUuid
+import android.util.Log
 import com.example.ovi.domain.ble.BleManager
 import com.example.ovi.util.BleConstants
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -216,12 +217,23 @@ class AndroidBleManager @Inject constructor(
         }
 
         override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
-            if (status != BluetoothGatt.GATT_SUCCESS) return
+            if (status != BluetoothGatt.GATT_SUCCESS) {
+                Log.e("BLE", "onServicesDiscovered failed, status=$status")
+                return
+            }
+            Log.d("BLE", "Services discovered: ${gatt.services.map { it.uuid }}")
+            gatt.services.forEach { svc ->
+                Log.d("BLE", "  Service ${svc.uuid} chars: ${svc.characteristics.map { it.uuid }}")
+            }
             gatt.requestMtu(BleConstants.MTU_SIZE)
         }
 
         override fun onMtuChanged(gatt: BluetoothGatt, mtu: Int, status: Int) {
-            val service = gatt.getService(BleConstants.SERVICE_UUID) ?: return
+            Log.d("BLE", "MTU changed to $mtu, status=$status")
+            val service = gatt.getService(BleConstants.SERVICE_UUID) ?: run {
+                Log.e("BLE", "Service ${BleConstants.SERVICE_UUID} not found after MTU change")
+                return
+            }
             val notifyChar = service.getCharacteristic(BleConstants.CHAR_STATUS_NOTIFY) ?: return
             gatt.setCharacteristicNotification(notifyChar, true)
             val cccd = notifyChar.getDescriptor(BleConstants.CCCD_UUID) ?: return
@@ -240,7 +252,11 @@ class AndroidBleManager @Inject constructor(
             descriptor: BluetoothGattDescriptor,
             status: Int
         ) {
+            Log.d("BLE", "onDescriptorWrite uuid=${descriptor.uuid} status=$status")
             if (descriptor.uuid == BleConstants.CCCD_UUID) {
+                if (status != BluetoothGatt.GATT_SUCCESS) {
+                    Log.e("BLE", "CCCD write failed, status=$status")
+                }
                 _isServicesReady.value = status == BluetoothGatt.GATT_SUCCESS
             }
         }
@@ -298,13 +314,24 @@ class AndroidBleManager @Inject constructor(
     
     override suspend fun readCharacteristic(address: String, characteristicUuid: UUID): String? {
         return readMutex.withLock {
-            val service = gatt?.getService(BleConstants.SERVICE_UUID) ?: return null
-            val char = service.getCharacteristic(characteristicUuid) ?: return null
+            val gattRef = gatt ?: run { Log.e("BLE", "readCharacteristic: gatt is null"); return null }
+            // Search across all services — the characteristic may not be in the primary service
+            val char = gattRef.services.firstNotNullOfOrNull { it.getCharacteristic(characteristicUuid) }
+            if (char == null) {
+                Log.e("BLE", "readCharacteristic: $characteristicUuid not found in any service")
+                return null
+            }
             val deferred = CompletableDeferred<String?>()
             pendingRead = deferred
-            val initiated = gatt?.readCharacteristic(char) == true
-            if (!initiated) { pendingRead = null; return null }
-            withTimeoutOrNull(BleConstants.BLE_OPERATION_TIMEOUT_MS) { deferred.await() }
+            val initiated = gattRef.readCharacteristic(char) == true
+            if (!initiated) {
+                Log.e("BLE", "readCharacteristic: gatt.readCharacteristic() returned false (GATT busy or disconnected)")
+                pendingRead = null
+                return null
+            }
+            val result = withTimeoutOrNull(BleConstants.BLE_OPERATION_TIMEOUT_MS) { deferred.await() }
+            if (result == null) Log.e("BLE", "readCharacteristic: timed out waiting for callback")
+            result
         }
     }
 

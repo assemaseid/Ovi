@@ -16,6 +16,7 @@ import com.example.ovi.domain.repository.LockRepository
 import com.example.ovi.util.BleConstants
 import com.google.gson.Gson
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -86,16 +87,21 @@ class BluetoothViewModel @Inject constructor(
                 return
             }
 
+            // Small delay: Android BLE stack may still be busy after CCCD descriptor write
+            delay(500L)
+
             _onboardingState.value = OnboardingState.ReadingInfo
             val rawInfo = bleManager.readCharacteristic(device.address, BleConstants.CHAR_INFO_READ)
             if (rawInfo == null) {
                 _onboardingState.value = OnboardingState.Error("Failed to read device info")
                 return
             }
+            android.util.Log.d("BLE", "Raw 0x2A00 value: $rawInfo")
 
             val info = try {
                 Gson().fromJson(rawInfo, BleDeviceInfo::class.java)
             } catch (e: Exception) {
+                android.util.Log.e("BLE", "JSON parse failed: ${e.message}, raw=$rawInfo")
                 _onboardingState.value = OnboardingState.Error("Invalid device info format")
                 return
             }
