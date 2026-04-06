@@ -87,16 +87,29 @@ class BluetoothViewModel @Inject constructor(
                 return
             }
 
-            // Small delay: Android BLE stack may still be busy after CCCD descriptor write
+            // Small delay
             delay(500L)
 
             _onboardingState.value = OnboardingState.ReadingInfo
-            val rawInfo = bleManager.readCharacteristic(device.address, BleConstants.CHAR_INFO_READ)
-            if (rawInfo == null) {
-                _onboardingState.value = OnboardingState.Error("Failed to read device info")
+            val infoReqId = UUID.randomUUID().toString()
+            val getInfoCmd = """{"cmd":"get_info","req_id":"$infoReqId"}"""
+            val cmdSent = bleManager.writeCharacteristic(device.address, BleConstants.CHAR_COMMAND_WRITE, getInfoCmd)
+            if (!cmdSent) {
+                _onboardingState.value = OnboardingState.Error("Failed to send get_info command")
                 return
             }
-            android.util.Log.d("BLE", "Raw 0x2A00 value: $rawInfo")
+
+            val infoNotification = withTimeoutOrNull(10_000L) {
+                bleManager.notifications.first { (uuid, value) ->
+                    uuid == BleConstants.CHAR_STATUS_NOTIFY && value.contains("info_response")
+                }
+            }
+            if (infoNotification == null) {
+                _onboardingState.value = OnboardingState.Error("No info response from device (timeout)")
+                return
+            }
+            val rawInfo = infoNotification.second
+            android.util.Log.d("BLE", "Info response: $rawInfo")
 
             val info = try {
                 Gson().fromJson(rawInfo, BleDeviceInfo::class.java)
@@ -198,6 +211,10 @@ class BluetoothViewModel @Inject constructor(
         } catch (e: Exception) {
             e.printStackTrace()
             _onboardingState.value = OnboardingState.Error("Unexpected error: ${e.message}")
+        } finally {
+            if (_onboardingState.value !is OnboardingState.Success) {
+                bleManager.disconnect()
+            }
         }
     }
 

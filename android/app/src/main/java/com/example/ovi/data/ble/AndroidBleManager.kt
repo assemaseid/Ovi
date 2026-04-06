@@ -190,18 +190,22 @@ class AndroidBleManager @Inject constructor(
     private val gattCallback = object : BluetoothGattCallback() {
 
         override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
+            Log.d("BLE", "onConnectionStateChange status=$status newState=$newState (2=connected,0=disconnected)")
             when (newState) {
                 BluetoothProfile.STATE_CONNECTED -> {
                     connectionTimeoutRunnable?.let { mainHandler.removeCallbacks(it) }
                     reconnectAttempts = 0
                     _connectedDeviceAddress.value = gatt.device.address
-                    if (gatt.device.bondState == BluetoothDevice.BOND_BONDED) {
+                    val bondState = gatt.device.bondState
+                    Log.d("BLE", "Connected, bondState=$bondState (12=bonded)")
+                    if (bondState == BluetoothDevice.BOND_BONDED) {
                         gatt.discoverServices()
                     } else {
                         gatt.device.createBond()
                     }
                 }
                 BluetoothProfile.STATE_DISCONNECTED -> {
+                    Log.w("BLE", "Disconnected, status=$status isManualDisconnect=$isManualDisconnect reconnectAttempts=$reconnectAttempts")
                     _connectedDeviceAddress.value = null
                     if (!isManualDisconnect && reconnectAttempts < BleConstants.MAX_RECONNECT_ATTEMPTS) {
                         reconnectAttempts++
@@ -217,6 +221,10 @@ class AndroidBleManager @Inject constructor(
         }
 
         override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
+            if (gatt != this@AndroidBleManager.gatt) {
+                Log.w("BLE", "onServicesDiscovered: stale GATT callback, ignoring")
+                return
+            }
             if (status != BluetoothGatt.GATT_SUCCESS) {
                 Log.e("BLE", "onServicesDiscovered failed, status=$status")
                 return
@@ -229,21 +237,35 @@ class AndroidBleManager @Inject constructor(
         }
 
         override fun onMtuChanged(gatt: BluetoothGatt, mtu: Int, status: Int) {
-            Log.d("BLE", "MTU changed to $mtu, status=$status")
+            Log.d("BLE", "MTU changed to $mtu, status=$status, gattMatch=${gatt == this@AndroidBleManager.gatt}")
+            if (gatt != this@AndroidBleManager.gatt) {
+                Log.w("BLE", "onMtuChanged: stale GATT callback, ignoring")
+                return
+            }
             val service = gatt.getService(BleConstants.SERVICE_UUID) ?: run {
                 Log.e("BLE", "Service ${BleConstants.SERVICE_UUID} not found after MTU change")
                 return
             }
-            val notifyChar = service.getCharacteristic(BleConstants.CHAR_STATUS_NOTIFY) ?: return
+            val notifyChar = service.getCharacteristic(BleConstants.CHAR_STATUS_NOTIFY)
+            if (notifyChar == null) {
+                Log.e("BLE", "CHAR_STATUS_NOTIFY (${BleConstants.CHAR_STATUS_NOTIFY}) not found in service")
+                return
+            }
             gatt.setCharacteristicNotification(notifyChar, true)
-            val cccd = notifyChar.getDescriptor(BleConstants.CCCD_UUID) ?: return
+            val cccd = notifyChar.getDescriptor(BleConstants.CCCD_UUID)
+            if (cccd == null) {
+                Log.e("BLE", "CCCD descriptor not found on notify char. Descriptors: ${notifyChar.descriptors.map { it.uuid }}")
+                return
+            }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                gatt.writeDescriptor(cccd, BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE)
+                val result = gatt.writeDescriptor(cccd, BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE)
+                Log.d("BLE", "writeDescriptor (CCCD) API33+ result=$result (0=success)")
             } else {
                 @Suppress("DEPRECATION")
                 cccd.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
                 @Suppress("DEPRECATION")
-                gatt.writeDescriptor(cccd)
+                val result = gatt.writeDescriptor(cccd)
+                Log.d("BLE", "writeDescriptor (CCCD) legacy result=$result")
             }
         }
 
@@ -290,6 +312,7 @@ class AndroidBleManager @Inject constructor(
             characteristic: BluetoothGattCharacteristic,
             status: Int
         ) {
+            Log.d("BLE", "onCharacteristicWrite uuid=${characteristic.uuid} status=$status (0=success)")
             pendingWrite?.complete(status == BluetoothGatt.GATT_SUCCESS)
             pendingWrite = null
         }
@@ -341,23 +364,43 @@ class AndroidBleManager @Inject constructor(
         data: String
     ): Boolean {
         return writeMutex.withLock {
-            val service = gatt?.getService(BleConstants.SERVICE_UUID) ?: return false
-            val char = service.getCharacteristic(characteristicUuid) ?: return false
+            val gattRef = gatt ?: run { Log.e("BLE", "writeCharacteristic: gatt is null"); return false }
+            val service = gattRef.getService(BleConstants.SERVICE_UUID)
+            if (service == null) {
+                Log.e("BLE", "writeCharacteristic: service ${BleConstants.SERVICE_UUID} not found")
+                return false
+            }
+            val char = service.getCharacteristic(characteristicUuid)
+            if (char == null) {
+                Log.e("BLE", "writeCharacteristic: characteristic $characteristicUuid not found. Available: ${service.characteristics.map { it.uuid }}")
+                return false
+            }
+            Log.d("BLE", "writeCharacteristic: writing ${data.length} bytes to $characteristicUuid, properties=${char.properties}")
             val bytes = data.toByteArray(Charsets.UTF_8)
             val deferred = CompletableDeferred<Boolean>()
             pendingWrite = deferred
             val initiated = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                gatt?.writeCharacteristic(char, bytes, BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT) == BluetoothGatt.GATT_SUCCESS
+                val result = gattRef.writeCharacteristic(char, bytes, BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT)
+                Log.d("BLE", "writeCharacteristic: API33+ result=$result (0=success)")
+                result == BluetoothGatt.GATT_SUCCESS
             } else {
                 @Suppress("DEPRECATION")
                 char.value = bytes
                 @Suppress("DEPRECATION")
                 char.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
                 @Suppress("DEPRECATION")
-                gatt?.writeCharacteristic(char) == true
+                val result = gattRef.writeCharacteristic(char)
+                Log.d("BLE", "writeCharacteristic: legacy result=$result")
+                result == true
             }
-            if (!initiated) { pendingWrite = null; return false }
-            withTimeoutOrNull(BleConstants.BLE_OPERATION_TIMEOUT_MS) { deferred.await() } ?: false
+            if (!initiated) {
+                Log.e("BLE", "writeCharacteristic: write not initiated")
+                pendingWrite = null
+                return false
+            }
+            val result = withTimeoutOrNull(BleConstants.BLE_OPERATION_TIMEOUT_MS) { deferred.await() }
+            if (result == null) Log.e("BLE", "writeCharacteristic: timed out waiting for onCharacteristicWrite callback")
+            result ?: false
         }
     }
 
