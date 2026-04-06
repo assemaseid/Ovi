@@ -16,21 +16,21 @@ class Device(Base):
     hardware_id: Mapped[str] = mapped_column(unique=True, nullable=False)
     public_key: Mapped[str] = mapped_column(Text)
 
-    owner_uuid: Mapped[uuid_fk] = mapped_column(ForeignKey("users.user_uuid"))
+    user_uuid: Mapped[uuid_fk] = mapped_column(ForeignKey("users.user_uuid"))
     config: Mapped[dict] = mapped_column(JSONB, default=dict)
-    firmware_version: Mapped[str]
-    last_seen: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), # включаем таймзону
-        default=None,
-    )
-    last_time_sync: Mapped[datetime] = mapped_column(
+    firmware_version: Mapped[Optional[str]]
+    last_seen: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True),
         default=None,
     )
-    battery_level: Mapped[int]
+    last_time_sync: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True),
+        default=None,
+    )
+    battery_level: Mapped[Optional[int]]
     # is_online: Mapped[bool] = mapped_column(default=False)
     wifi_ssid: Mapped[Optional[str_64]]
-    ip_address: Mapped[str] = mapped_column(INET)
+    ip_address: Mapped[Optional[str]] = mapped_column(INET, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
                  server_default=func.now(),

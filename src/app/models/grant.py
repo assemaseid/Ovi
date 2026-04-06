@@ -2,6 +2,7 @@ from sqlalchemy import func, ForeignKey, DateTime
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.dialects.postgresql import JSONB
 from typing import Optional
+
 from datetime import datetime
 from src.database import Base, uuid_pk, uuid_fk
 
@@ -18,6 +19,6 @@ class Grant(Base):
     )
     valid_from: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now())
-    valid_until: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    valid_until: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     created_by: Mapped[uuid_fk] = mapped_column(ForeignKey("users.user_uuid"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

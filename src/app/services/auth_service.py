@@ -17,9 +17,9 @@ _REFRESH_TOKEN_TYPE = "refresh"
 
 def create_token(
     token_type: str,
-    token_data: dict, 
-    expire_minutes: int,
-    expire_timedelta: timedelta | None = None , 
+    token_data: dict,
+    expire_minutes: int = 0,
+    expire_timedelta: timedelta | None = None,
     ) -> str:
     jwt_payload = {TOKEN_TYPE_FIELD: token_type}
     jwt_payload.update(token_data)

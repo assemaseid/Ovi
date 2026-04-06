@@ -1,5 +1,5 @@
-import datetime
 import uuid
+from datetime import datetime, UTC
 
 from fastapi import HTTPException
 from sqlalchemy import select
@@ -32,11 +32,11 @@ async def require_device_permission(
     if not device:
         raise HTTPException(status_code=404, detail="Device not found")
 
-    if device.owner_uuid == current_user.user_uuid:
+    if device.user_uuid == current_user.user_uuid:
         return device
 
     # Check grant
-    now = datetime.now(datetime.UTC)
+    now = datetime.now(UTC)
     grant_q = await session.execute(
         select(Grant).where(
             Grant.device_uuid == device_uuid_formatted,

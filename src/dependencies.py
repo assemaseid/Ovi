@@ -34,14 +34,14 @@ async def get_current_user(
         raise exc
 
     jti = payload.get("jti")
-    if jti and is_token_revoked(session, jti):
+    if jti and await is_token_revoked(session, jti):
         raise exc
 
     user_uuid_str: str | None = payload.get("sub")
     if not user_uuid_str:
         raise exc
 
-    user = get_user_by_uuid(session, user_uuid_str)
+    user = await get_user_by_uuid(session, user_uuid_str)
     if not user:
         raise exc
 

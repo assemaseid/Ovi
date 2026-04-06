@@ -22,11 +22,13 @@ class Settings(BaseSettings):
     server_private_key_pem: str | None = None
     server_public_key_pem: str | None = None
 
-    # MQTT_HOST: str
-    # MQTT_PORT: str
-    # MQTT_USERNAME: str
-    # MQTT_PASSWORD: str
-    # MQTT_CLIENT_ID: str
+    unlock_token_ttl_seconds: int = 30
+
+    MQTT_HOST: str = "test.mosquitto.org"
+    MQTT_PORT: int = 1883
+    MQTT_USERNAME: str | None = None
+    MQTT_PASSWORD: str | None = None
+    MQTT_CLIENT_ID: str = "ovi_server"
 
     
     @property

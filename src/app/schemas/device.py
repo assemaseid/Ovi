@@ -7,11 +7,12 @@ from typing import Any
 class DeviceInfo(BaseModel):
     hardware_id: str = Field(max_length=64)
     public_key: str
+    type: str = Field(default="smart_lock_v2")
     capabilities: list[str] = Field(default=["ble", "wifi", "keypad"])
 
 
 class OwnerInfo(BaseModel):
-    owner_uuid: str
+    user_uuid: str
     location: str
     timezone: str
 

@@ -53,7 +53,7 @@ async def register_device(
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=409, detail="Device hardware_id already registered")
 
-    if str(current_user.user_uuid) != body.owner_info.owner_uuid:
+    if str(current_user.user_uuid) != body.owner_info.user_uuid:
         raise HTTPException(status_code=403, detail="owner_info.owner_uuid mismatch")
 
     pin_length = _cfg("pin_length", 6)
@@ -65,8 +65,9 @@ async def register_device(
     device = Device(
         hardware_id=body.device.hardware_id,
         public_key=body.device.public_key,
-        owner_uuid=current_user.user_uuid,
+        user_uuid=current_user.user_uuid,
         config={
+            "type": body.device.type,
             "capabilities": body.device.capabilities,
             "location": body.owner_info.location,
             "timezone": body.owner_info.timezone,
@@ -91,13 +92,12 @@ async def register_device(
     await session.commit()
     await session.refresh(device)
 
-    crypto = crypto_service.get()
     dev_uuid_str = str(device.device_uuid)
 
     return DeviceRegisterResponse(
         status="registered",
         device_uuid=dev_uuid_str,
-        server_public_key=crypto.public_key_pem,
+        server_public_key=crypto_service.public_key_pem,
         config=DeviceConfig(
             pin_length=pin_length,
             rotation_hours=rotation_hours,
@@ -107,7 +107,7 @@ async def register_device(
         ),
         mqtt_config=MqttConfig(
             broker=_cfg("MQTT_HOST", "localhost"),
-            port=_cfg("MQTT_PORT", 1883),
+            port=_cfg("MQTT_PORT", 8883),
             client_id=dev_uuid_str,
             topics=MqttTopics(
                 commands=MQTTService.cmd_topic(dev_uuid_str),
@@ -126,7 +126,7 @@ async def list_devices(
 ) -> list[DeviceOut]:
     # owned
     query = await session.execute(
-        select(Device).where(Device.owner_uuid == current_user.user_uuid)
+        select(Device).where(Device.user_uuid == current_user.user_uuid)
     )
     owned = query.scalars().all()
 
@@ -181,7 +181,7 @@ async def delete_device(
 ) -> OkResponse:
 
     device = await require_device_permission(device_uuid, "admin", current_user, session)
-    if device.owner_uuid != current_user.user_uuid:
+    if device.user_uuid != current_user.user_uuid:
         raise HTTPException(status_code=403, detail="Only owner can delete device")
     await session.delete(device)
     await session.commit()
