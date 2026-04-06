@@ -7,4 +7,5 @@ data class RegisterRequest(
     @SerializedName("hashed_password")
     val password: String,
     val name: String? = null
+
 )
