@@ -5,7 +5,6 @@ from typing import Optional
 from datetime import datetime
 from src.database import Base, uuid_pk, uuid_fk
 
-
 class Grant(Base):
     __tablename__ = "grants"
 

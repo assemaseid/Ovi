@@ -6,10 +6,10 @@ from pydantic import BaseModel, Field
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 class AuthJWT(BaseModel):
-    private_key_path: Path = BASE_DIR / "certs" / "private_key.pem"
-    public_key_path: Path = BASE_DIR / "certs" / "public_key.pem"
+    private_key_path: Path = BASE_DIR / "certs" / "jwt-private.pem"
+    public_key_path: Path = BASE_DIR / "certs" / "jwt-public.pem"
     algorithm: str = "RS256"
-    access_token_expire_minutes: int = 15 
+    access_token_expire_minutes: int = 60
     refresh_token_expire_days: int = 30
 
 class Settings(BaseSettings):
@@ -18,6 +18,9 @@ class Settings(BaseSettings):
     POSTGRES_HOST: str
     POSTGRES_PORT: int
     POSTGRES_PASSWORD: str
+
+    server_private_key_pem: str | None = None
+    server_public_key_pem: str | None = None
 
     # MQTT_HOST: str
     # MQTT_PORT: str

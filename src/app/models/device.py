@@ -2,9 +2,8 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
-from psycopg2.extensions import JSONB
 from sqlalchemy import String, ForeignKey, Integer, func, DateTime, Text
-from sqlalchemy.dialects.postgresql import INET, UUID
+from sqlalchemy.dialects.postgresql import INET, UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.database import Base, uuid_pk, uuid_fk, str_64
@@ -16,6 +15,7 @@ class Device(Base):
     device_uuid: Mapped[uuid_pk]
     hardware_id: Mapped[str] = mapped_column(unique=True, nullable=False)
     public_key: Mapped[str] = mapped_column(Text)
+
     owner_uuid: Mapped[uuid_fk] = mapped_column(ForeignKey("users.user_uuid"))
     config: Mapped[dict] = mapped_column(JSONB, default=dict)
     firmware_version: Mapped[str]
@@ -28,7 +28,8 @@ class Device(Base):
         default=None,
     )
     battery_level: Mapped[int]
-    wifi_ssid: Mapped[Optional[str]] = mapped_column(str_64)
+    # is_online: Mapped[bool] = mapped_column(default=False)
+    wifi_ssid: Mapped[Optional[str_64]]
     ip_address: Mapped[str] = mapped_column(INET)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

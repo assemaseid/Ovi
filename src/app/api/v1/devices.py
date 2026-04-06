@@ -1,66 +1,240 @@
-# import paho.mqtt.client as mqttclient
-# import time
-#
-#
-# def on_connect(client, userdata, flags, rc):
-#     if rc==0:
-#         print("client is connected")
-#         global connected
-#         connected = True
-#     else:
-#         print("connection failed")
-#
-# connected = False
-# broker_address = "test.mosquitto.org"
-# port=1883
-#
-# clientID = "abc"
-# client = mqttclient.Client(callback_api_version=mqttclient.CallbackAPIVersion.VERSION1,
-#                            client_id=clientID,
-#                            )
-# client.on_connect=on_connect
-# client.connect(broker_address, port=port)
-# client.loop_start()
-# while connected != True:
-#     time.sleep(0.2)
-# client.publish("mqtt/firstcode", "hello abzal !")
-# client.loop_stop()
+import logging
 
-import paho.mqtt.client as mqttclient
-import time
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import select
 
-def on_connect(client, userdata, flags, rc, properties):
-    if rc == 0:
-        print("client is connected")
-    else:
-        print("connection failed")
+from src.database import SessionDep
+from src.dependencies import get_current_user
+from src.app.api.dependencies import require_device_permission
+from src.app.models.device import Device
+from src.app.models.event import Event
+from src.app.models.grant import Grant
+from src.app.models.pin_state import PinState
+from src.app.models.user import User
+from src.app.schemas.device import (
+    DeviceConfig,
+    DeviceOut,
+    DeviceRegisterRequest,
+    DeviceRegisterResponse,
+    DiagnosticsResponse,
+    EventOut,
+    MqttConfig,
+    MqttTopics,
+    OkResponse,
+    PinStateOut,
+)
+from src.app.services.crypto_service import CryptoService
+from src.app.services.mqtt_service import MQTTService
+from src.config import settings
 
-def on_message(client, userdata, msg):
-    print("Message received: " + str(msg.payload))
-    print("Topic: " + str(msg.topic))
+router = APIRouter(prefix="/devices", tags=["Devices"])
+logger = logging.getLogger(__name__)
 
 
-connected = False
-MessageReceived = False
+def _cfg(attr: str, default):
+    return getattr(settings, attr, default)
 
-broker_address = "test.mosquitto.org"
-port = 1883
 
-clientID = "mqtt"
-client = mqttclient.Client(
-    callback_api_version=mqttclient.CallbackAPIVersion.VERSION2,
-    client_id=clientID,
+@router.post(
+    "/register_device",
+    status_code=status.HTTP_201_CREATED,
+    response_model=DeviceRegisterResponse,
+    summary="Register Device as Owner"
+)
+async def register_device(
+    body: DeviceRegisterRequest,
+    session: SessionDep,
+    current_user: User = Depends(get_current_user),
+) -> DeviceRegisterResponse:
+
+    existing = await session.execute(
+        select(Device).where(Device.hardware_id == body.device.hardware_id)
     )
-client.on_connect=on_connect
-client.on_message=on_message
-client.connect(broker_address, port)
-client.loop_start()
-client.subscribe("abzal")
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=409, detail="Device hardware_id already registered")
 
-while connected != True:
-    time.sleep(0.2)
+    if str(current_user.user_uuid) != body.owner_info.owner_uuid:
+        raise HTTPException(status_code=403, detail="owner_info.owner_uuid mismatch")
 
-while MessageReceived != True:
-    time.sleep(0.2)
+    pin_length = _cfg("pin_length", 6)
+    rotation_hours = _cfg("pin_rotation_seconds", 86400) // 3600
+    grace_period_minutes = _cfg("pin_grace_period_seconds", 300) // 60
+    max_attempts = _cfg("pin_max_attempts", 5)
+    lockout_seconds = _cfg("pin_lockout_seconds", 30)
 
-client.loop_stop()
+    device = Device(
+        hardware_id=body.device.hardware_id,
+        public_key=body.device.public_key,
+        owner_uuid=current_user.user_uuid,
+        config={
+            "capabilities": body.device.capabilities,
+            "location": body.owner_info.location,
+            "timezone": body.owner_info.timezone,
+            "pin_length": pin_length,
+            "rotation_hours": rotation_hours,
+            "grace_period_minutes": grace_period_minutes,
+            "max_attempts": max_attempts,
+            "lockout_seconds": lockout_seconds,
+        },
+    )
+    session.add(device)
+    await session.flush()
+
+    session.add(Grant(
+        device_uuid=device.device_uuid,
+        user_uuid=current_user.user_uuid,
+        permissions=["read_status", "unlock", "admin"],
+        created_by=current_user.user_uuid,
+    ))
+    session.add(PinState(device_uuid=device.device_uuid))
+
+    await session.commit()
+    await session.refresh(device)
+
+    crypto = CryptoService.get()
+    dev_uuid_str = str(device.device_uuid)
+
+    return DeviceRegisterResponse(
+        status="registered",
+        device_uuid=dev_uuid_str,
+        server_public_key=crypto.public_key_pem,
+        config=DeviceConfig(
+            pin_length=pin_length,
+            rotation_hours=rotation_hours,
+            grace_period_minutes=grace_period_minutes,
+            max_attempts=max_attempts,
+            lockout_seconds=lockout_seconds,
+        ),
+        mqtt_config=MqttConfig(
+            broker=_cfg("MQTT_HOST", "localhost"),
+            port=_cfg("MQTT_PORT", 1883),
+            client_id=dev_uuid_str,
+            topics=MqttTopics(
+                commands=MQTTService.cmd_topic(dev_uuid_str),
+                events=MQTTService.events_topic(dev_uuid_str),
+                status=MQTTService.status_topic(dev_uuid_str),
+            ),
+        ),
+    )
+
+"""owned — замки которые ты купил и зарегистрировал, ты хозяин.                                                                                                                
+  granted — замки чужие, но хозяин дал тебе ключ (временный или постоянный). """
+@router.get("", response_model=list[DeviceOut])
+async def list_devices(
+    session: SessionDep,
+    current_user: User = Depends(get_current_user),
+) -> list[DeviceOut]:
+    # owned
+    query = await session.execute(
+        select(Device).where(Device.owner_uuid == current_user.user_uuid)
+    )
+    owned = query.scalars().all()
+
+    # granted
+    """Это место используется если владелец захочет быть клиентом другого замка, 
+    например ты владелец замка в офисе, но сосед дал тебе доступ к    
+  замку в подъезде и владелец замка не будет видеть в списке свой замок дважды (как владелец и как клиент)"""
+    grant_query = await session.execute(
+        select(Grant).where(
+            Grant.user_uuid == current_user.user_uuid,
+            Grant.device_uuid.not_in([d.device_uuid for d in owned]),
+        )
+    )
+    granted_device_ids = [g.device_uuid for g in grant_query.scalars().all()]
+
+    granted_devices: list[Device] = []
+    if len(granted_device_ids) > 0:
+        device_query = await session.execute(select(Device).where(
+            Device.device_uuid.in_(granted_device_ids)))
+        granted_devices = list(device_query.scalars().all())
+
+    result_unique_devices = []
+    for unique_device in (list(owned) + granted_devices):
+        result_unique_devices.append(DeviceOut.model_validate(unique_device))
+
+    return result_unique_devices
+
+
+@router.get("/{device_uuid}", response_model=DeviceOut)
+async def get_device(
+    device_uuid: str,
+    session: SessionDep,
+    current_user: User = Depends(get_current_user),
+) -> DeviceOut:
+
+    device = await require_device_permission(device_uuid,
+                                             "read_status",
+                                             current_user,
+                                             session)
+    return DeviceOut.model_validate(device)
+
+
+@router.delete("/{device_uuid}",
+               response_model=OkResponse,
+               summary="Delete Device as owner from Ovi",
+               description="Владелец замка полностью удаляет замок из системы Ovi, тут нет про клиента",
+               )
+async def delete_device(
+    device_uuid: str,
+    session: SessionDep,
+    current_user: User = Depends(get_current_user),
+) -> OkResponse:
+
+    device = await require_device_permission(device_uuid, "admin", current_user, session)
+    if device.owner_uuid != current_user.user_uuid:
+        raise HTTPException(status_code=403, detail="Only owner can delete device")
+    await session.delete(device)
+    await session.commit()
+    return OkResponse(message="Device deleted")
+
+
+@router.get("/{device_uuid}/status", response_model=DeviceOut)
+async def get_device_status(
+    device_uuid: str,
+    session: SessionDep,
+    current_user: User = Depends(get_current_user),
+) -> DeviceOut:
+
+    device = await require_device_permission(device_uuid,
+                                             "read_status",
+                                             current_user,
+                                             session)
+    return DeviceOut.model_validate(device)
+
+
+@router.get("/{device_uuid}/diagnostics", response_model=DiagnosticsResponse)
+async def get_diagnostics(
+    device_uuid: str,
+    session: SessionDep,
+    current_user: User = Depends(get_current_user),
+) -> DiagnosticsResponse:
+    """Full device state + recent logs + PIN state. Owner/admin only."""
+    device = await require_device_permission(device_uuid,
+                                             "admin",
+                                             current_user,
+                                             session)
+
+    event_q = await session.execute(
+        select(Event)
+        .where(Event.device_uuid == device.device_uuid)
+        .order_by(Event.created_at.desc())
+        .limit(20)
+    )
+    events = event_q.scalars().all()
+
+    pin_state_q = await session.execute(
+        select(PinState).where(PinState.device_uuid == device.device_uuid)
+    )
+    pin_state = pin_state_q.scalar_one_or_none()
+
+    return DiagnosticsResponse(
+        device_uuid=str(device.device_uuid),
+        # is_online=getattr(device, "is_online", None),
+        battery_level=device.battery_level,
+        firmware_version=device.firmware_version,
+        last_seen=device.last_seen,
+        last_time_sync=device.last_time_sync,
+        pin_state=PinStateOut.model_validate(pin_state) if pin_state else None,
+        recent_events=[EventOut.model_validate(e) for e in events],
+        config=device.config or {},
+    )
