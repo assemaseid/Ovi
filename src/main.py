@@ -1,7 +1,7 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, APIRouter
-from src.app.api.v1 import auth
+from src.app.api.v1 import auth, devices
 from starlette.middleware.cors import CORSMiddleware
 
 from src.app.queries.orm import AsyncOrm
@@ -20,6 +20,7 @@ def create_app() -> FastAPI:
     api_v1 = APIRouter(prefix="/api/v1")
     
     api_v1.include_router(auth.router)
+    api_v1.include_router(devices.router)
     
     app = FastAPI(lifespan=lifespan)
     app.include_router(api_v1)

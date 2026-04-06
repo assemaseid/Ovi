@@ -66,6 +66,17 @@ class MQTTService:
         await self._client.publish(topicName, payload=msg, qos=qos, retain=retain)
         logger.debug("MQTT publish -> %s : %s", topicName, msg)
 
+    @staticmethod
+    def cmd_topic(device_uuid: str) -> str:
+        return f"devices/{device_uuid}/commands"
+
+    @staticmethod
+    def events_topic(device_uuid: str) -> str:
+        return f"devices/{device_uuid}/events"
+
+    @staticmethod
+    def status_topic(device_uuid: str) -> str:
+        return f"devices/{device_uuid}/status"
 
 
 # client.tls_set(

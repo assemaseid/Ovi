@@ -17,7 +17,7 @@ from src.app.schemas.auth import (
 from src.app.schemas.user import UserCreateSchema, UserResponseSchema
 from src.app.security import jwt_password, jwt_utils
 from fastapi.security import HTTPBearer, OAuth2PasswordBearer
-from .auth_helpers import (
+from src.app.services.auth_service import (
     create_token_pair,
     create_access_token
 )

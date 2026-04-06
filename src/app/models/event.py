@@ -10,7 +10,6 @@ from src.database import Base, uuid_pk, uuid_fk, str_50, str_64
 class Event(Base):
     __tablename__ = "events"
 
-
     event_uuid: Mapped[uuid_pk]
     msq_id: Mapped[str_64] = mapped_column(unique=True)
     device_uuid: Mapped[uuid_fk] = mapped_column(
