@@ -23,7 +23,7 @@ from src.app.schemas.device import (
     OkResponse,
     PinStateOut,
 )
-from src.app.services.crypto_service import CryptoService
+from src.app.services.crypto_service import crypto_service
 from src.app.services.mqtt_service import MQTTService
 from src.config import settings
 
@@ -91,7 +91,7 @@ async def register_device(
     await session.commit()
     await session.refresh(device)
 
-    crypto = CryptoService.get()
+    crypto = crypto_service.get()
     dev_uuid_str = str(device.device_uuid)
 
     return DeviceRegisterResponse(
