@@ -16,6 +16,9 @@ import com.example.ovi.domain.repository.LockRepository
 import com.example.ovi.util.BleConstants
 import com.google.gson.Gson
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -93,16 +96,24 @@ class BluetoothViewModel @Inject constructor(
             _onboardingState.value = OnboardingState.ReadingInfo
             val infoReqId = UUID.randomUUID().toString()
             val getInfoCmd = """{"cmd":"get_info","req_id":"$infoReqId"}"""
-            val cmdSent = bleManager.writeCharacteristic(device.address, BleConstants.CHAR_COMMAND_WRITE, getInfoCmd)
+
+            // Subscribe BEFORE writing — if we write first the notification may arrive before
+            // the collector is active and be silently dropped by SharedFlow.
+            var cmdSent = false
+            val infoNotification = coroutineScope {
+                val notifJob = async(start = CoroutineStart.UNDISPATCHED) {
+                    withTimeoutOrNull(10_000L) {
+                        bleManager.notifications.first { (uuid, value) ->
+                            uuid == BleConstants.CHAR_STATUS_NOTIFY && value.contains("info_response")
+                        }
+                    }
+                }
+                cmdSent = bleManager.writeCharacteristic(device.address, BleConstants.CHAR_COMMAND_WRITE, getInfoCmd)
+                if (cmdSent) notifJob.await() else { notifJob.cancel(); null }
+            }
             if (!cmdSent) {
                 _onboardingState.value = OnboardingState.Error("Failed to send get_info command")
                 return
-            }
-
-            val infoNotification = withTimeoutOrNull(10_000L) {
-                bleManager.notifications.first { (uuid, value) ->
-                    uuid == BleConstants.CHAR_STATUS_NOTIFY && value.contains("info_response")
-                }
             }
             if (infoNotification == null) {
                 _onboardingState.value = OnboardingState.Error("No info response from device (timeout)")
@@ -153,6 +164,7 @@ class BluetoothViewModel @Inject constructor(
             val regBody = registrationBody
             if (regBody != null) {
                 val configPacket = JSONObject().apply {
+                    put("cmd", "config")
                     put("server_public_key", regBody.server_public_key)
                     put("config", JSONObject().apply {
                         put("pin_length", regBody.config.pin_length)
@@ -173,20 +185,25 @@ class BluetoothViewModel @Inject constructor(
                     })
                 }.toString()
 
-                val writeOk = bleManager.writeCharacteristic(
-                    device.address,
-                    BleConstants.CHAR_COMMAND_WRITE,
-                    configPacket
-                )
+                var writeOk = false
+                val notified = coroutineScope {
+                    val notifJob = async(start = CoroutineStart.UNDISPATCHED) {
+                        withTimeoutOrNull(10_000L) {
+                            bleManager.notifications.first { (uuid, value) ->
+                                uuid == BleConstants.CHAR_STATUS_NOTIFY && value.contains("configured")
+                            }
+                        }
+                    }
+                    writeOk = bleManager.writeCharacteristic(
+                        device.address,
+                        BleConstants.CHAR_COMMAND_WRITE,
+                        configPacket
+                    )
+                    if (writeOk) notifJob.await() else { notifJob.cancel(); null }
+                }
                 if (!writeOk) {
                     _onboardingState.value = OnboardingState.Error("Failed to write config to device")
                     return
-                }
-
-                val notified = withTimeoutOrNull(10_000L) {
-                    bleManager.notifications.first { (uuid, value) ->
-                        uuid == BleConstants.CHAR_STATUS_NOTIFY && value.contains("configured")
-                    }
                 }
                 if (notified == null) {
                     _onboardingState.value = OnboardingState.Error("Lock did not confirm configuration")

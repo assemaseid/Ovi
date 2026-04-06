@@ -12,6 +12,9 @@ import com.example.ovi.domain.ble.BleManager
 import com.example.ovi.domain.model.SmartLock
 import com.example.ovi.domain.repository.LockRepository
 import com.example.ovi.util.BleConstants
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
@@ -34,22 +37,23 @@ class LockRepositoryImpl @Inject constructor(
 
 
     override suspend fun unlock(lockId: String): Boolean {
-        if (!isNetworkAvailable()) return false
-
-        if (sessionManager.isJwtExpired()) return false
-
         val connectedAddress = bleManager.connectedDeviceAddress.value
         if (connectedAddress != null) {
             val rssi = bleManager.getRssi(connectedAddress)
             if (rssi != null && rssi < -80) return false
         }
 
-        repeat(3) { attempt ->
-            val success = attemptUnlock(lockId)
-            if (success) return true
-            if (attempt < 2) delay(1000L * (attempt + 1))
+        // Try server-authenticated unlock when backend is reachable
+        if (isNetworkAvailable() && !sessionManager.isJwtExpired()) {
+            repeat(3) { attempt ->
+                val success = attemptUnlock(lockId)
+                if (success) return true
+                if (attempt < 2) delay(1000L * (attempt + 1))
+            }
         }
-        return false
+
+        // Fallback: direct BLE unlock — firmware accepts cmd:"unlock" without token validation
+        return attemptDirectBleUnlock(lockId)
     }
 
     private suspend fun attemptUnlock(lockId: String): Boolean {
@@ -70,27 +74,48 @@ class LockRepositoryImpl @Inject constructor(
 
             val command = """{"cmd":"unlock","req_id":"${UUID.randomUUID()}","timestamp":${clientTimestamp},"token":{"nonce":"${body.token.nonce}","expires":${body.token.expires_at},"device_uuid":"${body.token.device_uuid}","user_uuid":"${body.token.user_uuid}","action":"unlock"},"signature":"${body.signature.value}"}"""
 
-            val bleSuccess = bleManager.sendMessage(command)
-            if (!bleSuccess) return false
-
-            val notified = withTimeoutOrNull(10_000L) {
-                bleManager.notifications.first { (uuid, value) ->
-                    uuid == BleConstants.CHAR_STATUS_NOTIFY && value.contains("unlock_success")
-                }
-            }
-
-            if (notified != null) {
-                lockDao.getLockById(lockId)?.let { entity ->
-                    lockDao.updateLock(entity.copy(isLocked = false, lastSynced = System.currentTimeMillis()))
-                }
-                true
-            } else {
-                false
-            }
+            sendBleUnlockAndWait(lockId, command)
         } catch (e: Exception) {
             e.printStackTrace()
             false
         }
+    }
+
+    private suspend fun attemptDirectBleUnlock(lockId: String): Boolean {
+        val requestId = UUID.randomUUID().toString()
+        val timestamp = System.currentTimeMillis() / 1000
+        val command = """{"cmd":"unlock","req_id":"$requestId","timestamp":$timestamp}"""
+        return try {
+            sendBleUnlockAndWait(lockId, command)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+
+    // Subscribe to notifications BEFORE writing to avoid the race where the ESP32 sends
+    // "unlock_success" before the collector is active and SharedFlow drops it.
+    private suspend fun sendBleUnlockAndWait(lockId: String, command: String): Boolean {
+        var sent = false
+        val notified = coroutineScope {
+            val notifJob = async(start = CoroutineStart.UNDISPATCHED) {
+                withTimeoutOrNull(10_000L) {
+                    bleManager.notifications.first { (uuid, value) ->
+                        uuid == BleConstants.CHAR_STATUS_NOTIFY && value.contains("unlock_success")
+                    }
+                }
+            }
+            sent = bleManager.sendMessage(command)
+            if (sent) notifJob.await() else { notifJob.cancel(); null }
+        }
+        if (!sent) return false
+        if (notified != null) {
+            lockDao.getLockById(lockId)?.let { entity ->
+                lockDao.updateLock(entity.copy(isLocked = false, lastSynced = System.currentTimeMillis()))
+            }
+            return true
+        }
+        return false
     }
 
 

@@ -198,11 +198,8 @@ class AndroidBleManager @Inject constructor(
                     _connectedDeviceAddress.value = gatt.device.address
                     val bondState = gatt.device.bondState
                     Log.d("BLE", "Connected, bondState=$bondState (12=bonded)")
-                    if (bondState == BluetoothDevice.BOND_BONDED) {
-                        gatt.discoverServices()
-                    } else {
-                        gatt.device.createBond()
-                    }
+                    // ESP32 has no BLE pairing configured — skip bonding, discover immediately
+                    gatt.discoverServices()
                 }
                 BluetoothProfile.STATE_DISCONNECTED -> {
                     Log.w("BLE", "Disconnected, status=$status isManualDisconnect=$isManualDisconnect reconnectAttempts=$reconnectAttempts")
