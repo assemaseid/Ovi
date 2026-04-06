@@ -101,11 +101,7 @@ class AuthRepositoryImpl @Inject constructor(
                 return null
             }
 
-            val userId = sessionManager.getUserId()
-            if (userId == -1) {
-                return null
-            }
-
+            val userId = sessionManager.getUserId() ?: return null
             return User(
                 id = userId,
                 email = sessionManager.getEmail() ?: return null,
