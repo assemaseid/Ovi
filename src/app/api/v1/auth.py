@@ -1,6 +1,6 @@
 from uuid import UUID
 import hashlib
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import (
     APIRouter, 
@@ -148,13 +148,16 @@ async def logout(session: SessionDep,
                                    )
 
         if not existing.scalars().first():
+            jti = payload.get("jti") or token_hash[:64]
             blacklisted = TokenBlacklist(
+                token_id=jti,
                 user_uuid=user_uuid,
                 token_hash=token_hash,
-                expires_at=datetime.fromtimestamp(exp_timestamp),
+                expires_at=datetime.fromtimestamp(exp_timestamp, tz=timezone.utc),
             )
-        session.add(blacklisted)
-        await session.commit()
+            session.add(blacklisted)
+            await session.commit()
+
 
         return {
             "message": "Successfully logged out",

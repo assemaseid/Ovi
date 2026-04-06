@@ -24,22 +24,35 @@ class MQTTService:
         if self._initialized:
             return
         self._initialized = True
-        self._client: aiomqtt.Client | None
+        self._client: aiomqtt.Client | None = None
         self._subscriptions: dict[str, list[Callable]] = {}
         self._last_messages: dict[str, list] = {}
         self._listener_task: asyncio.Task | None = None
 
+    @property
+    def is_connected(self) -> bool:
+        return bool(self._client)
+
     async def connect(self):
-        self._client = aiomqtt.Client(
+        client = aiomqtt.Client(
             hostname=settings.MQTT_HOST,
             port=settings.MQTT_PORT,
             username=settings.MQTT_USERNAME or None,
             password=settings.MQTT_PASSWORD or None,
             identifier=settings.MQTT_CLIENT_ID,
         )
-        await self._client.__aenter__()
+        await client.__aenter__()
+        self._client = client  # только после успешного подключения
         self._listener_task = asyncio.create_task(self._listen())
-        logger.info(f"MQTT connected to {settings.MQTT_HOST} {settings.MQTT_PORT}")
+        logger.info("MQTT connected to %s:%s", settings.MQTT_HOST, settings.MQTT_PORT)
+
+    async def _listen(self):
+        async for message in self._client.messages:
+            topic = str(message.topic)
+            payload = json.loads(message.payload)
+            logger.debug("MQTT recv <- %s : %s", topic, payload)
+            for callback in self._subscriptions.get(topic, []):
+                await callback(topic, payload)
 
     async def disconnect(self):
         if self._listener_task:
