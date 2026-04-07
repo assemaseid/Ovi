@@ -108,7 +108,6 @@ fun EventLogScreen(
         ) {
             Spacer(modifier = Modifier.height(48.dp))
 
-            // Top bar
             Row(
                 modifier = Modifier
                     .fillMaxWidth()

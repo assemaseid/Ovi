@@ -56,7 +56,6 @@ fun ChangePinBottomSheet(
                     .padding(bottom = 32.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Drag handle
                 Box(
                     modifier = Modifier
                         .padding(top = 12.dp, bottom = 16.dp)
@@ -65,7 +64,6 @@ fun ChangePinBottomSheet(
                         .background(Color.White.copy(alpha = 0.3f))
                 )
 
-                // Иконка
                 Box(
                     modifier = Modifier
                         .size(56.dp)
@@ -97,7 +95,6 @@ fun ChangePinBottomSheet(
                 )
 
                 if (isSuccess) {
-                    // Успех
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -123,11 +120,10 @@ fun ChangePinBottomSheet(
                         Text("Done", fontWeight = FontWeight.SemiBold, color = Color.White)
                     }
                 } else {
-                    // Поле новый PIN
                     PinInputField(
                         value = newPin,
                         onValueChange = {
-                            if (it.length <= 8 && it.all { c -> c.isDigit() }) {
+                            if (it.length <=6 && it.all { c -> c.isDigit() }) {
                                 newPin = it
                                 errorMessage = null
                             }
@@ -139,11 +135,10 @@ fun ChangePinBottomSheet(
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    // Поле подтверждение
                     PinInputField(
                         value = confirmPin,
                         onValueChange = {
-                            if (it.length <= 8 && it.all { c -> c.isDigit() }) {
+                            if (it.length <= 6 && it.all { c -> c.isDigit() }) {
                                 confirmPin = it
                                 errorMessage = null
                             }
@@ -153,7 +148,6 @@ fun ChangePinBottomSheet(
                         onVisibilityToggle = { confirmPinVisible = !confirmPinVisible }
                     )
 
-                    // Ошибка
                     errorMessage?.let {
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
@@ -166,7 +160,7 @@ fun ChangePinBottomSheet(
 
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "PIN must be 4-8 digits",
+                        text = "PIN must be 6 digits",
                         fontSize = 12.sp,
                         color = Color.White.copy(alpha = 0.35f),
                         modifier = Modifier.fillMaxWidth()
@@ -195,8 +189,8 @@ fun ChangePinBottomSheet(
                         Button(
                             onClick = {
                                 when {
-                                    newPin.length < 4 ->
-                                        errorMessage = "PIN must be at least 4 digits"
+                                    newPin.length < 6 ->
+                                        errorMessage = "PIN must be at least 6 digits"
                                     newPin != confirmPin ->
                                         errorMessage = "PINs do not match"
                                     else -> {

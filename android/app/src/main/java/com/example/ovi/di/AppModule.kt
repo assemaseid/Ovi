@@ -7,6 +7,7 @@ import android.net.ConnectivityManager
 import com.example.ovi.data.api.AuthService
 import com.example.ovi.data.api.LockService
 import com.example.ovi.data.ble.AndroidBleManager
+import com.example.ovi.data.dto.TokenAuthenticator
 import com.example.ovi.data.local.SessionManager
 import com.example.ovi.data.local.database.AppDatabase
 import com.example.ovi.data.local.dao.EventDao
@@ -27,6 +28,7 @@ import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
+import javax.inject.Provider
 import javax.inject.Singleton
 
 @Module
@@ -35,7 +37,10 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideOkHttpClient(sessionManager: SessionManager): OkHttpClient {
+    fun provideOkHttpClient(
+        sessionManager: SessionManager,
+        authServiceProvider: Provider<AuthService>
+    ): OkHttpClient {
         return OkHttpClient.Builder()
             .addInterceptor { chain ->
                 val token = sessionManager.getJwtToken()
@@ -48,6 +53,7 @@ object AppModule {
                 }
                 chain.proceed(request)
             }
+            .authenticator(TokenAuthenticator(sessionManager, authServiceProvider))
             .connectTimeout(10, TimeUnit.SECONDS)
             .readTimeout(10, TimeUnit.SECONDS)
             .writeTimeout(10, TimeUnit.SECONDS)

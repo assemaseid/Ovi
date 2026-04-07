@@ -7,3 +7,4 @@ data class DeviceItem(
     val locked: Boolean,
     val lastSeen: String,
 )
+//пока временно пусть стоит, данные хардкордные передаю через это, потом снесу, оставлю только SmartLock

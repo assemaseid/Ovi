@@ -59,7 +59,6 @@ fun BottomNavigationBar(navController: NavController) {
                 horizontalArrangement = Arrangement.SpaceAround,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Locks
                 NavBarItem(
                     icon = Icons.Default.Lock,
                     label = "Locks",
@@ -104,7 +103,6 @@ fun BottomNavigationBar(navController: NavController) {
                     )
                 }
 
-                // Profile
                 NavBarItem(
                     icon = Icons.Default.Person,
                     label = "Profile",
