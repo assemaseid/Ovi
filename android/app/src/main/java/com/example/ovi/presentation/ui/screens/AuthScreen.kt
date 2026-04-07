@@ -43,7 +43,6 @@ fun AuthScreen(
     var isLoginMode by remember { mutableStateOf(true) }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    var name by remember { mutableStateOf("") }
     var isPasswordVisible by remember { mutableStateOf(false) }
 
     val authState by viewModel.authState.collectAsState()
@@ -121,16 +120,6 @@ fun AuthScreen(
                         color = TextWhite.copy(alpha = 1f)
                     )
 
-                    if (!isLoginMode) {
-                        AuthTextField(
-                            value = name,
-                            onValueChange = { name = it },
-                            label = "Full Name",
-                            icon = Icons.Default.Person,
-                            isError = authState is AuthViewModel.AuthState.Error
-                        )
-                    }
-
                     AuthTextField(
                         value = email,
                         onValueChange = { email = it },
@@ -163,13 +152,12 @@ fun AuthScreen(
                     Button(
                         onClick = {
                             if (isLoginMode) viewModel.login(email, password)
-                            else viewModel.register(email, password, name)
+                            else viewModel.register(email, password)
                         },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(50.dp),
                         enabled = email.isNotBlank() && password.isNotBlank() &&
-                                (isLoginMode || name.isNotBlank()) &&
                                 authState !is AuthViewModel.AuthState.Loading,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = Color.White.copy(alpha = 0.3f),

@@ -16,26 +16,18 @@ class AuthRepositoryImpl @Inject constructor(
     private val authService: AuthService,
     private val sessionManager: SessionManager
 ): AuthRepository {
-    override suspend fun login(
-        email: String,
-        password: String
-    ): Result<User> {
+
+    override suspend fun login(email: String, password: String): Result<User> {
         return try {
-            val request = LoginRequest(email = email, password = password)
-            val response = authService.login(request)
-
+            val response = authService.login(LoginRequest(email = email, password = password))
             val user = response.user.toDomain(jwtToken = response.accessToken)
-
             sessionManager.saveUserSession(
                 userId = user.id,
                 email = user.email,
-                name = user.name,
                 jwtToken = response.accessToken,
                 refreshToken = response.refreshToken
             )
-
             Result.success(user)
-
         } catch (e: HttpException) {
             val errorMessage = when (e.code()) {
                 401 -> "Invalid email or password"
@@ -44,35 +36,24 @@ class AuthRepositoryImpl @Inject constructor(
                 else -> "Login failed: ${e.message()}"
             }
             Result.failure(Exception(errorMessage))
-
         } catch (e: IOException) {
             Result.failure(Exception("Network error. Check your internet connection"))
-
         } catch (e: Exception) {
             Result.failure(Exception("Login failed: ${e.message}"))
         }
     }
 
-    override suspend fun register(
-        email: String,
-        password: String,
-        name: String
-    ): Result<User> {
+    override suspend fun register(email: String, password: String): Result<User> {
         return try {
-            val request = RegisterRequest(
-                email = email,
-                password = password,
-                name = name
+            val response = authService.register(RegisterRequest(email = email, password = password))
+            val user = response.user.toDomain(jwtToken = response.accessToken)
+            sessionManager.saveUserSession(
+                userId = user.id,
+                email = user.email,
+                jwtToken = response.accessToken,
+                refreshToken = response.refreshToken
             )
-            authService.register(request)
-
-            val loginResult = login(email, password)
-            if (loginResult.isSuccess) {
-                sessionManager.saveName(name)
-                return Result.success(loginResult.getOrNull()!!.copy(name = name))
-            }
-            loginResult
-
+            Result.success(user)
         } catch (e: HttpException) {
             val errorMessage = when (e.code()) {
                 400 -> "Invalid registration data"
@@ -81,15 +62,12 @@ class AuthRepositoryImpl @Inject constructor(
                 else -> "Registration failed: ${e.message()}"
             }
             Result.failure(Exception(errorMessage))
-
         } catch (e: IOException) {
             Result.failure(Exception("Network error. Check your internet connection"))
-
         } catch (e: Exception) {
             Result.failure(Exception("Registration failed: ${e.message}"))
         }
     }
-
 
     override suspend fun logout(): Result<Exception> {
         try {
@@ -107,18 +85,13 @@ class AuthRepositoryImpl @Inject constructor(
 
     override suspend fun getCurrentUser(): User? {
         return try {
-            if (!sessionManager.isLoggedIn()) {
-                return null
-            }
-
+            if (!sessionManager.isLoggedIn()) return null
             val userId = sessionManager.getUserId() ?: return null
-            return User(
+            User(
                 id = userId,
                 email = sessionManager.getEmail() ?: return null,
-                name = sessionManager.getName() ?: return null,
                 jwtToken = sessionManager.getJwtToken()
             )
-
         } catch (e: Exception) {
             null
         }
