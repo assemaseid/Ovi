@@ -31,53 +31,43 @@ class AuthViewModel @Inject constructor(
     private val _currentUser = MutableStateFlow<User?>(null)
     val currentUser: StateFlow<User?> = _currentUser.asStateFlow()
 
-    fun checkLoginStatus(): Boolean {
-        return sessionManager.isLoggedIn()
-    }
+    fun checkLoginStatus(): Boolean = sessionManager.isLoggedIn()
 
     fun loadCurrentUser() {
         viewModelScope.launch {
             if (sessionManager.isLoggedIn()) {
-                val user = authRepository.getCurrentUser()
-                _currentUser.value = user
+                _currentUser.value = authRepository.getCurrentUser()
             }
         }
     }
 
-    fun getUserName(): String {
-        return sessionManager.getName() ?:"User"
-    }
-    fun getUserEmail():String {
-        return sessionManager.getEmail() ?:"No email"
-    }
+    fun getUserEmail(): String = sessionManager.getEmail() ?: "No email"
 
     fun login(email: String, password: String) {
         viewModelScope.launch {
             _authState.value = AuthState.Loading
-
-            val result = authRepository.login(email, password)
-
-            result.onSuccess { user ->
-                _currentUser.value = user
-                _authState.value = AuthState.Success("Login successful!")
-            }.onFailure { error ->
-                _authState.value = AuthState.Error(error.message ?: "Login failed")
-            }
+            authRepository.login(email, password)
+                .onSuccess { user ->
+                    _currentUser.value = user
+                    _authState.value = AuthState.Success("Login successful!")
+                }
+                .onFailure { error ->
+                    _authState.value = AuthState.Error(error.message ?: "Login failed")
+                }
         }
     }
 
-    fun register(email: String, password: String, name: String) {
+    fun register(email: String, password: String) {
         viewModelScope.launch {
             _authState.value = AuthState.Loading
-
-            val result = authRepository.register(email, password, name)
-
-            result.onSuccess { user ->
-                _currentUser.value = user
-                _authState.value = AuthState.Success("Registration successful!")
-            }.onFailure { error ->
-                _authState.value = AuthState.Error(error.message ?: "Registration failed")
-            }
+            authRepository.register(email, password)
+                .onSuccess { user ->
+                    _currentUser.value = user
+                    _authState.value = AuthState.Success("Registration successful!")
+                }
+                .onFailure { error ->
+                    _authState.value = AuthState.Error(error.message ?: "Registration failed")
+                }
         }
     }
 
@@ -93,5 +83,3 @@ class AuthViewModel @Inject constructor(
         _authState.value = AuthState.Initial
     }
 }
-
-

@@ -31,15 +31,9 @@ fun PersonalScreen(
     }
 
     val currentUser by viewModel.currentUser.collectAsState()
-    val name = currentUser?.name ?: viewModel.getUserName()
     val email = currentUser?.email ?: viewModel.getUserEmail()
 
-    val initials = name
-        .split(" ")
-        .take(2)
-        .mapNotNull { it.firstOrNull()?.uppercaseChar() }
-        .joinToString("")
-        .ifEmpty { "?" }
+    val initials = email.firstOrNull()?.uppercaseChar()?.toString() ?: "?"
 
     Box(
         modifier = Modifier
@@ -95,16 +89,10 @@ fun PersonalScreen(
             Spacer(modifier = Modifier.height(12.dp))
 
             Text(
-                text = name,
-                fontSize = 20.sp,
+                text = email,
+                fontSize = 16.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = TextWhite
-            )
-
-            Text(
-                text = email,
-                fontSize = 15.sp,
-                color = TextHint
             )
 
             Spacer(modifier = Modifier.height(32.dp))
@@ -118,14 +106,6 @@ fun PersonalScreen(
                 Column(
                     modifier = Modifier.padding(4.dp)
                 ) {
-                    ProfileRow(
-                        icon = Icons.Default.Person,
-                        label = "Name",
-                        value = name
-                    )
-
-                    Divider(color = Color.White.copy(alpha = 0.15f), thickness = 0.5.dp)
-
                     ProfileRow(
                         icon = Icons.Default.Email,
                         label = "Email",
