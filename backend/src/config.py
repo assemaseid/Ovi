@@ -30,6 +30,8 @@ class Settings(BaseSettings):
     MQTT_PASSWORD: str | None = None
     MQTT_CLIENT_ID: str = "ovi_server"
 
+    FIREBASE_CREDENTIALS_PATH: str | None = None
+
     
     @property
     def db_url(self):

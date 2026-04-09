@@ -1,6 +1,4 @@
 """
-/ws/events — WebSocket stream for real-time device event delivery.
-
 Clients authenticate with a JWT query parameter:
   ws://host/ws/events?token=<access_jwt>&device_uuid=<optional>
 
@@ -25,7 +23,7 @@ from src.app.models.grant import Grant
 from src.app.models.user import User
 from src.app.security.jwt_utils import decode_jwt
 from src.app.services.auth_service import get_user_by_uuid, is_token_revoked
-from src.database import async_session_factory
+from src.database import async_session_factory, SessionDep
 
 router = APIRouter(tags=["Websocket"])
 logger = logging.getLogger(__name__)
@@ -36,22 +34,37 @@ class ConnectionManager:
         self._connections: dict[str, list[tuple[WebSocket, str | None]]] = {}
         self._lock = asyncio.Lock()
 
-    async def connect(self, ws: WebSocket, user_uuid: str, device_filter: str | None) -> None:
+    async def connect(
+                      self,
+                      ws: WebSocket,
+                      user_uuid: str,
+                      device_filter: str | None
+                      ) -> None:
         await ws.accept()
         async with self._lock:
             self._connections.setdefault(user_uuid, []).append((ws, device_filter))
         logger.info("WS connected user=%s filter=%s", user_uuid, device_filter)
 
-    async def disconnect(self, ws: WebSocket, user_uuid: str) -> None:
+    async def disconnect(self,
+                         ws: WebSocket,
+                         user_uuid: str
+                         ) -> None:
         async with self._lock:
             conns = self._connections.get(user_uuid, [])
-            self._connections[user_uuid] = [(w, f) for w, f in conns if w is not ws]
+            new_conns = []
+            for conn in conns:
+                if conn[0] is not ws:
+                    new_conns.append(conn)
+            self._connections[user_uuid] = new_conns
         logger.info("WS disconnected user=%s", user_uuid)
 
+    # after getting MQTT message, it goes to WebSocket by broadcast_event()
     async def broadcast_event(
-        self, device_uuid: str, event: dict[str, Any], allowed_users: set[str]
-    ) -> None:
-        """Push an event to all connected users who have access to this device."""
+                              self,
+                              device_uuid: str,
+                              event: dict[str, Any],
+                              allowed_users: set[str]
+                              ) -> None:
         payload = json.dumps({
             "type": "device_event",
             "device_uuid": device_uuid,
@@ -75,14 +88,17 @@ class ConnectionManager:
 
         async with self._lock:
             for u, ws in dead:
-                self._connections[u] = [
-                    (w, f) for w, f in self._connections.get(u, []) if w is not ws
-                ]
+                conns = self._connections.get(u, [])
+                alive = []
+                for conn in conns:
+                    if conn[0] is not ws:
+                        alive.append(conn)
+                self._connections[u] = alive
 
 
 manager = ConnectionManager()
 
-async def _authenticate_ws(token: str, db: AsyncSession) -> User | None:
+async def _authenticate_ws(token: str, session: SessionDep) -> User | None:
     try:
         payload = decode_jwt(token)
     except PyJWTError:
@@ -92,20 +108,20 @@ async def _authenticate_ws(token: str, db: AsyncSession) -> User | None:
         return None
 
     jti = payload.get("jti", "")
-    if await is_token_revoked(db, jti):
+    if await is_token_revoked(session, jti):
         return None
 
-    return await get_user_by_uuid(db, payload.get("sub"))
+    return await get_user_by_uuid(session, payload.get("sub"))
 
 
-async def _get_allowed_devices(user: User, db: AsyncSession) -> set[str]:
-    """Return device_uuid strings the user can receive events for."""
-    owned_q = await db.execute(
+async def _get_allowed_devices(user: User, session: SessionDep) -> set[str]:
+    """Return device_uuid strings the user can receive events for"""
+    owned_q = await session.execute(
         select(Device.device_uuid).where(Device.user_uuid == user.user_uuid)
     )
     owned = {str(r) for r in owned_q.scalars().all()}
 
-    grant_q = await db.execute(
+    grant_q = await session.execute(
         select(Grant.device_uuid).where(Grant.user_uuid == user.user_uuid)
     )
     granted = {str(r) for r in grant_q.scalars().all()}
@@ -113,16 +129,14 @@ async def _get_allowed_devices(user: User, db: AsyncSession) -> set[str]:
     return owned | granted
 
 
-# ── WebSocket endpoint ────────────────────────────────────────────────────────
-
 @router.websocket("/ws/events")
 async def ws_events(
     websocket: WebSocket,
     token: str = Query(..., description="JWT access token"),
     device_uuid: str | None = Query(default=None, description="Filter by device UUID"),
 ) -> None:
-    async with async_session_factory() as db:
-        user = await _authenticate_ws(token, db)
+    async with async_session_factory() as session:
+        user = await _authenticate_ws(token, session)
         if not user:
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
             return

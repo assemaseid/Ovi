@@ -2,9 +2,9 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter
 
-health_router = APIRouter()
+router = APIRouter()
 
-@health_router.get("/health")
+@router.get("/health")
 def healthcheck():
     return {
         "status": "OK",

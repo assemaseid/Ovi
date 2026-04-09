@@ -9,14 +9,17 @@ from src.config import settings
 
 logger = logging.getLogger(__name__)
 
-class MQTTService:
-    "Singleton for all mqtt services as publish and subscribe"
+# Suffix → callback: e.g. "/events" → handle_device_event
+_suffix_handlers: dict[str, Callable] = {}
 
+
+class MQTTService:
     _instance: "MQTTService | None" = None
 
     def __new__(cls):
         if cls._instance is None:
-            cls._instance = super().__new__(cls) #выделяет память и возвращает пустой обьект
+            # выделяет память и возвращает пустой обьект
+            cls._instance = super().__new__(cls)
             cls._instance._initialized = False
         return cls._instance
 
@@ -46,13 +49,29 @@ class MQTTService:
         self._listener_task = asyncio.create_task(self._listen())
         logger.info("MQTT connected to %s:%s", settings.MQTT_HOST, settings.MQTT_PORT)
 
+    def register_suffix_handler(self, suffix: str, callback: Callable) -> None:
+        _suffix_handlers[suffix] = callback
+
+    async def subscribe_device(self, device_uuid: str) -> None:
+        # TODO: /cmd, /config, /notifications, admin/alerts
+        for suffix in ("/events", "/status", "/cmd"):
+            topic = f"devices/{device_uuid}{suffix}"
+            if topic not in self._subscriptions:
+                await self._client.subscribe(topic, qos=1)
+                self._subscriptions[topic] = []
+                logger.info("MQTT subscribed to %s", topic)
+
     async def _listen(self):
         async for message in self._client.messages:
             topic = str(message.topic)
             payload = json.loads(message.payload)
             logger.debug("MQTT recv <- %s : %s", topic, payload)
-            for callback in self._subscriptions.get(topic, []):
-                await callback(topic, payload)
+
+            # Route by suffix
+            for suffix, handler in _suffix_handlers.items():
+                if topic.endswith(suffix):
+                    await handler(topic, payload)
+                    break
 
     async def disconnect(self):
         if self._listener_task:
@@ -75,8 +94,15 @@ class MQTTService:
             qos: int = 1,
             retain: bool = False,
     ):
-        msg = json.dumps(payload) if not isinstance(payload, (str, bytes)) else payload
-        await self._client.publish(topicName, payload=msg, qos=qos, retain=retain)
+        if type(payload) == str or type(payload) == bytes:
+            msg = payload
+        else:
+            msg = json.dumps(payload)
+
+        await self._client.publish(topicName,
+                                   payload=msg,
+                                   qos=qos,
+                                   retain=retain)
         logger.debug("MQTT publish -> %s : %s", topicName, msg)
 
     @staticmethod

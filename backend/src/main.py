@@ -1,12 +1,17 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, APIRouter
-from src.app.api.v1 import auth, devices, commands
+from sqlalchemy import select
+from src.app.api.v1 import auth, devices, commands, ws, healthcheck, users
 from starlette.middleware.cors import CORSMiddleware
 
 import logging
+from src.app.models.device import Device
 from src.app.queries.orm import AsyncOrm
 from src.app.services import mqtt_service
+from src.app.services.fcm_service import init_fcm
+from src.app.services.event_handler import handle_device_event, handle_device_status
+from src.database import async_session_factory
 
 logger = logging.getLogger(__name__)
 
@@ -14,10 +19,23 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     await AsyncOrm.create_tables()
     await AsyncOrm.insert_users()
+
+    init_fcm()
+
     mqtt = mqtt_service.MQTTService()
     try:
         await mqtt.connect()
-        print("✓ MQTT connected")
+        mqtt.register_suffix_handler("/events", handle_device_event)
+        mqtt.register_suffix_handler("/status", handle_device_status)
+
+        async with async_session_factory() as session:
+            result = await session.execute(select(Device.device_uuid))
+            device_uuids = result.scalars().all()
+
+        for device_uuid in device_uuids:
+            await mqtt.subscribe_device(str(device_uuid))
+
+        print(f"✓ MQTT connected, subscribed to {len(device_uuids)} device(s)")
     except Exception as e:
         print(f"✗ MQTT connection failed: {e}")
     yield
@@ -30,10 +48,13 @@ def create_app() -> FastAPI:
     api_v1.include_router(auth.router)
     api_v1.include_router(devices.router)
     api_v1.include_router(commands.router)
+    api_v1.include_router(users.router)
     
     app = FastAPI(lifespan=lifespan)
     app.include_router(api_v1)
-    
+    app.include_router(ws.router)
+    app.include_router(healthcheck.router)
+
     return app
 
 app = create_app()

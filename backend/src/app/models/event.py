@@ -11,7 +11,7 @@ class Event(Base):
     __tablename__ = "events"
 
     event_uuid: Mapped[uuid_pk]
-    msq_id: Mapped[str_64] = mapped_column(unique=True)
+    msg_id: Mapped[str_64] = mapped_column(unique=True)
     device_uuid: Mapped[uuid_fk] = mapped_column(
         ForeignKey("devices.device_uuid")
     )

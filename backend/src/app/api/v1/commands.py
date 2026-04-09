@@ -29,18 +29,14 @@ async def request_unlock_token(
     session: SessionDep,
     current_user: User = Depends(get_current_user),
 ) -> UnlockResponse:
-    """
-    Flow B steps 3-6:
-    Validate user permissions, generate a short-lived signed unlock token,
-    and optionally dispatch via MQTT if device is online.
-    """
+
     device = await require_device_permission(
         body.device_uuid, "unlock", current_user, session
     )
 
-    now_ts = int(time.time())
+    now_timestamp = int(time.time())
     nonce = crypto_service.generate_nonce(8)
-    expires_at = now_ts + settings.unlock_token_ttl_seconds
+    expires_at = now_timestamp + settings.unlock_token_ttl_seconds
     session_id = f"sess_{uuid.uuid4().hex[:10]}"
 
     token = TokenData(
@@ -49,7 +45,7 @@ async def request_unlock_token(
         user_uuid=str(current_user.user_uuid),
         action="unlock",
         nonce=nonce,
-        issued_at=now_ts,
+        issued_at=now_timestamp,
         expires_at=expires_at,
         session_id=session_id,
     )
@@ -66,8 +62,8 @@ async def request_unlock_token(
     mqtt = MQTTService()
     if mqtt.is_connected:
         cmd_msg = MqttCommand(
-            msg_id=f"msg_{uuid.uuid4().hex[:12]}",
-            timestamp=now_ts,
+            msg_id=f"msg_{uuid.uuid4()}",
+            timestamp=now_timestamp,
             command={
                 "type": "unlock",
                 "token": token.model_dump(),

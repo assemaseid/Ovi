@@ -8,7 +8,6 @@ from fastapi import (
     HTTPException,
     status,
     )
-
 from src.app.schemas.auth import (
     LoginSchema,
     RefreshTokenResponse,

@@ -1,8 +1,8 @@
 import uuid
 from datetime import timedelta, datetime, UTC
-
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.database import SessionDep
 
 from src.app.models.auth import TokenBlacklist
 from src.app.models.user import User
@@ -33,12 +33,10 @@ def create_access_token(user: UserResponseSchema) -> str:
     jti = str(uuid.uuid4())
     jwt_payload = {
         "sub": str(user.user_uuid),
-        TOKEN_TYPE_FIELD: _ACCESS_TOKEN_TYPE,
         "email": user.email,
         "jti": jti,
         "iat": datetime.now(UTC),
     }
-    
     return create_token(
         token_type=_ACCESS_TOKEN_TYPE,
         token_data=jwt_payload,
@@ -49,11 +47,10 @@ def create_refresh_token(user: UserResponseSchema) -> str:
     jti = str(uuid.uuid4())
     jwt_payload = {
         "sub": str(user.user_uuid),
-        TOKEN_TYPE_FIELD: _ACCESS_TOKEN_TYPE,
         "email": user.email,
         "jti": jti,
         "iat": datetime.now(UTC),
-    } 
+    }
     return create_token(
         token_type=_REFRESH_TOKEN_TYPE,
         token_data=jwt_payload,
@@ -69,18 +66,17 @@ def create_token_pair(user: UserResponseSchema):
         user_data=user.model_dump(),
     )
 
-async def get_user_by_email(db: AsyncSession, email: str | None) -> User | None:
-    result = await db.execute(select(User).where(
-        User.email==uuid.UUID(str(email))))
+async def get_user_by_email(session: SessionDep, email: str | None) -> User | None:
+    result = await session.execute(select(User).where(User.email == email))
     return result.scalar_one_or_none()
 
-async def get_user_by_uuid(db: AsyncSession, user_uuid: str | None) -> User | None:
-    result = await db.execute(select(User).where(
+async def get_user_by_uuid(session: SessionDep, user_uuid: str | None) -> User | None:
+    result = await session.execute(select(User).where(
         User.user_uuid==uuid.UUID(str(user_uuid))))
     return result.scalar_one_or_none()
 
 
-async def is_token_revoked(db: AsyncSession, jti: str) -> bool:
-    result = await db.execute(select(TokenBlacklist).where(
+async def is_token_revoked(session: SessionDep, jti: str) -> bool:
+    result = await session.execute(select(TokenBlacklist).where(
         TokenBlacklist.token_id==jti))
     return bool(result.scalar_one_or_none())

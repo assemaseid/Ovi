@@ -94,6 +94,14 @@ async def register_device(
 
     dev_uuid_str = str(device.device_uuid)
 
+    mqtt = MQTTService()
+    if mqtt.is_connected:
+        try:
+            await mqtt.subscribe_device(dev_uuid_str)
+        except Exception as e:
+            logger.warning("MQTT subscribe failed for new device %s: %s",
+                           dev_uuid_str, e)
+
     return DeviceRegisterResponse(
         status="registered",
         device_uuid=dev_uuid_str,
@@ -180,7 +188,10 @@ async def delete_device(
     current_user: User = Depends(get_current_user),
 ) -> OkResponse:
 
-    device = await require_device_permission(device_uuid, "admin", current_user, session)
+    device = await require_device_permission(device_uuid,
+                                             "admin",
+                                             current_user,
+                                             session)
     if device.user_uuid != current_user.user_uuid:
         raise HTTPException(status_code=403, detail="Only owner can delete device")
     await session.delete(device)
