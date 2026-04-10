@@ -1,5 +1,15 @@
 package com.example.ovi.data.dto
 
+import com.google.gson.annotations.SerializedName
+
+data class DeviceOutDto(
+    @SerializedName("device_uuid") val deviceUuid: String,
+    @SerializedName("hardware_id") val hardwareId: String,
+    @SerializedName("firmware_version") val firmwareVersion: String?,
+    @SerializedName("battery_level") val batteryLevel: Int?,
+    @SerializedName("last_seen") val lastSeen: String?,
+    @SerializedName("created_at") val createdAt: String?
+)
 data class DeviceRegistrationRequest(
     val device: DeviceInfo,
     val owner_info: OwnerInfo
@@ -48,9 +58,7 @@ data class MqttTopics(
 )
 
 data class UnlockTokenRequest(
-    val device_uuid: String,
-    val request_id: String,
-    val client_timestamp: Long
+    val device_uuid: String
 )
 
 data class UnlockTokenResponse(

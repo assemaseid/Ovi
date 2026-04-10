@@ -16,6 +16,9 @@ interface LockDao {
     @Query("SELECT * FROM locks WHERE deviceId = :lockId LIMIT 1")
     suspend fun getLockById(lockId: String): LockEntity?
 
+    @Query("SELECT * FROM locks WHERE hardwareId = :hardwareId LIMIT 1")
+    suspend fun getLockByHardwareId(hardwareId: String): LockEntity?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertLock(lock: LockEntity)
 

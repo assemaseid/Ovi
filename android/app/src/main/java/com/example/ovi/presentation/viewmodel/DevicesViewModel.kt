@@ -45,6 +45,19 @@ class DevicesViewModel @Inject constructor(
     @ApplicationContext private val context: Context
 ) : ViewModel() {
     
+    init {
+        viewModelScope.launch {
+            lockRepository.syncDevicesFromServer()
+        }
+        viewModelScope.launch {
+            bleManager.isServicesReady.collect { ready ->
+                if (ready) {
+                    lockRepository.getDeviceInfo()
+                }
+            }
+        }
+    }
+
     val devices: StateFlow<List<DeviceItem>> = lockDao.getAllLocks()
         .map { entities ->
             entities.map { entity ->
@@ -114,6 +127,12 @@ class DevicesViewModel @Inject constructor(
 
             delay(2_000)
             _operationState.value = LockOperationState.Idle
+        }
+    }
+
+    fun deleteDevice(lockId: String) {
+        viewModelScope.launch {
+            lockRepository.deleteDevice(lockId)
         }
     }
 
