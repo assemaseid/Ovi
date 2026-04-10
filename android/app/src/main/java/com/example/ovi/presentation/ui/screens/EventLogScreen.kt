@@ -18,9 +18,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.ovi.domain.model.EventType
 import com.example.ovi.domain.model.LockEvent
 import com.example.ovi.domain.model.UnlockMethod
+import com.example.ovi.presentation.viewmodel.EventViewModel
 import com.example.ovi.ui.theme.*
 import java.text.SimpleDateFormat
 import java.util.*
@@ -29,68 +31,10 @@ import java.util.*
 fun EventLogScreen(
     lockId: String,
     lockName: String,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    viewModel: EventViewModel = hiltViewModel()
 ) {
-    val events = remember {
-        listOf(
-            LockEvent(
-                id = "1",
-                lockId = lockId,
-                timestamp = System.currentTimeMillis() - 1000 * 60 * 2,
-                type = EventType.UNLOCK,
-                success = true,
-                method = UnlockMethod.BLUETOOTH
-            ),
-            LockEvent(
-                id = "2",
-                lockId = lockId,
-                timestamp = System.currentTimeMillis() - 1000 * 60 * 15,
-                type = EventType.LOCK,
-                success = true,
-                method = UnlockMethod.BLUETOOTH
-            ),
-            LockEvent(
-                id = "3",
-                lockId = lockId,
-                timestamp = System.currentTimeMillis() - 1000 * 60 * 60,
-                type = EventType.UNLOCK,
-                success = false,
-                method = UnlockMethod.PIN
-            ),
-            LockEvent(
-                id = "4",
-                lockId = lockId,
-                timestamp = System.currentTimeMillis() - 1000 * 60 * 60 * 3,
-                type = EventType.PIN_ROTATION,
-                success = true,
-                method = UnlockMethod.REMOTE
-            ),
-            LockEvent(
-                id = "5",
-                lockId = lockId,
-                timestamp = System.currentTimeMillis() - 1000 * 60 * 60 * 5,
-                type = EventType.LOW_BATTERY,
-                success = true,
-                method = UnlockMethod.REMOTE
-            ),
-            LockEvent(
-                id = "6",
-                lockId = lockId,
-                timestamp = System.currentTimeMillis() - 1000 * 60 * 60 * 24,
-                type = EventType.UNLOCK,
-                success = true,
-                method = UnlockMethod.PIN
-            ),
-            LockEvent(
-                id = "7",
-                lockId = lockId,
-                timestamp = System.currentTimeMillis() - 1000 * 60 * 60 * 25,
-                type = EventType.TAMPER_DETECTED,
-                success = true,
-                method = UnlockMethod.REMOTE
-            ),
-        )
-    }
+    val events by viewModel.events.collectAsState()
 
     Box(
         modifier = Modifier

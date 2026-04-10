@@ -6,6 +6,7 @@ import com.example.ovi.data.api.LockService
 import com.example.ovi.data.dto.UnlockTokenRequest
 import com.example.ovi.data.local.SessionManager
 import com.example.ovi.data.local.dao.LockDao
+import com.example.ovi.data.local.entity.LockEntity
 import com.example.ovi.data.mapper.toLockDomain
 import com.example.ovi.data.mapper.toLockEntity
 import com.example.ovi.domain.ble.BleManager
@@ -41,6 +42,48 @@ class LockRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun syncDevicesFromServer() {
+        if (!isNetworkAvailable()) return
+        try {
+            val response = lockService.getDevices()
+            if (!response.isSuccessful) return
+            val devices = response.body() ?: return
+            val ownerUuid = sessionManager.getUserId() ?: ""
+
+            for (dto in devices) {
+                val existing = lockDao.getLockById(dto.deviceUuid)
+                if (existing != null) {
+                    // Устройство уже есть локально — обновляем только данные с сервера,
+                    // сохраняем локальное name и isLocked
+                    lockDao.updateLock(
+                        existing.copy(
+                            batteryLevel = dto.batteryLevel ?: existing.batteryLevel,
+                            firmwareVersion = dto.firmwareVersion ?: existing.firmwareVersion,
+                            lastSynced = System.currentTimeMillis()
+                        )
+                    )
+                } else {
+                    // Новое устройство с сервера (напр. зарегистрировано с другого телефона)
+                    lockDao.insertLock(
+                        LockEntity(
+                            deviceId = dto.deviceUuid,
+                            hardwareId = dto.hardwareId,
+                            ownerUuid = ownerUuid,
+                            name = dto.hardwareId,
+                            publicKey = "",
+                            batteryLevel = dto.batteryLevel ?: 0,
+                            isLocked = true,
+                            firmwareVersion = dto.firmwareVersion,
+                            lastSynced = System.currentTimeMillis()
+                        )
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
 
     override suspend fun unlock(lockId: String): Boolean {
         val connectedAddress = bleManager.connectedDeviceAddress.value
@@ -64,15 +107,10 @@ class LockRepositoryImpl @Inject constructor(
 
     private suspend fun attemptUnlock(lockId: String): Boolean {
         return try {
-            val requestId = "req_${UUID.randomUUID().toString().replace("-", "").take(12)}"
             val clientTimestamp = System.currentTimeMillis() / 1000
 
             val response = lockService.getUnlockToken(
-                request = UnlockTokenRequest(
-                    device_uuid = lockId,
-                    request_id = requestId,
-                    client_timestamp = clientTimestamp
-                )
+                request = UnlockTokenRequest(device_uuid = lockId)
             )
 
             if (!response.isSuccessful || response.body() == null) return false
@@ -137,6 +175,60 @@ class LockRepositoryImpl @Inject constructor(
             if (attempt < 2) delay(500L * (attempt + 1))
         }
         return false
+    }
+
+    override suspend fun getDeviceInfo(): Boolean {
+        if (bleManager.connectedDeviceAddress.value == null) return false
+        return try {
+            val command = """{"cmd":"get_info","req_id":"${UUID.randomUUID()}","timestamp":${System.currentTimeMillis() / 1000}}"""
+            var sent = false
+            val notified = coroutineScope {
+                val notifJob = async(start = CoroutineStart.UNDISPATCHED) {
+                    withTimeoutOrNull(10_000L) {
+                        bleManager.notifications.first { (uuid, value) ->
+                            uuid == BleConstants.CHAR_STATUS_NOTIFY && value.contains("info_response")
+                        }
+                    }
+                }
+                sent = bleManager.sendMessage(command)
+                if (sent) notifJob.await() else { notifJob.cancel(); null }
+            }
+            if (!sent || notified == null) return false
+
+            val json = org.json.JSONObject(notified.second)
+            val data = json.optJSONObject("data") ?: return false
+            val hardwareId = data.optString("device_id").ifEmpty { return false }
+            val battery = data.optInt("battery_level", -1)
+            val fw = data.optString("fw_version", "")
+
+            lockDao.getLockByHardwareId(hardwareId)?.let { entity ->
+                lockDao.updateLock(
+                    entity.copy(
+                        batteryLevel = if (battery >= 0) battery else entity.batteryLevel,
+                        firmwareVersion = fw.ifEmpty { entity.firmwareVersion },
+                        lastSynced = System.currentTimeMillis()
+                    )
+                )
+            }
+            true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+
+    override suspend fun deleteDevice(lockId: String): Boolean {
+        return try {
+            if (isNetworkAvailable()) {
+                val response = lockService.deleteDevice(lockId)
+                if (!response.isSuccessful) return false
+            }
+            lockDao.deleteLock(lockId)
+            true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
     }
 
     private fun isNetworkAvailable(): Boolean {

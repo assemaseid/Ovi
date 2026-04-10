@@ -128,9 +128,15 @@ class DevicesViewModel @Inject constructor(
         }
     }
 
+    fun deleteDevice(lockId: String) {
+        viewModelScope.launch {
+            lockRepository.deleteDevice(lockId)
+        }    
+    }
+        
     fun refreshBattery(lockId: String) {
         viewModelScope.launch { doRefreshBattery(lockId) }
-    }
+    }    
 
     private suspend fun doRefreshBattery(lockId: String) {
         if (bleManager.connectedDeviceAddress.value == null) return

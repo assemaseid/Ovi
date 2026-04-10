@@ -4,6 +4,7 @@ import androidx.compose.foundation.Image
 import com.example.ovi.R
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -33,6 +34,28 @@ fun DevicesListScreen(
     onAddDevice: () -> Unit
 ) {
     val devices by viewModel.devices.collectAsState()
+    var deviceToDelete by remember { mutableStateOf<DeviceItem?>(null) }
+
+    deviceToDelete?.let { device ->
+        AlertDialog(
+            onDismissRequest = { deviceToDelete = null },
+            title = { Text("Remove lock") },
+            text = { Text("Remove \"${device.name}\" from your account?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.deleteDevice(device.id)
+                    deviceToDelete = null
+                }) {
+                    Text("Remove", color = Color(0xFFEF5350))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { deviceToDelete = null }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 
     Box(
         modifier = Modifier
@@ -131,7 +154,8 @@ fun DevicesListScreen(
                     items(devices) { device ->
                         LockCard(
                             device = device,
-                            onClick = { onDeviceClick(device.id) }
+                            onClick = { onDeviceClick(device.id) },
+                            onLongClick = { deviceToDelete = device }
                         )
                     }
                 }
@@ -140,17 +164,19 @@ fun DevicesListScreen(
     }
 }
 
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun LockCard(
     device: DeviceItem,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onLongClick: () -> Unit = {}
 ) {
     Box(
         modifier = Modifier
             .aspectRatio(0.9f)
             .clip(RoundedCornerShape(20.dp))
             .background(Color(0xFF1E2D3D).copy(alpha = 0.5f))
-            .clickable { onClick() }
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
             .padding(16.dp)
     ) {
         Column(
