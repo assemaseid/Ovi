@@ -174,16 +174,12 @@ class BluetoothViewModel @Inject constructor(
                         put("max_attempts", regBody.config.max_attempts)
                         put("lockout_seconds", regBody.config.lockout_seconds)
                     })
-                    put("mqtt_config", JSONObject().apply {
-                        put("broker", regBody.mqtt_config.broker)
-                        put("port", regBody.mqtt_config.port)
-                        put("client_id", regBody.mqtt_config.client_id)
-                        put("topics", JSONObject().apply {
-                            put("commands", regBody.mqtt_config.topics.commands)
-                            put("events", regBody.mqtt_config.topics.events)
-                            put("status", regBody.mqtt_config.topics.status)
-                        })
-                    })
+                    put("mqtt_broker", regBody.mqtt_config.broker)
+                    put("mqtt_port", regBody.mqtt_config.port)
+                    put("mqtt_client_id", regBody.mqtt_config.client_id)
+                    put("mqtt_topic_commands", regBody.mqtt_config.topics.commands)
+                    put("mqtt_topic_events", regBody.mqtt_config.topics.events)
+                    put("mqtt_topic_status", regBody.mqtt_config.topics.status)
                 }.toString()
 
                 var writeOk = false

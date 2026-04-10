@@ -280,21 +280,6 @@ fun DeviceScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // flip lock state locally (no BLE/network) and fire a local notification
-            TextButton(
-                onClick = { viewModel.toggleLockLocal(deviceId) },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !isLoading
-            ) {
-                Text(
-                    text = "Local Toggle (test)",
-                    color = TextWhite.copy(alpha = 0.4f),
-                    fontSize = 12.sp
-                )
-            }
-
             Spacer(modifier = Modifier.height(16.dp))
         }
     }

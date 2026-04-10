@@ -4,7 +4,6 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.ovi.data.local.dao.LockDao
-import com.example.ovi.data.local.entity.LockEntity
 import com.example.ovi.data.mapper.toLockDomain
 import com.example.ovi.domain.model.DeviceItem
 import com.example.ovi.domain.model.EventType
@@ -159,57 +158,6 @@ class DevicesViewModel @Inject constructor(
         }
         lockDao.getLockById(lockId)?.let { entity ->
             lockDao.updateLock(entity.copy(batteryLevel = battery))
-        }
-    }
-
-    /** fake locks for testing */
-    fun seedTestData() {
-        viewModelScope.launch {
-            lockDao.insertLock(
-                LockEntity(
-                    deviceId = "test-lock-01",
-                    hardwareId = "HW001",
-                    ownerUuid = "test-user",
-                    name = "Front Door",
-                    publicKey = "",
-                    batteryLevel = 87,
-                    isLocked = true,
-                    firmwareVersion = "1.0.0",
-                    lastSynced = System.currentTimeMillis()
-                )
-            )
-            lockDao.insertLock(
-                LockEntity(
-                    deviceId = "test-lock-02",
-                    hardwareId = "HW002",
-                    ownerUuid = "test-user",
-                    name = "Garage",
-                    publicKey = "",
-                    batteryLevel = 42,
-                    isLocked = false,
-                    firmwareVersion = "1.0.0",
-                    lastSynced = System.currentTimeMillis() - 3_600_000
-                )
-            )
-        }
-    }
-
-    
-     //For UI notification testing
-    fun toggleLockLocal(lockId: String) {
-        viewModelScope.launch {
-            val device = devices.value.find { it.id == lockId } ?: return@launch
-            _operationState.value = LockOperationState.Loading
-            val entity = lockDao.getLockById(lockId) ?: return@launch
-            val willBeUnlocked = entity.isLocked
-            lockDao.updateLock(
-                entity.copy(isLocked = !entity.isLocked, lastSynced = System.currentTimeMillis())
-            )
-            val msg = if (willBeUnlocked) "Unlocked (local test)" else "Locked (local test)"
-            LockNotificationHelper.show(context, device.name, msg)
-            _operationState.value = LockOperationState.Success(msg)
-            delay(2_000)
-            _operationState.value = LockOperationState.Idle
         }
     }
 
