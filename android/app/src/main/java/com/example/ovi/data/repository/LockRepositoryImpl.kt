@@ -11,8 +11,13 @@ import com.example.ovi.data.mapper.toLockEntity
 import com.example.ovi.domain.ble.BleManager
 import com.example.ovi.domain.model.SmartLock
 import com.example.ovi.domain.repository.LockRepository
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
+import com.example.ovi.util.BleConstants
 import java.util.UUID
 import javax.inject.Inject
 
@@ -95,12 +100,26 @@ class LockRepositoryImpl @Inject constructor(
     }
 
     private suspend fun sendBleUnlockAndWait(lockId: String, command: String): Boolean {
-        val sent = bleManager.sendMessage(command)
-        if (!sent) return false
-        lockDao.getLockById(lockId)?.let { entity ->
-            lockDao.updateLock(entity.copy(isLocked = false, lastSynced = System.currentTimeMillis()))
+        var sent = false
+        val notified = coroutineScope {
+            val notifJob = async(start = CoroutineStart.UNDISPATCHED) {
+                withTimeoutOrNull(10_000L) {
+                    bleManager.notifications.first { (uuid, value) ->
+                        uuid == BleConstants.CHAR_STATUS_NOTIFY && value.contains("unlock_success")
+                    }
+                }
+            }
+            sent = bleManager.sendMessage(command)
+            if (sent) notifJob.await() else { notifJob.cancel(); null }
         }
-        return true
+        if (!sent) return false
+        if (notified != null) {
+            lockDao.getLockById(lockId)?.let { entity ->
+                lockDao.updateLock(entity.copy(isLocked = false, lastSynced = System.currentTimeMillis()))
+            }
+            return true
+        }
+        return false
     }
 
 
