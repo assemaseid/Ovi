@@ -16,14 +16,23 @@ import com.example.ovi.domain.repository.LockRepository
 import com.example.ovi.util.LockNotificationHelper
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import com.example.ovi.data.dto.BleDeviceInfo
+import com.example.ovi.util.BleConstants
+import com.google.gson.Gson
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
+import java.util.UUID
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -45,18 +54,7 @@ class DevicesViewModel @Inject constructor(
     @ApplicationContext private val context: Context
 ) : ViewModel() {
     
-    init {
-        viewModelScope.launch {
-            lockRepository.syncDevicesFromServer()
-        }
-        viewModelScope.launch {
-            bleManager.isServicesReady.collect { ready ->
-                if (ready) {
-                    lockRepository.getDeviceInfo()
-                }
-            }
-        }
-    }
+    val connectedAddress = bleManager.connectedDeviceAddress
 
     val devices: StateFlow<List<DeviceItem>> = lockDao.getAllLocks()
         .map { entities ->
@@ -133,6 +131,34 @@ class DevicesViewModel @Inject constructor(
     fun deleteDevice(lockId: String) {
         viewModelScope.launch {
             lockRepository.deleteDevice(lockId)
+        }    
+    }
+        
+    fun refreshBattery(lockId: String) {
+        viewModelScope.launch { doRefreshBattery(lockId) }
+    }    
+
+    private suspend fun doRefreshBattery(lockId: String) {
+        if (bleManager.connectedDeviceAddress.value == null) return
+        val cmd = """{"cmd":"get_info","req_id":"${UUID.randomUUID()}"}"""
+        val notification = coroutineScope {
+            val notifJob = async(start = CoroutineStart.UNDISPATCHED) {
+                withTimeoutOrNull(10_000L) {
+                    bleManager.notifications.first { (uuid, value) ->
+                        uuid == BleConstants.CHAR_STATUS_NOTIFY && value.contains("info_response")
+                    }
+                }
+            }
+            val sent = bleManager.sendMessage(cmd)
+            if (sent) notifJob.await() else { notifJob.cancel(); null }
+        } ?: return
+        val battery = try {
+            Gson().fromJson(notification.second, BleDeviceInfo::class.java).data.battery_level
+        } catch (e: Exception) {
+            return
+        }
+        lockDao.getLockById(lockId)?.let { entity ->
+            lockDao.updateLock(entity.copy(batteryLevel = battery))
         }
     }
 

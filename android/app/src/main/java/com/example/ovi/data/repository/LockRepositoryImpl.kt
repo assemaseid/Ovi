@@ -12,13 +12,13 @@ import com.example.ovi.data.mapper.toLockEntity
 import com.example.ovi.domain.ble.BleManager
 import com.example.ovi.domain.model.SmartLock
 import com.example.ovi.domain.repository.LockRepository
-import com.example.ovi.util.BleConstants
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
+import com.example.ovi.util.BleConstants
 import java.util.UUID
 import javax.inject.Inject
 
@@ -33,8 +33,14 @@ class LockRepositoryImpl @Inject constructor(
     override suspend fun getPairedLocks(): List<SmartLock> =
         lockDao.getAllLocks().first().map { it.toLockDomain() }
 
-    override suspend fun addLock(lock: SmartLock) =
-        lockDao.insertLock(lock.toLockEntity())
+    override suspend fun addLock(lock: SmartLock) {
+        val existing = lockDao.getLockByHardwareId(lock.hardwareId)
+        if (existing != null) {
+            lockDao.updateLock(lock.toLockEntity().copy(deviceId = existing.deviceId))
+        } else {
+            lockDao.insertLock(lock.toLockEntity())
+        }
+    }
 
     override suspend fun syncDevicesFromServer() {
         if (!isNetworkAvailable()) return
@@ -131,8 +137,6 @@ class LockRepositoryImpl @Inject constructor(
         }
     }
 
-    // Subscribe to notifications BEFORE writing to avoid the race where the ESP32 sends
-    // "unlock_success" before the collector is active and SharedFlow drops it.
     private suspend fun sendBleUnlockAndWait(lockId: String, command: String): Boolean {
         var sent = false
         val notified = coroutineScope {

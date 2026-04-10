@@ -165,6 +165,7 @@ class BluetoothViewModel @Inject constructor(
             if (regBody != null) {
                 val configPacket = JSONObject().apply {
                     put("cmd", "config")
+                    put("device_uuid", regBody.device_uuid)
                     put("server_public_key", regBody.server_public_key)
                     put("config", JSONObject().apply {
                         put("pin_length", regBody.config.pin_length)
