@@ -54,7 +54,7 @@ object AppModule {
                 chain.proceed(request)
             }
             .authenticator(TokenAuthenticator(sessionManager, authServiceProvider))
-            .connectTimeout(10, TimeUnit.SECONDS)
+            .connectTimeout(3, TimeUnit.SECONDS)
             .readTimeout(10, TimeUnit.SECONDS)
             .writeTimeout(10, TimeUnit.SECONDS)
             .build()

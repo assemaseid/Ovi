@@ -33,8 +33,14 @@ class LockRepositoryImpl @Inject constructor(
     override suspend fun getPairedLocks(): List<SmartLock> =
         lockDao.getAllLocks().first().map { it.toLockDomain() }
 
-    override suspend fun addLock(lock: SmartLock) =
-        lockDao.insertLock(lock.toLockEntity())
+    override suspend fun addLock(lock: SmartLock) {
+        val existing = lockDao.getLockByHardwareId(lock.hardwareId)
+        if (existing != null) {
+            lockDao.updateLock(lock.toLockEntity().copy(deviceId = existing.deviceId))
+        } else {
+            lockDao.insertLock(lock.toLockEntity())
+        }
+    }
 
     override suspend fun syncDevicesFromServer() {
         if (!isNetworkAvailable()) return
