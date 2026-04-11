@@ -197,7 +197,7 @@ class DevicesViewModel @Inject constructor(
 
     fun refreshBattery(lockId: String) {
         viewModelScope.launch { doRefreshBattery(lockId) }
-    }
+    }    
 
     private suspend fun doRefreshBattery(lockId: String) {
         if (bleManager.connectedDeviceAddress.value == null) return

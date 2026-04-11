@@ -319,15 +319,18 @@ class AndroidBleManager @Inject constructor(
             characteristic: BluetoothGattCharacteristic,
             value: ByteArray
         ) {
-            _notifications.tryEmit(characteristic.uuid to value.toString(Charsets.UTF_8))
+            val str = value.toString(Charsets.UTF_8)
+            Log.d("BLE", "onCharacteristicChanged uuid=${characteristic.uuid} value=$str")
+            _notifications.tryEmit(characteristic.uuid to str)
         }
-        
+
         @Suppress("DEPRECATION")
         override fun onCharacteristicChanged(
             gatt: BluetoothGatt,
             characteristic: BluetoothGattCharacteristic
         ) {
             val value = characteristic.value?.toString(Charsets.UTF_8) ?: return
+            Log.d("BLE", "onCharacteristicChanged (legacy) uuid=${characteristic.uuid} value=$value")
             _notifications.tryEmit(characteristic.uuid to value)
         }
     }
