@@ -12,13 +12,13 @@ import com.example.ovi.data.mapper.toLockEntity
 import com.example.ovi.domain.ble.BleManager
 import com.example.ovi.domain.model.SmartLock
 import com.example.ovi.domain.repository.LockRepository
+import com.example.ovi.util.BleConstants
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
-import com.example.ovi.util.BleConstants
 import java.util.UUID
 import javax.inject.Inject
 
@@ -53,8 +53,12 @@ class LockRepositoryImpl @Inject constructor(
             for (dto in devices) {
                 val existing = lockDao.getLockById(dto.deviceUuid)
                 if (existing != null) {
-                    // Устройство уже есть локально — обновляем только данные с сервера,
-                    // сохраняем локальное name и isLocked
+                    // Устройство помечено на удаление — повторяем удаление с сервера
+                    if (existing.pendingDelete) {
+                        val del = lockService.deleteDevice(dto.deviceUuid)
+                        if (del.isSuccessful) lockDao.deleteLock(dto.deviceUuid)
+                        continue
+                    }
                     lockDao.updateLock(
                         existing.copy(
                             batteryLevel = dto.batteryLevel ?: existing.batteryLevel,
@@ -137,6 +141,8 @@ class LockRepositoryImpl @Inject constructor(
         }
     }
 
+    // Subscribe to notifications BEFORE writing to avoid the race where the ESP32 sends
+    // "unlock_success" before the collector is active and SharedFlow drops it.
     private suspend fun sendBleUnlockAndWait(lockId: String, command: String): Boolean {
         var sent = false
         val notified = coroutineScope {
@@ -163,16 +169,28 @@ class LockRepositoryImpl @Inject constructor(
 
     override suspend fun lock(lockId: String): Boolean {
         val command = """{"cmd":"lock","req_id":"${UUID.randomUUID()}","timestamp":${System.currentTimeMillis() / 1000}}"""
+        return sendBleLockAndWait(lockId, command)
+    }
 
-        repeat(3) { attempt ->
-            val sent = bleManager.sendMessage(command)
-            if (sent) {
-                lockDao.getLockById(lockId)?.let { entity ->
-                    lockDao.updateLock(entity.copy(isLocked = true, lastSynced = System.currentTimeMillis()))
+    private suspend fun sendBleLockAndWait(lockId: String, command: String): Boolean {
+        var sent = false
+        val notified = coroutineScope {
+            val notifJob = async(start = CoroutineStart.UNDISPATCHED) {
+                withTimeoutOrNull(10_000L) {
+                    bleManager.notifications.first { (uuid, value) ->
+                        uuid == BleConstants.CHAR_STATUS_NOTIFY && value.contains("lock_success")
+                    }
                 }
-                return true
             }
-            if (attempt < 2) delay(500L * (attempt + 1))
+            sent = bleManager.sendMessage(command)
+            if (sent) notifJob.await() else { notifJob.cancel(); null }
+        }
+        if (!sent) return false
+        if (notified != null) {
+            lockDao.getLockById(lockId)?.let { entity ->
+                lockDao.updateLock(entity.copy(isLocked = true, lastSynced = System.currentTimeMillis()))
+            }
+            return true
         }
         return false
     }
@@ -217,13 +235,40 @@ class LockRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun remoteUnlock(lockId: String): Boolean {
+        if (!isNetworkAvailable() || sessionManager.isJwtExpired()) return false
+        return try {
+            val response = lockService.remoteUnlock(UnlockTokenRequest(device_uuid = lockId))
+            response.isSuccessful
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+
+    override suspend fun remoteLock(lockId: String): Boolean {
+        if (!isNetworkAvailable() || sessionManager.isJwtExpired()) return false
+        return try {
+            val response = lockService.remoteLock(UnlockTokenRequest(device_uuid = lockId))
+            response.isSuccessful
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+
     override suspend fun deleteDevice(lockId: String): Boolean {
         return try {
             if (isNetworkAvailable()) {
                 val response = lockService.deleteDevice(lockId)
                 if (!response.isSuccessful) return false
+                lockDao.deleteLock(lockId)
+            } else {
+                // Нет интернета — помечаем на удаление, sync повторит попытку
+                lockDao.getLockById(lockId)?.let { entity ->
+                    lockDao.updateLock(entity.copy(pendingDelete = true))
+                }
             }
-            lockDao.deleteLock(lockId)
             true
         } catch (e: Exception) {
             e.printStackTrace()

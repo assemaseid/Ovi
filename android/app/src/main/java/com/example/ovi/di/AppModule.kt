@@ -15,6 +15,7 @@ import com.example.ovi.data.local.dao.LockDao
 import com.example.ovi.data.repository.AuthRepositoryImpl
 import com.example.ovi.data.repository.EventRepositoryImpl
 import com.example.ovi.data.repository.LockRepositoryImpl
+import com.example.ovi.data.websocket.WebSocketManager
 import com.example.ovi.domain.ble.BleManager
 import com.example.ovi.domain.repository.AuthRepository
 import com.example.ovi.domain.repository.EventRepository
@@ -54,12 +55,13 @@ object AppModule {
                 chain.proceed(request)
             }
             .authenticator(TokenAuthenticator(sessionManager, authServiceProvider))
-            .connectTimeout(10, TimeUnit.SECONDS)
-            .readTimeout(10, TimeUnit.SECONDS)
-            .writeTimeout(10, TimeUnit.SECONDS)
+            .connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(15, TimeUnit.SECONDS)
+            .writeTimeout(15, TimeUnit.SECONDS)
             .build()
     }
-
+//10.0.2.16
+//192.168.0.23
     @Provides
     @Singleton
     fun provideRetrofit(okHttpClient: OkHttpClient): Retrofit {
@@ -129,4 +131,11 @@ object AppModule {
     @Singleton
     fun provideBleManager(@ApplicationContext context: Context): BleManager =
         AndroidBleManager(context)
+
+    @Provides
+    @Singleton
+    fun provideWebSocketManager(
+        okHttpClient: OkHttpClient,
+        sessionManager: SessionManager
+    ): WebSocketManager = WebSocketManager(okHttpClient, sessionManager)
 }
