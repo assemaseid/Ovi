@@ -10,4 +10,6 @@ interface LockRepository {
     suspend fun lock(lockId: String): Boolean
     suspend fun deleteDevice(lockId: String): Boolean
     suspend fun getDeviceInfo(): Boolean
+    suspend fun remoteUnlock(lockId: String): Boolean
+    suspend fun remoteLock(lockId: String): Boolean
 }

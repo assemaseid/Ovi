@@ -21,6 +21,12 @@ interface LockService {
         @Body request: UnlockTokenRequest
     ): Response<UnlockTokenResponse>
 
+    @POST("commands/remote_unlock")
+    suspend fun remoteUnlock(@Body request: UnlockTokenRequest): Response<Unit>
+
+    @POST("commands/remote_lock")
+    suspend fun remoteLock(@Body request: UnlockTokenRequest): Response<Unit>
+
     @DELETE("devices/{device_uuid}")
     suspend fun deleteDevice(@Path("device_uuid") deviceUuid: String): Response<Unit>
 }
