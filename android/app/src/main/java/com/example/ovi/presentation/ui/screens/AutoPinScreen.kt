@@ -19,6 +19,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.ovi.presentation.viewmodel.AutoPinViewModel
 import com.example.ovi.ui.theme.*
 import java.text.SimpleDateFormat
 import java.util.*
@@ -28,11 +30,21 @@ import java.util.*
 fun AutoPinScreen(
     lockId: String,
     lockName: String,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    viewModel: AutoPinViewModel = hiltViewModel()
 ) {
+    val fetchedPin by viewModel.currentPin.collectAsState()
+    val isLoadingPin by viewModel.isLoading.collectAsState()
+
     var currentPin by remember { mutableStateOf("••••••") }
     var pinVisible by remember { mutableStateOf(false) }
-    var isLoadingPin by remember { mutableStateOf(false) }
+
+    LaunchedEffect(fetchedPin) {
+        fetchedPin?.let {
+            currentPin = it
+            pinVisible = true
+        }
+    }
 
     var selectedHours by remember { mutableStateOf(6) }
     var showOnDisplay by remember { mutableStateOf(true) }
@@ -172,13 +184,7 @@ fun AutoPinScreen(
                             }
 
                             Button(
-                                onClick = {
-                                    isLoadingPin = true
-                                    // TODO: viewModel.fetchCurrentPin(lockId)
-                                    currentPin = "482917"
-                                    pinVisible = true
-                                    isLoadingPin = false
-                                },
+                                onClick = { viewModel.refreshPin() },
                                 modifier = Modifier.weight(1f).height(44.dp),
                                 shape = RoundedCornerShape(12.dp),
                                 colors = ButtonDefaults.buttonColors(
@@ -356,7 +362,6 @@ fun AutoPinScreen(
                     onClick = {
                         isSaving = true
                         saveSuccess = false
-                        // TODO: viewModel.updatePinSchedule(lockId, selectedHours, showOnDisplay)
                         isSaving = false
                         saveSuccess = true
                     },
