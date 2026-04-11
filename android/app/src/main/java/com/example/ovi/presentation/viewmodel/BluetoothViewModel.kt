@@ -165,11 +165,21 @@ class BluetoothViewModel @Inject constructor(
             if (regBody != null) {
                 val configPacket = JSONObject().apply {
                     put("cmd", "config")
-                    put("device_uuid", lockId)
+                    put("device_uuid", regBody.device_uuid)
                     put("server_public_key", regBody.server_public_key)
+                    put("config", JSONObject().apply {
+                        put("pin_length", regBody.config.pin_length)
+                        put("rotation_hours", regBody.config.rotation_hours)
+                        put("grace_period_minutes", regBody.config.grace_period_minutes)
+                        put("max_attempts", regBody.config.max_attempts)
+                        put("lockout_seconds", regBody.config.lockout_seconds)
+                    })
                     put("mqtt_broker", regBody.mqtt_config.broker)
                     put("mqtt_port", regBody.mqtt_config.port)
                     put("mqtt_client_id", regBody.mqtt_config.client_id)
+                    put("mqtt_topic_commands", regBody.mqtt_config.topics.commands)
+                    put("mqtt_topic_events", regBody.mqtt_config.topics.events)
+                    put("mqtt_topic_status", regBody.mqtt_config.topics.status)
                 }.toString()
 
                 var writeOk = false
