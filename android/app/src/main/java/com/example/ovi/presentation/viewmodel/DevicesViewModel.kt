@@ -69,48 +69,58 @@ class DevicesViewModel @Inject constructor(
 
     private suspend fun collectWsEvents() {
         wsManager.events.collect { event ->
-            if (event !is WsEvent.DeviceEvent) return@collect
-            val entity = lockDao.getLockById(event.deviceUuid) ?: return@collect
-            when (event.eventType) {
-                "unlock_success" -> {
-                    lockDao.updateLock(entity.copy(isLocked = false, lastSynced = System.currentTimeMillis()))
-                    // Only log and notify if BLE not connected — remote unlock via MQTT.
-                    // If BLE is connected, toggleLock() already logged the event.
-                    if (bleManager.connectedDeviceAddress.value == null) {
-                        eventRepository.addEvent(LockEvent(
-                            id = "", lockId = event.deviceUuid,
-                            timestamp = System.currentTimeMillis(),
-                            type = EventType.UNLOCK, success = true, method = UnlockMethod.REMOTE
-                        ))
-                        LockNotificationHelper.show(context, entity.name, "Unlocked remotely")
+            when (event) {
+                is WsEvent.DeviceStatus -> {
+                    val entity = lockDao.getLockById(event.deviceUuid) ?: return@collect
+                    lockDao.updateLock(entity.copy(
+                        batteryLevel = event.batteryLevel ?: entity.batteryLevel,
+                        firmwareVersion = event.firmwareVersion ?: entity.firmwareVersion,
+                        lastSynced = System.currentTimeMillis()
+                    ))
+                }
+                is WsEvent.DeviceEvent -> {
+                    val entity = lockDao.getLockById(event.deviceUuid) ?: return@collect
+                    when (event.eventType) {
+                        "unlock_success" -> {
+                            lockDao.updateLock(entity.copy(isLocked = false, lastSynced = System.currentTimeMillis()))
+                            if (bleManager.connectedDeviceAddress.value == null) {
+                                eventRepository.addEvent(LockEvent(
+                                    id = "", lockId = event.deviceUuid,
+                                    timestamp = System.currentTimeMillis(),
+                                    type = EventType.UNLOCK, success = true, method = UnlockMethod.REMOTE
+                                ))
+                                LockNotificationHelper.show(context, entity.name, "Unlocked remotely")
+                            }
+                        }
+                        "lock_success" -> {
+                            lockDao.updateLock(entity.copy(isLocked = true, lastSynced = System.currentTimeMillis()))
+                            if (bleManager.connectedDeviceAddress.value == null) {
+                                eventRepository.addEvent(LockEvent(
+                                    id = "", lockId = event.deviceUuid,
+                                    timestamp = System.currentTimeMillis(),
+                                    type = EventType.LOCK, success = true, method = UnlockMethod.REMOTE
+                                ))
+                            }
+                        }
+                        "tamper_detected" -> {
+                            eventRepository.addEvent(LockEvent(
+                                id = "", lockId = event.deviceUuid,
+                                timestamp = System.currentTimeMillis(),
+                                type = EventType.TAMPER_DETECTED, success = true, method = UnlockMethod.MANUAL
+                            ))
+                            LockNotificationHelper.show(context, entity.name, "Tamper detected!")
+                        }
+                        "low_battery", "battery_low" -> {
+                            eventRepository.addEvent(LockEvent(
+                                id = "", lockId = event.deviceUuid,
+                                timestamp = System.currentTimeMillis(),
+                                type = EventType.LOW_BATTERY, success = true, method = UnlockMethod.MANUAL
+                            ))
+                            LockNotificationHelper.show(context, entity.name, "Battery low")
+                        }
                     }
                 }
-                "lock_success" -> {
-                    lockDao.updateLock(entity.copy(isLocked = true, lastSynced = System.currentTimeMillis()))
-                    if (bleManager.connectedDeviceAddress.value == null) {
-                        eventRepository.addEvent(LockEvent(
-                            id = "", lockId = event.deviceUuid,
-                            timestamp = System.currentTimeMillis(),
-                            type = EventType.LOCK, success = true, method = UnlockMethod.REMOTE
-                        ))
-                    }
-                }
-                "tamper_detected" -> {
-                    eventRepository.addEvent(LockEvent(
-                        id = "", lockId = event.deviceUuid,
-                        timestamp = System.currentTimeMillis(),
-                        type = EventType.TAMPER_DETECTED, success = true, method = UnlockMethod.MANUAL
-                    ))
-                    LockNotificationHelper.show(context, entity.name, "Tamper detected!")
-                }
-                "low_battery", "battery_low" -> {
-                    eventRepository.addEvent(LockEvent(
-                        id = "", lockId = event.deviceUuid,
-                        timestamp = System.currentTimeMillis(),
-                        type = EventType.LOW_BATTERY, success = true, method = UnlockMethod.MANUAL
-                    ))
-                    LockNotificationHelper.show(context, entity.name, "Battery low")
-                }
+                else -> Unit
             }
         }
     }

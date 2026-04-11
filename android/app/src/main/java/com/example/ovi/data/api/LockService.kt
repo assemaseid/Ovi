@@ -7,6 +7,7 @@ import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.Path
+import retrofit2.http.Query
 
 interface LockService {
 
@@ -21,11 +22,10 @@ interface LockService {
         @Body request: UnlockTokenRequest
     ): Response<UnlockTokenResponse>
 
-    @POST("commands/remote_unlock")
-    suspend fun remoteUnlock(@Body request: UnlockTokenRequest): Response<Unit>
-
-    @POST("commands/remote_lock")
-    suspend fun remoteLock(@Body request: UnlockTokenRequest): Response<Unit>
+    @POST("commands/lock")
+    suspend fun getLockToken(
+        @Body request: UnlockTokenRequest
+    ): Response<UnlockTokenResponse>
 
     @DELETE("devices/{device_uuid}")
     suspend fun deleteDevice(@Path("device_uuid") deviceUuid: String): Response<Unit>

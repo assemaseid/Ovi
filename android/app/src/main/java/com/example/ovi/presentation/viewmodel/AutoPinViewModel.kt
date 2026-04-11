@@ -7,10 +7,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import java.nio.ByteBuffer
+import javax.inject.Inject
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
-import javax.inject.Inject
 
 @HiltViewModel
 class AutoPinViewModel @Inject constructor() : ViewModel() {
@@ -37,14 +36,14 @@ class AutoPinViewModel @Inject constructor() : ViewModel() {
 
     private fun computeCurrentPin(): String {
         val currentSlot = System.currentTimeMillis() / 1000L / rotationSeconds
-        val input = ByteBuffer.allocate(8).putLong(currentSlot).array()
-
+        // Backend: msg = str(time_slot).encode() — slot as decimal string, not binary
+        val input = currentSlot.toString().toByteArray(Charsets.UTF_8)
         val mac = Mac.getInstance("HmacSHA256")
         mac.init(SecretKeySpec(deviceSecret, "HmacSHA256"))
         val hmac = mac.doFinal(input)
-
+        // Backend: int.from_bytes(digest, "big") % 10^6 — all 32 bytes, big-endian
         var pinNum = 0L
-        for (i in 0..3) pinNum = (pinNum shl 8) or (hmac[i].toLong() and 0xFF)
-        return String.format("%06d", pinNum % 1_000_000)
+        for (byte in hmac) pinNum = ((pinNum shl 8) or (byte.toLong() and 0xFF)) % 1_000_000L
+        return String.format("%06d", pinNum)
     }
 }

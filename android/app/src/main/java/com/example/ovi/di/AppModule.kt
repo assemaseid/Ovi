@@ -6,6 +6,7 @@ import android.content.SharedPreferences
 import android.net.ConnectivityManager
 import com.example.ovi.data.api.AuthService
 import com.example.ovi.data.api.LockService
+import com.example.ovi.data.api.UserService
 import com.example.ovi.data.ble.AndroidBleManager
 import com.example.ovi.data.dto.TokenAuthenticator
 import com.example.ovi.data.local.SessionManager
@@ -29,6 +30,7 @@ import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
+import javax.inject.Named
 import javax.inject.Provider
 import javax.inject.Singleton
 
@@ -60,13 +62,16 @@ object AppModule {
             .writeTimeout(15, TimeUnit.SECONDS)
             .build()
     }
-//10.0.2.16
-//192.168.0.23
+    @Provides
+    @Singleton
+    @Named("wsBaseUrl")
+    fun provideWsBaseUrl(): String = "ws://172.22.100.87:8000/"
+
     @Provides
     @Singleton
     fun provideRetrofit(okHttpClient: OkHttpClient): Retrofit {
         return Retrofit.Builder()
-            .baseUrl("http://10.0.2.2:8000/api/v1/")
+            .baseUrl("http://172.22.100.87:8000/api/v1/")
             .client(okHttpClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
@@ -79,6 +84,10 @@ object AppModule {
     @Provides
     @Singleton
     fun provideLockService(retrofit: Retrofit): LockService = retrofit.create(LockService::class.java)
+
+    @Provides
+    @Singleton
+    fun provideUserService(retrofit: Retrofit): UserService = retrofit.create(UserService::class.java)
 
     @Provides
     @Singleton
@@ -102,8 +111,8 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideAuthRepository(authService: AuthService, sessionManager: SessionManager): AuthRepository =
-        AuthRepositoryImpl(authService, sessionManager)
+    fun provideAuthRepository(authService: AuthService, userService: UserService, sessionManager: SessionManager): AuthRepository =
+        AuthRepositoryImpl(authService, userService, sessionManager)
 
     @Provides
     @Singleton
@@ -136,6 +145,7 @@ object AppModule {
     @Singleton
     fun provideWebSocketManager(
         okHttpClient: OkHttpClient,
-        sessionManager: SessionManager
-    ): WebSocketManager = WebSocketManager(okHttpClient, sessionManager)
+        sessionManager: SessionManager,
+        @Named("wsBaseUrl") wsBaseUrl: String
+    ): WebSocketManager = WebSocketManager(okHttpClient, sessionManager, wsBaseUrl)
 }

@@ -168,8 +168,40 @@ class LockRepositoryImpl @Inject constructor(
 
 
     override suspend fun lock(lockId: String): Boolean {
+        if (isNetworkAvailable() && !sessionManager.isJwtExpired()) {
+            repeat(3) { attempt ->
+                val success = attemptLock(lockId)
+                if (success) return true
+                if (attempt < 2) delay(1000L * (attempt + 1))
+            }
+        }
+        return attemptDirectBleLock(lockId)
+    }
+
+    private suspend fun attemptLock(lockId: String): Boolean {
+        return try {
+            val clientTimestamp = System.currentTimeMillis() / 1000
+            val response = lockService.getLockToken(
+                request = UnlockTokenRequest(device_uuid = lockId)
+            )
+            if (!response.isSuccessful || response.body() == null) return false
+            val body = response.body()!!
+            val command = """{"cmd":"lock","req_id":"${UUID.randomUUID()}","timestamp":${clientTimestamp},"token":{"nonce":"${body.token.nonce}","expires":${body.token.expires_at},"device_uuid":"${body.token.device_uuid}","user_uuid":"${body.token.user_uuid}","action":"lock"},"signature":"${body.signature.value}"}"""
+            sendBleLockAndWait(lockId, command)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+
+    private suspend fun attemptDirectBleLock(lockId: String): Boolean {
         val command = """{"cmd":"lock","req_id":"${UUID.randomUUID()}","timestamp":${System.currentTimeMillis() / 1000}}"""
-        return sendBleLockAndWait(lockId, command)
+        return try {
+            sendBleLockAndWait(lockId, command)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
     }
 
     private suspend fun sendBleLockAndWait(lockId: String, command: String): Boolean {
@@ -238,7 +270,7 @@ class LockRepositoryImpl @Inject constructor(
     override suspend fun remoteUnlock(lockId: String): Boolean {
         if (!isNetworkAvailable() || sessionManager.isJwtExpired()) return false
         return try {
-            val response = lockService.remoteUnlock(UnlockTokenRequest(device_uuid = lockId))
+            val response = lockService.getUnlockToken(UnlockTokenRequest(device_uuid = lockId))
             response.isSuccessful
         } catch (e: Exception) {
             e.printStackTrace()
@@ -249,7 +281,7 @@ class LockRepositoryImpl @Inject constructor(
     override suspend fun remoteLock(lockId: String): Boolean {
         if (!isNetworkAvailable() || sessionManager.isJwtExpired()) return false
         return try {
-            val response = lockService.remoteLock(UnlockTokenRequest(device_uuid = lockId))
+            val response = lockService.getLockToken(UnlockTokenRequest(device_uuid = lockId))
             response.isSuccessful
         } catch (e: Exception) {
             e.printStackTrace()
