@@ -11,7 +11,7 @@ import com.example.ovi.data.local.entity.LockEntity
 
 @Database(
     entities = [EventEntity:: class, LockEntity::class],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 
