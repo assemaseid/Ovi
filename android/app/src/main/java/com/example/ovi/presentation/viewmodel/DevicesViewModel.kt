@@ -4,7 +4,6 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.ovi.data.local.dao.LockDao
-import com.example.ovi.data.local.entity.LockEntity
 import com.example.ovi.data.mapper.toLockDomain
 import com.example.ovi.domain.model.DeviceItem
 import com.example.ovi.domain.model.EventType
@@ -13,6 +12,8 @@ import com.example.ovi.domain.model.UnlockMethod
 import com.example.ovi.domain.ble.BleManager
 import com.example.ovi.domain.repository.EventRepository
 import com.example.ovi.domain.repository.LockRepository
+import com.example.ovi.data.websocket.WebSocketManager
+import com.example.ovi.data.websocket.WsEvent
 import com.example.ovi.util.LockNotificationHelper
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -51,17 +52,64 @@ class DevicesViewModel @Inject constructor(
     private val lockDao: LockDao,
     private val eventRepository: EventRepository,
     private val bleManager: BleManager,
+    private val wsManager: WebSocketManager,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
-    
+
     init {
-        viewModelScope.launch {
-            lockRepository.syncDevicesFromServer()
-        }
+        wsManager.connect()
+        viewModelScope.launch { lockRepository.syncDevicesFromServer() }
         viewModelScope.launch {
             bleManager.isServicesReady.collect { ready ->
-                if (ready) {
-                    lockRepository.getDeviceInfo()
+                if (ready) lockRepository.getDeviceInfo()
+            }
+        }
+        viewModelScope.launch { collectWsEvents() }
+    }
+
+    private suspend fun collectWsEvents() {
+        wsManager.events.collect { event ->
+            if (event !is WsEvent.DeviceEvent) return@collect
+            val entity = lockDao.getLockById(event.deviceUuid) ?: return@collect
+            when (event.eventType) {
+                "unlock_success" -> {
+                    lockDao.updateLock(entity.copy(isLocked = false, lastSynced = System.currentTimeMillis()))
+                    // Only log and notify if BLE not connected — remote unlock via MQTT.
+                    // If BLE is connected, toggleLock() already logged the event.
+                    if (bleManager.connectedDeviceAddress.value == null) {
+                        eventRepository.addEvent(LockEvent(
+                            id = "", lockId = event.deviceUuid,
+                            timestamp = System.currentTimeMillis(),
+                            type = EventType.UNLOCK, success = true, method = UnlockMethod.REMOTE
+                        ))
+                        LockNotificationHelper.show(context, entity.name, "Unlocked remotely")
+                    }
+                }
+                "lock_success" -> {
+                    lockDao.updateLock(entity.copy(isLocked = true, lastSynced = System.currentTimeMillis()))
+                    if (bleManager.connectedDeviceAddress.value == null) {
+                        eventRepository.addEvent(LockEvent(
+                            id = "", lockId = event.deviceUuid,
+                            timestamp = System.currentTimeMillis(),
+                            type = EventType.LOCK, success = true, method = UnlockMethod.REMOTE
+                        ))
+                    }
+                }
+                "tamper_detected" -> {
+                    eventRepository.addEvent(LockEvent(
+                        id = "", lockId = event.deviceUuid,
+                        timestamp = System.currentTimeMillis(),
+                        type = EventType.TAMPER_DETECTED, success = true, method = UnlockMethod.MANUAL
+                    ))
+                    LockNotificationHelper.show(context, entity.name, "Tamper detected!")
+                }
+                "low_battery", "battery_low" -> {
+                    eventRepository.addEvent(LockEvent(
+                        id = "", lockId = event.deviceUuid,
+                        timestamp = System.currentTimeMillis(),
+                        type = EventType.LOW_BATTERY, success = true, method = UnlockMethod.MANUAL
+                    ))
+                    LockNotificationHelper.show(context, entity.name, "Battery low")
                 }
             }
         }
@@ -95,16 +143,18 @@ class DevicesViewModel @Inject constructor(
             _operationState.value = LockOperationState.Loading
             
             if (bleManager.connectedDeviceAddress.value == null) {
-                val entity = lockDao.getLockById(lockId)
-                if (entity != null) {
-                    lockDao.updateLock(entity.copy(isLocked = !entity.isLocked, lastSynced = System.currentTimeMillis()))
-                    val msg = if (lock.locked) "Unlocked (no BLE)" else "Locked (no BLE)"
-                    LockNotificationHelper.show(context, lock.name, msg)
+                val success = if (lock.locked) {
+                    lockRepository.remoteUnlock(lockId)
+                } else {
+                    lockRepository.remoteLock(lockId)
+                }
+                if (success) {
+                    val msg = if (lock.locked) "Unlock command sent, waiting..." else "Lock command sent, waiting..."
                     _operationState.value = LockOperationState.Success(msg)
                 } else {
-                    _operationState.value = LockOperationState.Error("Lock not found")
+                    _operationState.value = LockOperationState.Error("No internet connection or session expired")
                 }
-                delay(2_000)
+                delay(3_000)
                 _operationState.value = LockOperationState.Idle
                 return@launch
             }
@@ -170,57 +220,6 @@ class DevicesViewModel @Inject constructor(
         }
         lockDao.getLockById(lockId)?.let { entity ->
             lockDao.updateLock(entity.copy(batteryLevel = battery))
-        }
-    }
-
-    /** fake locks for testing */
-    fun seedTestData() {
-        viewModelScope.launch {
-            lockDao.insertLock(
-                LockEntity(
-                    deviceId = "test-lock-01",
-                    hardwareId = "HW001",
-                    ownerUuid = "test-user",
-                    name = "Front Door",
-                    publicKey = "",
-                    batteryLevel = 87,
-                    isLocked = true,
-                    firmwareVersion = "1.0.0",
-                    lastSynced = System.currentTimeMillis()
-                )
-            )
-            lockDao.insertLock(
-                LockEntity(
-                    deviceId = "test-lock-02",
-                    hardwareId = "HW002",
-                    ownerUuid = "test-user",
-                    name = "Garage",
-                    publicKey = "",
-                    batteryLevel = 42,
-                    isLocked = false,
-                    firmwareVersion = "1.0.0",
-                    lastSynced = System.currentTimeMillis() - 3_600_000
-                )
-            )
-        }
-    }
-
-    
-     //For UI notification testing
-    fun toggleLockLocal(lockId: String) {
-        viewModelScope.launch {
-            val device = devices.value.find { it.id == lockId } ?: return@launch
-            _operationState.value = LockOperationState.Loading
-            val entity = lockDao.getLockById(lockId) ?: return@launch
-            val willBeUnlocked = entity.isLocked
-            lockDao.updateLock(
-                entity.copy(isLocked = !entity.isLocked, lastSynced = System.currentTimeMillis())
-            )
-            val msg = if (willBeUnlocked) "Unlocked (local test)" else "Locked (local test)"
-            LockNotificationHelper.show(context, device.name, msg)
-            _operationState.value = LockOperationState.Success(msg)
-            delay(2_000)
-            _operationState.value = LockOperationState.Idle
         }
     }
 

@@ -3,6 +3,7 @@ package com.example.ovi.presentation.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.ovi.data.local.SessionManager
+import com.example.ovi.data.websocket.WebSocketManager
 import com.example.ovi.domain.model.User
 import com.example.ovi.domain.repository.AuthRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -15,7 +16,8 @@ import javax.inject.Inject
 @HiltViewModel
 class AuthViewModel @Inject constructor(
     private val authRepository: AuthRepository,
-    private val sessionManager: SessionManager
+    private val sessionManager: SessionManager,
+    private val wsManager: WebSocketManager
 ) : ViewModel() {
 
     sealed class AuthState {
@@ -50,6 +52,7 @@ class AuthViewModel @Inject constructor(
                 .onSuccess { user ->
                     _currentUser.value = user
                     _authState.value = AuthState.Success("Login successful!")
+                    wsManager.connect()
                 }
                 .onFailure { error ->
                     _authState.value = AuthState.Error(error.message ?: "Login failed")
@@ -64,6 +67,7 @@ class AuthViewModel @Inject constructor(
                 .onSuccess { user ->
                     _currentUser.value = user
                     _authState.value = AuthState.Success("Registration successful!")
+                    wsManager.connect()
                 }
                 .onFailure { error ->
                     _authState.value = AuthState.Error(error.message ?: "Registration failed")
@@ -73,6 +77,7 @@ class AuthViewModel @Inject constructor(
 
     fun logout() {
         viewModelScope.launch {
+            wsManager.disconnect()
             authRepository.logout()
             _currentUser.value = null
             _authState.value = AuthState.Initial
