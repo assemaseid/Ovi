@@ -204,16 +204,6 @@ fun AuthScreen(
                 }
             }
 
-            TextButton(
-                onClick = { onNavigateToMain() },
-                modifier = Modifier.padding(top = 16.dp)
-            ) {
-                Text(
-                    text = "Skip for now",
-                    color = TextHint,
-                    fontSize = 13.sp
-                )
-            }
         }
     }
 }
