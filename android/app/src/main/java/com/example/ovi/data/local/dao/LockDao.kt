@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface LockDao {
-    @Query("SELECT * FROM locks")
+    @Query("SELECT * FROM locks WHERE pendingDelete = 0")
     fun getAllLocks(): Flow<List<LockEntity>>
 
     @Query("SELECT * FROM locks WHERE deviceId = :lockId LIMIT 1")

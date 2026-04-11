@@ -13,6 +13,7 @@ data class LockEntity(
     val batteryLevel: Int,
     val isLocked: Boolean,
     val firmwareVersion: String?,
-    val lastSynced: Long
+    val lastSynced: Long,
+    val pendingDelete: Boolean = false
 )
 
