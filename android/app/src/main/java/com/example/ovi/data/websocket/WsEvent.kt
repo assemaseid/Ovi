@@ -8,4 +8,11 @@ sealed class WsEvent {
         val eventType: String,
         val eventData: Map<String, Any?>
     ) : WsEvent()
+
+    data class DeviceStatus(
+        val deviceUuid: String,
+        val batteryLevel: Int?,
+        val lastSeen: String?,
+        val firmwareVersion: String?
+    ) : WsEvent()
 }

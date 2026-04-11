@@ -8,7 +8,8 @@ data class DeviceOutDto(
     @SerializedName("firmware_version") val firmwareVersion: String?,
     @SerializedName("battery_level") val batteryLevel: Int?,
     @SerializedName("last_seen") val lastSeen: String?,
-    @SerializedName("created_at") val createdAt: String?
+    @SerializedName("created_at") val createdAt: String?,
+    @SerializedName("config") val config: Map<String, Any?> = emptyMap()
 )
 data class DeviceRegistrationRequest(
     val device: DeviceInfo,

@@ -1,6 +1,8 @@
 package com.example.ovi.data.repository
 
 import com.example.ovi.data.api.AuthService
+import com.example.ovi.data.api.UserService
+import com.example.ovi.data.dto.FcmTokenRequest
 import com.example.ovi.data.dto.LoginRequest
 import com.example.ovi.data.dto.LogoutRequest
 import com.example.ovi.data.dto.RegisterRequest
@@ -8,12 +10,15 @@ import com.example.ovi.data.local.SessionManager
 import com.example.ovi.data.mapper.toDomain
 import com.example.ovi.domain.model.User
 import com.example.ovi.domain.repository.AuthRepository
+import com.google.firebase.messaging.FirebaseMessaging
+import kotlinx.coroutines.tasks.await
 import retrofit2.HttpException
 import java.io.IOException
 import javax.inject.Inject
 
 class AuthRepositoryImpl @Inject constructor(
     private val authService: AuthService,
+    private val userService: UserService,
     private val sessionManager: SessionManager
 ): AuthRepository {
 
@@ -27,6 +32,7 @@ class AuthRepositoryImpl @Inject constructor(
                 jwtToken = response.accessToken,
                 refreshToken = response.refreshToken
             )
+            sendFcmTokenToServer()
             Result.success(user)
         } catch (e: HttpException) {
             val errorMessage = when (e.code()) {
@@ -53,6 +59,7 @@ class AuthRepositoryImpl @Inject constructor(
                 jwtToken = response.accessToken,
                 refreshToken = response.refreshToken
             )
+            sendFcmTokenToServer()
             Result.success(user)
         } catch (e: HttpException) {
             val errorMessage = when (e.code()) {
@@ -80,6 +87,15 @@ class AuthRepositoryImpl @Inject constructor(
             return Result.failure(Exception("Logout failed: ${e.message}"))
         } finally {
             sessionManager.clearSession()
+        }
+    }
+
+    private suspend fun sendFcmTokenToServer() {
+        try {
+            val token = FirebaseMessaging.getInstance().token.await()
+            userService.updateFcmToken(FcmTokenRequest(fcmToken = token))
+        } catch (e: Exception) {
+            // Non-critical — server will get token via OviFcmService.onNewToken()
         }
     }
 

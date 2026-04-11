@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pdftotext /Users/assemseidkarim/Downloads/DFD_Diploma_v2.1.0.pdf -)"
+    ]
+  }
+}

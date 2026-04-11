@@ -21,12 +21,14 @@ import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import javax.inject.Inject
+import javax.inject.Named
 import javax.inject.Singleton
 
 @Singleton
 class WebSocketManager @Inject constructor(
     private val okHttpClient: OkHttpClient,
-    private val sessionManager: SessionManager
+    private val sessionManager: SessionManager,
+    @Named("wsBaseUrl") private val wsBaseUrl: String
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val gson = Gson()
@@ -42,6 +44,7 @@ class WebSocketManager @Inject constructor(
     private var reconnectAttempts = 0
 
     fun connect() {
+        if (webSocket != null) return
         val token = sessionManager.getJwtToken() ?: run {
             Log.w("WS", "No JWT token — skipping WebSocket connection")
             return
@@ -65,7 +68,7 @@ class WebSocketManager @Inject constructor(
 
     private fun openSocket(token: String) {
         val request = Request.Builder()
-            .url("ws://10.0.2.2:8000/ws/events?token=$token")
+            .url("${wsBaseUrl}ws/events?token=$token")
             .build()
 
         webSocket = okHttpClient.newWebSocket(request, object : WebSocketListener() {
@@ -109,6 +112,13 @@ class WebSocketManager @Inject constructor(
                     val event = map["event"] as? Map<String, Any?> ?: return
                     val eventType = event["type"] as? String ?: return
                     _events.tryEmit(WsEvent.DeviceEvent(deviceUuid, eventType, event))
+                }
+                "device_status" -> {
+                    val deviceUuid = map["device_uuid"] as? String ?: return
+                    val batteryLevel = (map["battery_level"] as? Number)?.toInt()
+                    val lastSeen = map["last_seen"] as? String
+                    val firmwareVersion = map["firmware_version"] as? String
+                    _events.tryEmit(WsEvent.DeviceStatus(deviceUuid, batteryLevel, lastSeen, firmwareVersion))
                 }
                 else -> Log.d("WS", "Unknown message type: $type")
             }
