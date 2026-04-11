@@ -1,19 +1,16 @@
-"""
-Clients authenticate with a JWT query parameter:
-  ws://host/ws/events?token=<access_jwt>&device_uuid=<optional>
-
-The server pushes device events to connected clients filtered by:
-- device ownership / grant
-- optional device_uuid filter
-"""
-
 import asyncio
 import json
 import logging
 from datetime import UTC, datetime
 from typing import Any
 
-from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect, status
+from fastapi import (
+                     APIRouter,
+                     Query,
+                     WebSocket,
+                     WebSocketDisconnect,
+                     status
+                     )
 from jwt import PyJWTError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession

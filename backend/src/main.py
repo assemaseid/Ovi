@@ -66,7 +66,11 @@ def create_app() -> FastAPI:
     api_v1.include_router(sync.router)
     api_v1.include_router(grants.router)
     
-    app = FastAPI(lifespan=lifespan)
+    app = FastAPI(lifespan=lifespan,
+                  docs_url="/api/v1/docs",
+                  redoc_url="/api/v1/redoc",
+                  openapi_url="/api/v1/openapi.json",
+                  )
     app.include_router(api_v1)
     app.include_router(ws.router)
     app.include_router(healthcheck.router)
