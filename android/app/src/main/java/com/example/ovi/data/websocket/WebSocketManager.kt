@@ -103,27 +103,35 @@ class WebSocketManager @Inject constructor(
             val map: Map<String, Any?> = gson.fromJson(
                 text, object : TypeToken<Map<String, Any?>>() {}.type
             )
-            when (val type = map["type"] as? String) {
-                "connected" -> _events.tryEmit(WsEvent.Connected)
-                "ping" -> {
+            val type = map["type"] as? String
+
+            when {
+                type == "connected" -> _events.tryEmit(WsEvent.Connected)
+
+                type == "ping" -> {
                     Log.d("WS", ">>> send: {\"type\":\"pong\"}")
                     webSocket?.send("{\"type\":\"pong\"}")
                 }
-                "device_event" -> {
-                    val deviceUuid = map["device_uuid"] as? String ?: return
-                    @Suppress("UNCHECKED_CAST")
-                    val event = map["event"] as? Map<String, Any?> ?: return
-                    val eventType = event["type"] as? String ?: return
-                    _events.tryEmit(WsEvent.DeviceEvent(deviceUuid, eventType, event))
-                }
-                "device_status" -> {
+
+                type == "device_status" -> {
                     val deviceUuid = map["device_uuid"] as? String ?: return
                     val batteryLevel = (map["battery_level"] as? Number)?.toInt()
                     val lastSeen = map["last_seen"] as? String
                     val firmwareVersion = map["firmware_version"] as? String
                     _events.tryEmit(WsEvent.DeviceStatus(deviceUuid, batteryLevel, lastSeen, firmwareVersion))
                 }
-                else -> Log.d("WS", "Unknown message type: $type")
+
+                // Backend format: root has device_uuid + event (no "type" at root)
+                map.containsKey("device_uuid") && map.containsKey("event") -> {
+                    val deviceUuid = map["device_uuid"] as? String ?: return
+                    @Suppress("UNCHECKED_CAST")
+                    val event = map["event"] as? Map<String, Any?> ?: return
+                    val eventType = event["type"] as? String ?: return
+                    Log.d("WS", "device_event: $eventType for $deviceUuid")
+                    _events.tryEmit(WsEvent.DeviceEvent(deviceUuid, eventType, event))
+                }
+
+                else -> Log.d("WS", "Unknown message: $text")
             }
         } catch (e: Exception) {
             Log.e("WS", "Parse error: ${e.message}")
