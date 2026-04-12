@@ -71,13 +71,13 @@ object AppModule {
     @Provides
     @Singleton
     @Named("wsBaseUrl")
-    fun provideWsBaseUrl(): String = "ws://172.22.100.87:8000/"
+    fun provideWsBaseUrl(): String = "ws://172.22.100.230:8000/"
 
     @Provides
     @Singleton
     fun provideRetrofit(okHttpClient: OkHttpClient): Retrofit {
         return Retrofit.Builder()
-            .baseUrl("http://172.22.100.87:8000/api/v1/")
+            .baseUrl("http://172.22.100.230:8000/api/v1/")
             .client(okHttpClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
