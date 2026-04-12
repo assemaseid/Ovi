@@ -157,7 +157,12 @@ class BluetoothViewModel @Inject constructor(
                     }
                 }
             } catch (e: Exception) {
-                // Backend unavailable — device will still be saved locally with a local ID
+                // Backend unavailable
+            }
+
+            if (registrationBody == null) {
+                _onboardingState.value = OnboardingState.Error("Server registration failed. Check internet connection and try again.")
+                return
             }
 
             _onboardingState.value = OnboardingState.Configuring
