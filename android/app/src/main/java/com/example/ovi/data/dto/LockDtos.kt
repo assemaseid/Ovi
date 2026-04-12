@@ -33,6 +33,7 @@ data class DeviceRegistrationResponse(
     val status: String,
     val device_uuid: String,
     val server_public_key: String,
+    val device_secret: String,
     val config: DeviceConfig,
     val mqtt_config: MqttConfig
 )
@@ -83,6 +84,10 @@ data class ServerSignature(
     val algorithm: String,
     val curve: String,
     val public_key_id: String
+)
+
+data class PinResponse(
+    val message: String
 )
 
 data class BleDeviceInfo(

@@ -24,9 +24,12 @@ import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -147,6 +150,9 @@ class DevicesViewModel @Inject constructor(
     private val _operationState = MutableStateFlow<LockOperationState>(LockOperationState.Idle)
     val operationState: StateFlow<LockOperationState> = _operationState.asStateFlow()
 
+    private val _snackbarMessage = MutableSharedFlow<String>(extraBufferCapacity = 1)
+    val snackbarMessage: SharedFlow<String> = _snackbarMessage.asSharedFlow()
+
     fun toggleLock(lockId: String) {
         viewModelScope.launch {
             val lock = devices.value.find { it.id == lockId } ?: return@launch
@@ -201,7 +207,8 @@ class DevicesViewModel @Inject constructor(
 
     fun deleteDevice(lockId: String) {
         viewModelScope.launch {
-            lockRepository.deleteDevice(lockId)
+            val success = lockRepository.deleteDevice(lockId)
+            if (!success) _snackbarMessage.tryEmit("Failed to remove device. Try again.")
         }
     }
 

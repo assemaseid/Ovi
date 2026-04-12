@@ -27,4 +27,7 @@ interface LockDao {
 
     @Query("DELETE FROM locks WHERE deviceId = :lockId")
     suspend fun deleteLock(lockId: String)
+
+    @Query("SELECT * FROM locks WHERE pendingDelete = 1")
+    suspend fun getPendingDeleteLocks(): List<LockEntity>
 }

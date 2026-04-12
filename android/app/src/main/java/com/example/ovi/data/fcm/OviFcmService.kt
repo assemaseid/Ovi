@@ -10,6 +10,7 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -42,7 +43,12 @@ class OviFcmService : FirebaseMessagingService() {
         }
     }
 
-    fun sendTokenToServer(token: String) {
+    override fun onDestroy() {
+        super.onDestroy()
+        scope.cancel()
+    }
+
+    private fun sendTokenToServer(token: String) {
         scope.launch {
             try {
                 userService.updateFcmToken(FcmTokenRequest(fcmToken = token))

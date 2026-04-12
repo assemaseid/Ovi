@@ -35,6 +35,7 @@ fun AutoPinScreen(
 ) {
     val fetchedPin by viewModel.currentPin.collectAsState()
     val isLoadingPin by viewModel.isLoading.collectAsState()
+    val pinError by viewModel.error.collectAsState()
 
     var currentPin by remember { mutableStateOf("••••••") }
     var pinVisible by remember { mutableStateOf(false) }
@@ -184,7 +185,7 @@ fun AutoPinScreen(
                             }
 
                             Button(
-                                onClick = { viewModel.refreshPin() },
+                                onClick = { viewModel.refreshPin(lockId) },
                                 modifier = Modifier.weight(1f).height(44.dp),
                                 shape = RoundedCornerShape(12.dp),
                                 colors = ButtonDefaults.buttonColors(
@@ -208,6 +209,16 @@ fun AutoPinScreen(
                                     Text("Refresh", fontSize = 13.sp, color = Color.White)
                                 }
                             }
+                        }
+
+                        pinError?.let { err ->
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = err,
+                                fontSize = 12.sp,
+                                color = Color(0xFFEF9A9A),
+                                modifier = Modifier.fillMaxWidth()
+                            )
                         }
 
                         Spacer(modifier = Modifier.height(12.dp))

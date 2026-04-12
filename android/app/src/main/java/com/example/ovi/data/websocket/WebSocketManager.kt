@@ -80,7 +80,7 @@ class WebSocketManager @Inject constructor(
             }
 
             override fun onMessage(ws: WebSocket, text: String) {
-                Log.d("WS", "Message: $text")
+                Log.d("WS", "<<< recv: $text")
                 handleMessage(text)
             }
 
@@ -105,7 +105,10 @@ class WebSocketManager @Inject constructor(
             )
             when (val type = map["type"] as? String) {
                 "connected" -> _events.tryEmit(WsEvent.Connected)
-                "ping" -> webSocket?.send("{\"type\":\"pong\"}")
+                "ping" -> {
+                    Log.d("WS", ">>> send: {\"type\":\"pong\"}")
+                    webSocket?.send("{\"type\":\"pong\"}")
+                }
                 "device_event" -> {
                     val deviceUuid = map["device_uuid"] as? String ?: return
                     @Suppress("UNCHECKED_CAST")

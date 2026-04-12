@@ -3,7 +3,9 @@ package com.example.ovi.data.repository
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import com.example.ovi.data.api.LockService
+import com.example.ovi.data.dto.TokenData
 import com.example.ovi.data.dto.UnlockTokenRequest
+import org.json.JSONObject
 import com.example.ovi.data.local.SessionManager
 import com.example.ovi.data.local.dao.LockDao
 import com.example.ovi.data.local.entity.LockEntity
@@ -50,6 +52,13 @@ class LockRepositoryImpl @Inject constructor(
             val devices = response.body() ?: return
             val ownerUuid = sessionManager.getUserId() ?: ""
 
+            val serverUuids = devices.map { it.deviceUuid }.toSet()
+
+            // Clean up pendingDelete records that no longer exist on server
+            for (entity in lockDao.getPendingDeleteLocks()) {
+                if (entity.deviceId !in serverUuids) lockDao.deleteLock(entity.deviceId)
+            }
+
             for (dto in devices) {
                 val existing = lockDao.getLockById(dto.deviceUuid)
                 if (existing != null) {
@@ -95,45 +104,21 @@ class LockRepositoryImpl @Inject constructor(
             val rssi = bleManager.getRssi(connectedAddress)
             if (rssi != null && rssi < -80) return false
         }
-
-        // Try server-authenticated unlock when backend is reachable
-        if (isNetworkAvailable() && !sessionManager.isJwtExpired()) {
-            repeat(3) { attempt ->
-                val success = attemptUnlock(lockId)
-                if (success) return true
-                if (attempt < 2) delay(1000L * (attempt + 1))
-            }
+        if (!isNetworkAvailable() || sessionManager.isJwtExpired()) return false
+        repeat(3) { attempt ->
+            val success = attemptUnlock(lockId)
+            if (success) return true
+            if (attempt < 2) delay(1000L * (attempt + 1))
         }
-
-        // Fallback: direct BLE unlock — firmware accepts cmd:"unlock" without token validation
-        return attemptDirectBleUnlock(lockId)
+        return false
     }
 
     private suspend fun attemptUnlock(lockId: String): Boolean {
         return try {
-            val clientTimestamp = System.currentTimeMillis() / 1000
-
-            val response = lockService.getUnlockToken(
-                request = UnlockTokenRequest(device_uuid = lockId)
-            )
-
+            val response = lockService.getUnlockToken(UnlockTokenRequest(device_uuid = lockId))
             if (!response.isSuccessful || response.body() == null) return false
             val body = response.body()!!
-
-            val command = """{"cmd":"unlock","req_id":"${UUID.randomUUID()}","timestamp":${clientTimestamp},"token":{"nonce":"${body.token.nonce}","expires":${body.token.expires_at},"device_uuid":"${body.token.device_uuid}","user_uuid":"${body.token.user_uuid}","action":"unlock"},"signature":"${body.signature.value}"}"""
-
-            sendBleUnlockAndWait(lockId, command)
-        } catch (e: Exception) {
-            e.printStackTrace()
-            false
-        }
-    }
-
-    private suspend fun attemptDirectBleUnlock(lockId: String): Boolean {
-        val requestId = UUID.randomUUID().toString()
-        val timestamp = System.currentTimeMillis() / 1000
-        val command = """{"cmd":"unlock","req_id":"$requestId","timestamp":$timestamp}"""
-        return try {
+            val command = buildJsonCommand("unlock", body.token, body.signature.value)
             sendBleUnlockAndWait(lockId, command)
         } catch (e: Exception) {
             e.printStackTrace()
@@ -168,25 +153,21 @@ class LockRepositoryImpl @Inject constructor(
 
 
     override suspend fun lock(lockId: String): Boolean {
-        if (isNetworkAvailable() && !sessionManager.isJwtExpired()) {
-            repeat(3) { attempt ->
-                val success = attemptLock(lockId)
-                if (success) return true
-                if (attempt < 2) delay(1000L * (attempt + 1))
-            }
+        if (!isNetworkAvailable() || sessionManager.isJwtExpired()) return false
+        repeat(3) { attempt ->
+            val success = attemptLock(lockId)
+            if (success) return true
+            if (attempt < 2) delay(1000L * (attempt + 1))
         }
-        return attemptDirectBleLock(lockId)
+        return false
     }
 
     private suspend fun attemptLock(lockId: String): Boolean {
         return try {
-            val clientTimestamp = System.currentTimeMillis() / 1000
-            val response = lockService.getLockToken(
-                request = UnlockTokenRequest(device_uuid = lockId)
-            )
+            val response = lockService.getLockToken(UnlockTokenRequest(device_uuid = lockId))
             if (!response.isSuccessful || response.body() == null) return false
             val body = response.body()!!
-            val command = """{"cmd":"lock","req_id":"${UUID.randomUUID()}","timestamp":${clientTimestamp},"token":{"nonce":"${body.token.nonce}","expires":${body.token.expires_at},"device_uuid":"${body.token.device_uuid}","user_uuid":"${body.token.user_uuid}","action":"lock"},"signature":"${body.signature.value}"}"""
+            val command = buildJsonCommand("lock", body.token, body.signature.value)
             sendBleLockAndWait(lockId, command)
         } catch (e: Exception) {
             e.printStackTrace()
@@ -194,14 +175,24 @@ class LockRepositoryImpl @Inject constructor(
         }
     }
 
-    private suspend fun attemptDirectBleLock(lockId: String): Boolean {
-        val command = """{"cmd":"lock","req_id":"${UUID.randomUUID()}","timestamp":${System.currentTimeMillis() / 1000}}"""
-        return try {
-            sendBleLockAndWait(lockId, command)
-        } catch (e: Exception) {
-            e.printStackTrace()
-            false
+    private fun buildJsonCommand(cmd: String, token: TokenData, signature: String): String {
+        val tokenObj = JSONObject().apply {
+            put("version", token.version)
+            put("action", token.action)
+            put("device_uuid", token.device_uuid)
+            put("user_uuid", token.user_uuid)
+            put("nonce", token.nonce)
+            put("issued_at", token.issued_at)
+            put("expires_at", token.expires_at)
+            put("session_id", token.session_id)
         }
+        return JSONObject().apply {
+            put("cmd", cmd)
+            put("req_id", UUID.randomUUID().toString())
+            put("timestamp", System.currentTimeMillis() / 1000)
+            put("token", tokenObj)
+            put("signature", signature)
+        }.toString()
     }
 
     private suspend fun sendBleLockAndWait(lockId: String, command: String): Boolean {

@@ -58,10 +58,10 @@ class BluetoothViewModel @Inject constructor(
     fun startBleScan() = bleManager.startScan()
     fun stopBleScan() = bleManager.stopScan()
 
-    fun pairAndConnect(device: BluetoothDevice) {
+    fun pairAndConnect(device: BluetoothDevice, wifiSsid: String, wifiPassword: String) {
         viewModelScope.launch {
             val result = withTimeoutOrNull(60_000L) {
-                runOnboarding(device)
+                runOnboarding(device, wifiSsid, wifiPassword)
             }
             if (result == null) {
                 _onboardingState.value = OnboardingState.Error("Onboarding timed out (60s)")
@@ -69,7 +69,7 @@ class BluetoothViewModel @Inject constructor(
         }
     }
 
-    private suspend fun runOnboarding(device: BluetoothDevice) {
+    private suspend fun runOnboarding(device: BluetoothDevice, wifiSsid: String, wifiPassword: String) {
         try {
             _onboardingState.value = OnboardingState.Connecting
             bleManager.connect(device.address)
@@ -167,19 +167,12 @@ class BluetoothViewModel @Inject constructor(
                     put("cmd", "config")
                     put("device_uuid", regBody.device_uuid)
                     put("server_public_key", regBody.server_public_key)
-                    put("config", JSONObject().apply {
-                        put("pin_length", regBody.config.pin_length)
-                        put("rotation_hours", regBody.config.rotation_hours)
-                        put("grace_period_minutes", regBody.config.grace_period_minutes)
-                        put("max_attempts", regBody.config.max_attempts)
-                        put("lockout_seconds", regBody.config.lockout_seconds)
-                    })
+                    put("device_secret", regBody.device_secret)
+                    put("wifi_ssid", wifiSsid)
+                    put("wifi_password", wifiPassword)
                     put("mqtt_broker", regBody.mqtt_config.broker)
                     put("mqtt_port", regBody.mqtt_config.port)
                     put("mqtt_client_id", regBody.mqtt_config.client_id)
-                    put("mqtt_topic_commands", regBody.mqtt_config.topics.commands)
-                    put("mqtt_topic_events", regBody.mqtt_config.topics.events)
-                    put("mqtt_topic_status", regBody.mqtt_config.topics.status)
                 }.toString()
 
                 var writeOk = false

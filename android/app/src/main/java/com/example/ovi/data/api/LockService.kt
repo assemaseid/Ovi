@@ -7,7 +7,6 @@ import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.Path
-import retrofit2.http.Query
 
 interface LockService {
 
@@ -29,4 +28,7 @@ interface LockService {
 
     @DELETE("devices/{device_uuid}")
     suspend fun deleteDevice(@Path("device_uuid") deviceUuid: String): Response<Unit>
+
+    @GET("devices/{device_uuid}/pin")
+    suspend fun getCurrentPin(@Path("device_uuid") deviceUuid: String): Response<PinResponse>
 }
