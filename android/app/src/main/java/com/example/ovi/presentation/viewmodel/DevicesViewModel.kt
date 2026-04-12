@@ -78,7 +78,7 @@ class DevicesViewModel @Inject constructor(
                     lockDao.updateLock(entity.copy(
                         batteryLevel = event.batteryLevel ?: entity.batteryLevel,
                         firmwareVersion = event.firmwareVersion ?: entity.firmwareVersion,
-                        lastSynced = System.currentTimeMillis()
+                        lastSynced = parseIsoToMillis(event.lastSeen)
                     ))
                 }
                 is WsEvent.DeviceEvent -> {
@@ -243,5 +243,17 @@ class DevicesViewModel @Inject constructor(
     private fun formatTimestamp(millis: Long): String {
         if (millis == 0L) return "—"
         return SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(millis))
+    }
+
+    private fun parseIsoToMillis(iso: String?): Long {
+        iso ?: return System.currentTimeMillis()
+        return try {
+            SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US)
+                .apply { timeZone = java.util.TimeZone.getTimeZone("UTC") }
+                .parse(iso.substringBefore('.').trimEnd('Z'))
+                ?.time ?: System.currentTimeMillis()
+        } catch (e: Exception) {
+            System.currentTimeMillis()
+        }
     }
 }
