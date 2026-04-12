@@ -94,7 +94,7 @@ data class BleDeviceInfo(
     val cmd: String,
     val req_id: String,
     val data: BleData,
-    val signature: String
+    val signature: String?
 )
 
 data class BleData(
