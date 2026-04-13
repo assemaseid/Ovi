@@ -30,6 +30,7 @@ class UnlockResponse(BaseModel):
 
 class MqttCommand(BaseModel):
     msg_id: str
+    device_uuid: str
     timestamp: int
     command: dict
     signature: str

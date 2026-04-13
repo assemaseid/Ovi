@@ -63,6 +63,7 @@ async def request_unlock_token(
     if mqtt.is_connected:
         cmd_msg = MqttCommand(
             msg_id=f"msg_{uuid.uuid4()}",
+            device_uuid=str(device.device_uuid),
             timestamp=now_timestamp,
             command={
                 "type": "unlock",
@@ -123,6 +124,7 @@ async def request_lock_token(
     if mqtt.is_connected:
         cmd_msg = MqttCommand(
             msg_id=f"msg_{uuid.uuid4()}",
+            device_uuid=str(device.device_uuid),
             timestamp=now_timestamp,
             command={
                 "type": "lock",

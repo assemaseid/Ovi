@@ -1,4 +1,5 @@
 import logging
+import secrets
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
@@ -77,6 +78,7 @@ async def register_device(
             "grace_period_minutes": grace_period_minutes,
             "max_attempts": max_attempts,
             "lockout_seconds": lockout_seconds,
+            "device_secret": secrets.token_hex(8),
         },
     )
     session.add(device)
@@ -107,6 +109,7 @@ async def register_device(
         status="registered",
         device_uuid=dev_uuid_str,
         server_public_key=crypto_service.public_key_pem,
+        device_secret=device.config["device_secret"],
         config=DeviceConfig(
             pin_length=pin_length,
             rotation_hours=rotation_hours,

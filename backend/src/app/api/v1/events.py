@@ -56,7 +56,7 @@ async def post_device_event(
         select(Device).where(Device.device_uuid == uuid.UUID(body.device_uuid))
     )
     device = device_result.scalar_one_or_none()
-    if not device:
+    if device is None:
         raise HTTPException(status_code=404, detail="Device not found")
 
     payload = body.model_dump()

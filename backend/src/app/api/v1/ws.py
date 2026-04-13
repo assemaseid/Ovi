@@ -6,6 +6,7 @@ from typing import Any
 
 from fastapi import (
                      APIRouter,
+                     Body,
                      Query,
                      WebSocket,
                      WebSocketDisconnect,
@@ -27,70 +28,40 @@ logger = logging.getLogger(__name__)
 
 class ConnectionManager:
     def __init__(self) -> None:
-        # { user_uuid_str: [(websocket, device_filter)] }
-        self._connections: dict[str, list[tuple[WebSocket, str | None]]] = {}
-        self._lock = asyncio.Lock()
+        self._connections: dict[str, WebSocket] = {}
 
-    async def connect(
-                      self,
-                      ws: WebSocket,
-                      user_uuid: str,
-                      device_filter: str | None
-                      ) -> None:
+    async def connect(self, ws: WebSocket, user_uuid: str) -> None:
         await ws.accept()
-        async with self._lock:
-            self._connections.setdefault(user_uuid, []).append((ws, device_filter))
-        logger.info("WS connected user=%s filter=%s", user_uuid, device_filter)
+        self._connections[user_uuid] = ws
+        logger.warning("WS connected user=%s", user_uuid)
 
-    async def disconnect(self,
-                         ws: WebSocket,
-                         user_uuid: str
-                         ) -> None:
-        async with self._lock:
-            conns = self._connections.get(user_uuid, [])
-            new_conns = []
-            for conn in conns:
-                if conn[0] is not ws:
-                    new_conns.append(conn)
-            self._connections[user_uuid] = new_conns
-        logger.info("WS disconnected user=%s", user_uuid)
+    async def disconnect(self, user_uuid: str) -> None:
+        self._connections.pop(user_uuid, None)
+        logger.warning("WS disconnected user=%s", user_uuid)
 
-    # after getting MQTT message, it goes to WebSocket by broadcast_event()
     async def broadcast_event(
-                              self,
-                              device_uuid: str,
-                              event: dict[str, Any],
-                              allowed_users: set[str]
-                              ) -> None:
+        self,
+        device_uuid: str,
+        event: dict[str, Any],
+        allowed_users: set[str],
+    ) -> None:
         payload = json.dumps({
             "type": "device_event",
             "device_uuid": device_uuid,
             "event": event,
         })
-        dead: list[tuple[str, WebSocket]] = []
-
-        async with self._lock:
-            items = list(self._connections.items())
-
-        for user_uuid, conns in items:
+        logger.warning("broadcast_event: device=%s allowed=%s connections=%s",
+                       device_uuid, allowed_users, list(self._connections.keys()))
+        dead = []
+        for user_uuid, ws in list(self._connections.items()):
             if user_uuid not in allowed_users:
                 continue
-            for ws, device_filter in conns:
-                if device_filter and device_filter != device_uuid:
-                    continue
-                try:
-                    await ws.send_text(payload)
-                except Exception:
-                    dead.append((user_uuid, ws))
-
-        async with self._lock:
-            for u, ws in dead:
-                conns = self._connections.get(u, [])
-                alive = []
-                for conn in conns:
-                    if conn[0] is not ws:
-                        alive.append(conn)
-                self._connections[u] = alive
+            try:
+                await ws.send_text(payload)
+            except Exception:
+                dead.append(user_uuid)
+        for u in dead:
+            self._connections.pop(u, None)
 
 
 manager = ConnectionManager()
@@ -161,7 +132,7 @@ async def ws_events(
             return
 
         user_uuid_str = str(user.user_uuid)
-        await manager.connect(websocket, user_uuid_str, device_uuid)
+        await manager.connect(websocket, user_uuid_str)
 
         try:
             await websocket.send_text(json.dumps({
@@ -186,4 +157,4 @@ async def ws_events(
         except Exception as exc:
             logger.error("WebSocket error: %s", exc)
         finally:
-            await manager.disconnect(websocket, user_uuid_str)
+            await manager.disconnect(user_uuid_str)

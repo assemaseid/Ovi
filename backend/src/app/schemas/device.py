@@ -47,12 +47,12 @@ class DeviceRegisterResponse(BaseModel):
     status: str = "registered"
     device_uuid: str
     server_public_key: str
+    device_secret: str
     config: DeviceConfig
     mqtt_config: MqttConfig
 
 
 class DeviceStatusUpdate(BaseModel):
-    """Sent by the device via MQTT /status topic."""
     msg_id: str
     device_uuid: str
     timestamp: int

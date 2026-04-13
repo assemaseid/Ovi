@@ -14,7 +14,7 @@ class Device(Base):
 
     device_uuid: Mapped[uuid_pk]
     hardware_id: Mapped[str] = mapped_column(unique=True, nullable=False)
-    public_key: Mapped[str] = mapped_column(Text)
+    public_key: Mapped[str] = mapped_column(Text) #сервера
 
     # Владелец который зарегал замок в систему Ovi
     user_uuid: Mapped[uuid_fk] = mapped_column(ForeignKey("users.user_uuid"))

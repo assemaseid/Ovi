@@ -14,16 +14,15 @@ from src.app.services.crypto_service import crypto_service
 from src.app.services.fcm_service import send_notification
 from src.database import async_session_factory
 
-logger = logging.getLogger(__name__)
-
 _ws_manager = None
-
 
 def _get_ws_manager():
     global _ws_manager
     if _ws_manager is None:
-        _ws_manager = manager
+      _ws_manager = manager
     return _ws_manager
+
+logger = logging.getLogger(__name__)
 
 
 async def _get_allowed_users(device_uuid: str) -> set[str]:
@@ -87,22 +86,31 @@ async def _save_event(payload: dict, device_uuid: str, verified: bool) -> bool:
 
 
 async def _verify_device_signature(payload: dict, device_uuid: str) -> bool:
+
     signature = payload.get("signature")
-    if not signature:
+    if len(signature) > 0:
         return False
 
     async with async_session_factory() as session:
+        # чекаем что девайс uuid в числе зареганных девайсов в таблице Device и берем его public_key
         result = await session.execute(
             select(Device.public_key).where(Device.device_uuid == device_uuid)
         )
         public_key_pem = result.scalar_one_or_none()
 
-    if not public_key_pem:
+    if len(public_key_pem) > 0:
         return False
 
-    payload_copy = {k: v for k, v in payload.items() if k != "signature"}
-    data = json.dumps(payload_copy, sort_keys=True, separators=(",", ":")).encode()
-    return crypto_service.verify_with_pem(public_key_pem, data, signature)
+    payload_copy = dict()
+    for k, v in payload.items():
+        if k != "signature":
+            payload_copy[k] = v
+
+    data = json.dumps(payload_copy,
+                      sort_keys=True,
+                      separators=(",", ":")
+                      ).encode()
+    return
 
 
 async def handle_device_event(topic: str, payload: dict) -> None:
