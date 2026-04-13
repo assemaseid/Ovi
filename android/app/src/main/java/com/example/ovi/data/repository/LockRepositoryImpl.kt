@@ -261,9 +261,12 @@ class LockRepositoryImpl @Inject constructor(
     override suspend fun remoteUnlock(lockId: String): Boolean {
         if (!isNetworkAvailable() || sessionManager.isJwtExpired()) return false
         return try {
+            android.util.Log.d("REMOTE", "→ remoteUnlock: sending POST /commands/unlock for $lockId")
             val response = lockService.getUnlockToken(UnlockTokenRequest(device_uuid = lockId))
+            android.util.Log.d("REMOTE", "← remoteUnlock: response ${response.code()} ${if (response.isSuccessful) "OK" else response.errorBody()?.string()}")
             response.isSuccessful
         } catch (e: Exception) {
+            android.util.Log.e("REMOTE", "← remoteUnlock: exception ${e.message}")
             e.printStackTrace()
             false
         }
@@ -272,9 +275,12 @@ class LockRepositoryImpl @Inject constructor(
     override suspend fun remoteLock(lockId: String): Boolean {
         if (!isNetworkAvailable() || sessionManager.isJwtExpired()) return false
         return try {
+            android.util.Log.d("REMOTE", "→ remoteLock: sending POST /commands/lock for $lockId")
             val response = lockService.getLockToken(UnlockTokenRequest(device_uuid = lockId))
+            android.util.Log.d("REMOTE", "← remoteLock: response ${response.code()} ${if (response.isSuccessful) "OK" else response.errorBody()?.string()}")
             response.isSuccessful
         } catch (e: Exception) {
+            android.util.Log.e("REMOTE", "← remoteLock: exception ${e.message}")
             e.printStackTrace()
             false
         }

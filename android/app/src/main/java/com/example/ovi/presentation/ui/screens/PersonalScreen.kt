@@ -146,7 +146,7 @@ fun PersonalScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(120.dp))
+            Spacer(modifier = Modifier.height(133.dp))
         }
     }
 }

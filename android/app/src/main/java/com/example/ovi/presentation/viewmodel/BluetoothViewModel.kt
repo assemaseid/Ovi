@@ -72,28 +72,33 @@ class BluetoothViewModel @Inject constructor(
     private suspend fun runOnboarding(device: BluetoothDevice, wifiSsid: String, wifiPassword: String) {
         try {
             _onboardingState.value = OnboardingState.Connecting
+            android.util.Log.d("ONBOARD", "1. connecting to ${device.address}")
             bleManager.connect(device.address)
 
             val connected = withTimeoutOrNull(BleConstants.BLE_CONNECTION_TIMEOUT_MS) {
                 bleManager.connectedDeviceAddress.first { it != null }
             }
             if (connected == null) {
+                android.util.Log.e("ONBOARD", "2. connection timed out")
                 _onboardingState.value = OnboardingState.Error("Connection timed out")
                 return
             }
+            android.util.Log.d("ONBOARD", "2. connected ok")
 
             val servicesReady = withTimeoutOrNull(10_000L) {
                 bleManager.isServicesReady.first { it }
             }
             if (servicesReady == null) {
+                android.util.Log.e("ONBOARD", "3. service discovery timed out")
                 _onboardingState.value = OnboardingState.Error("Service discovery timed out")
                 return
             }
+            android.util.Log.d("ONBOARD", "3. services ready")
 
-            // Small delay
             delay(500L)
 
             _onboardingState.value = OnboardingState.ReadingInfo
+            android.util.Log.d("ONBOARD", "4. sending get_info")
             val infoReqId = UUID.randomUUID().toString()
             val getInfoCmd = """{"cmd":"get_info","req_id":"$infoReqId"}"""
 
@@ -112,13 +117,16 @@ class BluetoothViewModel @Inject constructor(
                 if (cmdSent) notifJob.await() else { notifJob.cancel(); null }
             }
             if (!cmdSent) {
+                android.util.Log.e("ONBOARD", "4. failed to send get_info")
                 _onboardingState.value = OnboardingState.Error("Failed to send get_info command")
                 return
             }
             if (infoNotification == null) {
+                android.util.Log.e("ONBOARD", "4. no info_response (timeout)")
                 _onboardingState.value = OnboardingState.Error("No info response from device (timeout)")
                 return
             }
+            android.util.Log.d("ONBOARD", "4. got info_response ok")
             val rawInfo = infoNotification.second
             android.util.Log.d("BLE", "Info response: $rawInfo")
 
@@ -135,6 +143,7 @@ class BluetoothViewModel @Inject constructor(
 
             _onboardingState.value = OnboardingState.Registering
             var registrationBody: DeviceRegistrationResponse? = null
+            var alreadyRegistered = false
             try {
                 val registrationRequest = DeviceRegistrationRequest(
                     device = DeviceInfo(
@@ -149,24 +158,71 @@ class BluetoothViewModel @Inject constructor(
                 )
 
                 val response = lockService.registerDevice(registrationRequest)
+                android.util.Log.d("REGISTER", "response code: ${response.code()}")
                 if (response.isSuccessful) {
                     val body = response.body()
+                    android.util.Log.d("REGISTER", "body: $body")
                     if (body != null) {
                         lockId = body.device_uuid
                         registrationBody = body
                     }
+                } else if (response.code() == 409) {
+                    android.util.Log.d("REGISTER", "409: already registered, fetching existing device")
+                    val devicesResponse = lockService.getDevices()
+                    if (devicesResponse.isSuccessful) {
+                        val existing = devicesResponse.body()
+                            ?.firstOrNull { it.hardwareId == info.data.device_id }
+                        if (existing != null) {
+                            android.util.Log.d("REGISTER", "found: ${existing.deviceUuid}")
+                            lockId = existing.deviceUuid
+                            alreadyRegistered = true
+                        }
+                    }
+                } else {
+                    android.util.Log.e("REGISTER", "error: ${response.errorBody()?.string()}")
                 }
             } catch (e: Exception) {
-                // Backend unavailable
+                android.util.Log.e("REGISTER", "exception: ${e.message}", e)
             }
 
-            if (registrationBody == null) {
+            if (registrationBody == null && !alreadyRegistered) {
                 _onboardingState.value = OnboardingState.Error("Server registration failed. Check internet connection and try again.")
                 return
             }
 
             _onboardingState.value = OnboardingState.Configuring
+
+            // BLE may have dropped during server registration — reconnect if needed
+            if (bleManager.connectedDeviceAddress.value == null) {
+                android.util.Log.d("ONBOARD", "5. BLE dropped — disconnecting old gatt and reconnecting")
+                bleManager.disconnect()  // stop any auto-reconnect first
+                delay(500L)
+                bleManager.connect(device.address)
+                val reconnected = withTimeoutOrNull(BleConstants.BLE_CONNECTION_TIMEOUT_MS) {
+                    bleManager.connectedDeviceAddress.first { it != null }
+                }
+                if (reconnected == null) {
+                    android.util.Log.e("ONBOARD", "5. reconnect timed out")
+                    _onboardingState.value = OnboardingState.Error("BLE disconnected after registration, could not reconnect")
+                    return
+                }
+                android.util.Log.d("ONBOARD", "5. reconnected ok, waiting for services")
+                val servicesReady2 = withTimeoutOrNull(15_000L) {
+                    bleManager.isServicesReady.first { it }
+                }
+                if (servicesReady2 == null) {
+                    android.util.Log.e("ONBOARD", "5. services not ready after reconnect")
+                    _onboardingState.value = OnboardingState.Error("BLE reconnected but services not ready")
+                    return
+                }
+                delay(500L)
+                android.util.Log.d("ONBOARD", "5. reconnect complete, continuing with config")
+            } else {
+                android.util.Log.d("ONBOARD", "5. BLE still connected, no reconnect needed")
+            }
+
             val regBody = registrationBody
+            android.util.Log.d("ONBOARD", "regBody=${regBody != null}, connectedAddr=${bleManager.connectedDeviceAddress.value}")
             if (regBody != null) {
                 val configPacket = JSONObject().apply {
                     put("cmd", "config")
@@ -179,6 +235,8 @@ class BluetoothViewModel @Inject constructor(
                     put("mqtt_port", regBody.mqtt_config.port)
                     put("mqtt_client_id", regBody.mqtt_config.client_id)
                 }.toString()
+
+                android.util.Log.d("ONBOARD", "sending config packet (${configPacket.length} bytes)")
 
                 var writeOk = false
                 val notified = coroutineScope {
@@ -194,8 +252,10 @@ class BluetoothViewModel @Inject constructor(
                         BleConstants.CHAR_COMMAND_WRITE,
                         configPacket
                     )
+                    android.util.Log.d("ONBOARD", "writeCharacteristic result: $writeOk")
                     if (writeOk) notifJob.await() else { notifJob.cancel(); null }
                 }
+                android.util.Log.d("ONBOARD", "notified=${notified != null}")
                 if (!writeOk) {
                     _onboardingState.value = OnboardingState.Error("Failed to write config to device")
                     return
@@ -204,6 +264,8 @@ class BluetoothViewModel @Inject constructor(
                     _onboardingState.value = OnboardingState.Error("Lock did not confirm configuration")
                     return
                 }
+            } else {
+                android.util.Log.d("ONBOARD", "skipping config (alreadyRegistered=$alreadyRegistered)")
             }
 
             val newLock = SmartLock(
@@ -215,7 +277,9 @@ class BluetoothViewModel @Inject constructor(
                 batteryLevel = info.data.battery_level,
                 isLocked = true,
                 firmwareVersion = info.data.fw_version,
-                lastSynced = System.currentTimeMillis()
+                lastSynced = System.currentTimeMillis(),
+                deviceSecret = regBody?.device_secret.orEmpty(),
+                rotationHours = regBody?.config?.rotation_hours ?: 24
             )
             lockRepository.addLock(newLock)
             _onboardingState.value = OnboardingState.Success

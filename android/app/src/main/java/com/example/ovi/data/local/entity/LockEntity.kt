@@ -14,6 +14,8 @@ data class LockEntity(
     val isLocked: Boolean,
     val firmwareVersion: String?,
     val lastSynced: Long,
-    val pendingDelete: Boolean = false
+    val pendingDelete: Boolean = false,
+    val deviceSecret: String = "",
+    val rotationHours: Int = 24
 )
 

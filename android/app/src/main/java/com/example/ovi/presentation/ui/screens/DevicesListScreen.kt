@@ -76,7 +76,11 @@ fun DevicesListScreen(
     ) {
         SnackbarHost(
             hostState = snackbarHostState,
-            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 80.dp).zIndex(1f)
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
+                .padding(bottom = 120.dp)
+                .zIndex(1f)
         )
         Column(
             modifier = Modifier

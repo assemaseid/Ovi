@@ -13,7 +13,9 @@ fun LockEntity.toLockDomain(): SmartLock {
         batteryLevel = this.batteryLevel,
         isLocked = this.isLocked,
         firmwareVersion = this.firmwareVersion,
-        lastSynced = this.lastSynced
+        lastSynced = this.lastSynced,
+        deviceSecret = this.deviceSecret,
+        rotationHours = this.rotationHours
     )
 }
 
@@ -27,6 +29,8 @@ fun SmartLock.toLockEntity(): LockEntity {
         batteryLevel = this.batteryLevel,
         isLocked = this.isLocked,
         firmwareVersion = this.firmwareVersion,
-        lastSynced = this.lastSynced
+        lastSynced = this.lastSynced,
+        deviceSecret = this.deviceSecret,
+        rotationHours = this.rotationHours
     )
 }

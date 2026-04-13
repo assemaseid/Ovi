@@ -47,6 +47,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.ovi.presentation.viewmodel.BluetoothViewModel
@@ -54,7 +55,6 @@ import com.example.ovi.presentation.viewmodel.OnboardingState
 import com.example.ovi.ui.theme.*
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
 @SuppressLint("MissingPermission")
 @Composable
 fun BluetoothScreen(
@@ -148,9 +148,15 @@ fun BluetoothScreen(
         label = "alpha"
     )
 
-    Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) }
-    ) { innerPadding ->
+    Box(modifier = Modifier.fillMaxSize()) {
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
+                .padding(bottom = 80.dp)
+                .zIndex(1f)
+        )
 
         Column(
             modifier = Modifier
@@ -160,7 +166,6 @@ fun BluetoothScreen(
                         colors = listOf(BgTop, BgBottom)
                     )
                 )
-                .padding(innerPadding)
                 .padding(horizontal = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -239,8 +244,8 @@ fun BluetoothScreen(
             OutlinedTextField(
                 value = wifiSsid,
                 onValueChange = { wifiSsid = it },
-                label = { Text("Home WiFi name", color = TextWhite.copy(alpha = 0.7f)) },
-                placeholder = { Text("e.g. MyHomeWiFi", color = TextWhite.copy(alpha = 0.3f)) },
+                label = { Text("WiFi name", color = TextWhite.copy(alpha = 0.7f)) },
+                placeholder = { Text("e.g. MyWiFi", color = TextWhite.copy(alpha = 0.3f)) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
                 colors = OutlinedTextFieldDefaults.colors(
@@ -257,7 +262,7 @@ fun BluetoothScreen(
             OutlinedTextField(
                 value = wifiPassword,
                 onValueChange = { wifiPassword = it },
-                label = { Text("Home WiFi password", color = TextWhite.copy(alpha = 0.7f)) },
+                label = { Text("WiFi password", color = TextWhite.copy(alpha = 0.7f)) },
                 singleLine = true,
                 visualTransformation = if (wifiPasswordVisible) VisualTransformation.None
                                        else PasswordVisualTransformation(),
@@ -361,7 +366,7 @@ fun BluetoothScreen(
 
             LazyColumn(
                 verticalArrangement = Arrangement.spacedBy(10.dp),
-                contentPadding = PaddingValues(bottom = 80.dp) // отступ под bottom bar
+                contentPadding = PaddingValues(bottom = 80.dp)
             ) {
                 items(scannedDevices) { device ->
                     val isConnected = connectedAddress == device.address
