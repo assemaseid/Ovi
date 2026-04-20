@@ -29,6 +29,7 @@ class AuthRepositoryImpl @Inject constructor(
             sessionManager.saveUserSession(
                 userId = user.id,
                 email = user.email,
+                name = user.name,
                 jwtToken = response.accessToken,
                 refreshToken = response.refreshToken
             )
@@ -49,13 +50,14 @@ class AuthRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun register(email: String, password: String): Result<User> {
+    override suspend fun register(name: String, email: String, password: String): Result<User> {
         return try {
-            val response = authService.register(RegisterRequest(email = email, password = password))
+            val response = authService.register(RegisterRequest(name = name, email = email, password = password))
             val user = response.user.toDomain(jwtToken = response.accessToken)
             sessionManager.saveUserSession(
                 userId = user.id,
                 email = user.email,
+                name = user.name ?: name,
                 jwtToken = response.accessToken,
                 refreshToken = response.refreshToken
             )
@@ -115,6 +117,7 @@ class AuthRepositoryImpl @Inject constructor(
             User(
                 id = userId,
                 email = sessionManager.getEmail() ?: return null,
+                name = sessionManager.getName(),
                 jwtToken = sessionManager.getJwtToken()
             )
         } catch (e: Exception) {

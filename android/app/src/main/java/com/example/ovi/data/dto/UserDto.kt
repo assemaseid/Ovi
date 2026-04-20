@@ -9,6 +9,9 @@ data class UserDto(
     @SerializedName("email")
     val email: String,
 
+    @SerializedName("name")
+    val name: String? = null,
+
     @SerializedName("is_active")
     val isActive: Boolean
 )

@@ -12,15 +12,17 @@ class SessionManager @Inject constructor(
     companion object {
         private const val KEY_USER_ID = "user_id"
         private const val KEY_EMAIL = "email"
+        private const val KEY_NAME = "name"
         private const val KEY_JWT_TOKEN = "jwt_token"
         private const val KEY_REFRESH_TOKEN = "refresh_token"
         private const val KEY_IS_LOGGED_IN = "is_logged_in"
     }
 
-    fun saveUserSession(userId: String, email: String, jwtToken: String?, refreshToken: String? = null) {
+    fun saveUserSession(userId: String, email: String, name: String? = null, jwtToken: String?, refreshToken: String? = null) {
         sharedPreferences.edit()
             .putString(KEY_USER_ID, userId)
             .putString(KEY_EMAIL, email)
+            .putString(KEY_NAME, name)
             .putString(KEY_JWT_TOKEN, jwtToken)
             .putString(KEY_REFRESH_TOKEN, refreshToken)
             .putBoolean(KEY_IS_LOGGED_IN, true)
@@ -32,6 +34,8 @@ class SessionManager @Inject constructor(
     fun getUserId(): String? = sharedPreferences.getString(KEY_USER_ID, null)
 
     fun getEmail(): String? = sharedPreferences.getString(KEY_EMAIL, null)
+
+    fun getName(): String? = sharedPreferences.getString(KEY_NAME, null)
 
     fun getJwtToken(): String? = sharedPreferences.getString(KEY_JWT_TOKEN, null)
 
@@ -51,6 +55,7 @@ class SessionManager @Inject constructor(
         sharedPreferences.edit()
             .remove(KEY_USER_ID)
             .remove(KEY_EMAIL)
+            .remove(KEY_NAME)
             .remove(KEY_JWT_TOKEN)
             .remove(KEY_REFRESH_TOKEN)
             .putBoolean(KEY_IS_LOGGED_IN, false)

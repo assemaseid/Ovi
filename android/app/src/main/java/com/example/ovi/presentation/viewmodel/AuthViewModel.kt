@@ -60,10 +60,10 @@ class AuthViewModel @Inject constructor(
         }
     }
 
-    fun register(email: String, password: String) {
+    fun register(name: String, email: String, password: String) {
         viewModelScope.launch {
             _authState.value = AuthState.Loading
-            authRepository.register(email, password)
+            authRepository.register(name, email, password)
                 .onSuccess { user ->
                     _currentUser.value = user
                     _authState.value = AuthState.Success("Registration successful!")
