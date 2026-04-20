@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Optional
 
 from sqlalchemy import ForeignKey, Text, DateTime, func
 from sqlalchemy.dialects.postgresql import JSONB
@@ -14,6 +15,5 @@ class OfflineEventsQueue(Base):
     device_uuid: Mapped[uuid_fk] = mapped_column(ForeignKey("devices.device_uuid"))
     event_data: Mapped[dict] = mapped_column(JSONB, nullable=False)
     signature: Mapped[str] = mapped_column(Text)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True),
-                                                 server_default=func.now())
-    synced_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    synced_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)

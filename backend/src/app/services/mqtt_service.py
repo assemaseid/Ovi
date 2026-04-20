@@ -107,7 +107,7 @@ class MQTTService:
 
     @staticmethod
     def cmd_topic(device_uuid: str) -> str:
-        return f"devices/{device_uuid}/commands"
+        return f"devices/{device_uuid}/cmd"
 
     @staticmethod
     def events_topic(device_uuid: str) -> str:

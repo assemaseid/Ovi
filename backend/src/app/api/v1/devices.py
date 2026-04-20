@@ -1,4 +1,5 @@
 import logging
+import secrets
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
@@ -25,6 +26,7 @@ from src.app.schemas.device import (
 )
 from src.app.services.crypto_service import crypto_service
 from src.app.services.mqtt_service import MQTTService
+from src.app.services.pin_service import check_and_rotate, get_current_pin
 from src.config import settings
 
 router = APIRouter(prefix="/devices", tags=["Devices"])
@@ -76,6 +78,7 @@ async def register_device(
             "grace_period_minutes": grace_period_minutes,
             "max_attempts": max_attempts,
             "lockout_seconds": lockout_seconds,
+            "device_secret": secrets.token_hex(32),
         },
     )
     session.add(device)
@@ -84,7 +87,7 @@ async def register_device(
     session.add(Grant(
         device_uuid=device.device_uuid,
         user_uuid=current_user.user_uuid,
-        permissions=["read_status", "unlock", "admin"],
+        permissions=["read_status", "unlock", "lock", "admin"],
         created_by=current_user.user_uuid,
     ))
     session.add(PinState(device_uuid=device.device_uuid))
@@ -106,6 +109,7 @@ async def register_device(
         status="registered",
         device_uuid=dev_uuid_str,
         server_public_key=crypto_service.public_key_pem,
+        device_secret=device.config["device_secret"],
         config=DeviceConfig(
             pin_length=pin_length,
             rotation_hours=rotation_hours,
@@ -219,7 +223,6 @@ async def get_diagnostics(
     session: SessionDep,
     current_user: User = Depends(get_current_user),
 ) -> DiagnosticsResponse:
-    """Full device state + recent logs + PIN state. Owner/admin only."""
     device = await require_device_permission(device_uuid,
                                              "admin",
                                              current_user,
@@ -249,3 +252,49 @@ async def get_diagnostics(
         recent_events=[EventOut.model_validate(e) for e in events],
         config=device.config or {},
     )
+
+
+@router.get("/{device_uuid}/pin", response_model=OkResponse)
+async def get_current_pin_endpoint(
+    device_uuid: str,
+    session: SessionDep,
+    current_user: User = Depends(get_current_user),
+) -> OkResponse:
+
+    device = await require_device_permission(device_uuid, "admin", current_user, session)
+    pin = await get_current_pin(device)
+    if not pin:
+        raise HTTPException(status_code=404, detail="Device secret not configured")
+    return OkResponse(message=pin)
+
+
+@router.post("/{device_uuid}/rotate-pin", response_model=OkResponse)
+async def force_rotate_pin(
+    device_uuid: str,
+    session: SessionDep,
+    current_user: User = Depends(get_current_user),
+) -> OkResponse:
+
+    device = await require_device_permission(device_uuid, "admin", current_user, session)
+
+    # Send MQTT command to device
+    mqtt = MQTTService()
+    if mqtt.is_connected:
+        import uuid as uuid_lib
+        import time
+        cmd = {
+            "msg_id": f"msg_{uuid_lib.uuid4()}",
+            "timestamp": int(time.time()),
+            "command": {"type": "rotate_pin"},
+            "signature": crypto_service.sign_dict({"type": "rotate_pin"}),
+        }
+        await mqtt.publish(
+            payload=cmd,
+            packetId=0,
+            topicName=MQTTService.cmd_topic(device_uuid),
+        )
+
+    rotated = await check_and_rotate(session, device)
+    if not rotated:
+        raise HTTPException(status_code=400, detail="PIN already rotated for current time slot")
+    return OkResponse(message="PIN rotation triggered")

@@ -2,7 +2,6 @@ import re
 
 
 def validate_firmware_version(v: str) -> str:
-    """Enforce semver: '1.2.3'"""
     if not re.match(r"^\d+\.\d+\.\d+$", v):
         raise ValueError(f"fw_version must be semver like '1.2.3', got: {v!r}")
     return v

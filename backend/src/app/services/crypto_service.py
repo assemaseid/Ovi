@@ -1,11 +1,3 @@
-"""
-Handles:
-- Server ECDSA P-256 key pair loading / generation
-- Token signing (ECDSA-SHA256)
-- Signature verification (device public keys)
-- Constant-time comparison helpers
-"""
-
 import base64
 import hmac
 import json
@@ -36,7 +28,6 @@ class CryptoService:
         ).decode()
 
     def _load_or_generate_keys(self) -> tuple[EllipticCurvePrivateKey, EllipticCurvePublicKey]:
-        # TODO добавить ключи с certs в settings и сгенерить
         private_path = settings.server_private_key_pem
         public_path = settings.server_public_key_pem
 
@@ -72,18 +63,18 @@ class CryptoService:
         return private_key, public_key
 
     def sign(self, data: bytes) -> str:
-        """Sign arbitrary bytes with the server private key.
-        Returns DER-encoded signature as base64 string."""
         sig = self._private_key.sign(data, ECDSA(hashes.SHA256()))
         return base64.b64encode(sig).decode()
 
     def sign_dict(self, payload: dict) -> str:
-        """Deterministically sign a dict (JSON-serialised, sorted keys)."""
         data = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
         return self.sign(data)
 
-    def verify_with_pem(self, public_key_pem: str, data: bytes, signature_b64: str) -> bool:
-        """Verify a device signature given its PEM public key."""
+    def verify_with_pem(self,
+                        public_key_pem: str,
+                        data: bytes,
+                        signature_b64: str
+                        ) -> bool:
         try:
             pub_key = serialization.load_pem_public_key(public_key_pem.encode())
             sig = base64.b64decode(signature_b64)
@@ -96,10 +87,10 @@ class CryptoService:
     def load_public_key(self, pem_or_der: str) -> EllipticCurvePublicKey:
         data = pem_or_der.encode()
         try:
-            return serialization.load_pem_public_key(data)  # type: ignore[return-value]
+            return serialization.load_pem_public_key(data)
         except Exception:
             raw = base64.b64decode(pem_or_der)
-            return serialization.load_der_public_key(raw)  # type: ignore[return-value]
+            return serialization.load_der_public_key(raw)
 
     @staticmethod
     def generate_nonce(length: int = 16) -> str:

@@ -15,7 +15,7 @@ class Grant(Base):
     )
     user_uuid: Mapped[uuid_fk] = mapped_column(ForeignKey("users.user_uuid"))
     permissions: Mapped[list] = mapped_column(
-        JSONB, default=lambda: ["read_status", "unlock"]
+        JSONB, default=lambda: ["read_status", "unlock", "lock"]
     )
     valid_from: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now())

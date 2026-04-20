@@ -17,7 +17,6 @@ async def require_device_permission(
     current_user: User,
     session: SessionDep,
 ) -> Device:
-    """Return the device if user has the required ACL permission, else 403."""
     try:
         device_uuid_formatted = uuid.UUID(device_uuid)
     except ValueError:

@@ -4,6 +4,9 @@ from pydantic import BaseModel
 class UnlockRequest(BaseModel):
     device_uuid: str
 
+class LockRequest(BaseModel):
+    device_uuid: str
+
 
 class TokenData(BaseModel):
     version: int
@@ -27,9 +30,14 @@ class UnlockResponse(BaseModel):
     token: TokenData
     signature: SignatureData
 
+class LockResponse(BaseModel):
+    token: TokenData
+    signature: SignatureData
+
 
 class MqttCommand(BaseModel):
     msg_id: str
+    device_uuid: str
     timestamp: int
     command: dict
     signature: str

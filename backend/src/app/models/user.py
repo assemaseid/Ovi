@@ -10,6 +10,7 @@ class User(Base):
     __tablename__ = "users"
 
     user_uuid: Mapped[uuid_pk]
+    name: Mapped[str]
     email: Mapped[str] = mapped_column(unique=True)
     hashed_password: Mapped[str]
     public_key: Mapped[Optional[str]] = mapped_column(Text, nullable=True)

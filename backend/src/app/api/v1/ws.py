@@ -1,19 +1,17 @@
-"""
-Clients authenticate with a JWT query parameter:
-  ws://host/ws/events?token=<access_jwt>&device_uuid=<optional>
-
-The server pushes device events to connected clients filtered by:
-- device ownership / grant
-- optional device_uuid filter
-"""
-
 import asyncio
 import json
 import logging
 from datetime import UTC, datetime
 from typing import Any
 
-from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect, status
+from fastapi import (
+                     APIRouter,
+                     Body,
+                     Query,
+                     WebSocket,
+                     WebSocketDisconnect,
+                     status
+                     )
 from jwt import PyJWTError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -30,7 +28,6 @@ logger = logging.getLogger(__name__)
 
 class ConnectionManager:
     def __init__(self) -> None:
-        # { user_uuid_str: [(websocket, device_filter)] }
         self._connections: dict[str, list[tuple[WebSocket, str | None]]] = {}
         self._lock = asyncio.Lock()
 
@@ -58,7 +55,6 @@ class ConnectionManager:
             self._connections[user_uuid] = new_conns
         logger.info("WS disconnected user=%s", user_uuid)
 
-    # after getting MQTT message, it goes to WebSocket by broadcast_event()
     async def broadcast_event(
                               self,
                               device_uuid: str,
@@ -115,7 +111,6 @@ async def _authenticate_ws(token: str, session: SessionDep) -> User | None:
 
 
 async def _get_allowed_devices(user: User, session: SessionDep) -> set[str]:
-    """Return device_uuid strings the user can receive events for"""
     owned_q = await session.execute(
         select(Device.device_uuid).where(Device.user_uuid == user.user_uuid)
     )
@@ -127,6 +122,29 @@ async def _get_allowed_devices(user: User, session: SessionDep) -> set[str]:
     granted = {str(r) for r in grant_q.scalars().all()}
 
     return owned | granted
+
+
+async def _send_device_statuses(websocket: WebSocket,
+                                user: User,
+                                session: SessionDep
+                                ) -> None:
+    device_uuids = await _get_allowed_devices(user, session)
+    if not device_uuids:
+        return
+
+    result = await session.execute(
+        select(Device).where(Device.device_uuid.in_(device_uuids))
+    )
+    devices = result.scalars().all()
+
+    for device in devices:
+        await websocket.send_text(json.dumps({
+            "type": "device_status",
+            "device_uuid": str(device.device_uuid),
+            "battery_level": device.battery_level,
+            "last_seen": device.last_seen.isoformat() if device.last_seen else None,
+            "firmware_version": device.firmware_version,
+        }))
 
 
 @router.websocket("/ws/events")
@@ -151,6 +169,9 @@ async def ws_events(
                 "filter": device_uuid,
                 "timestamp": datetime.now(UTC).isoformat(),
             }))
+
+            # Send current status of all user's devices on connect
+            await _send_device_statuses(websocket, user, session)
 
             while True:
                 try:

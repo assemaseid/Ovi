@@ -12,14 +12,14 @@ _app: firebase_admin.App | None = None
 
 
 def init_fcm() -> bool:
-    """Initialize Firebase Admin SDK. Returns True if successful."""
     global _app
     if _app is not None:
         return True
 
     creds_path = settings.FIREBASE_CREDENTIALS_PATH
     if not creds_path or not Path(creds_path).exists():
-        logger.warning("FCM credentials not found at '%s' — push notifications disabled", creds_path)
+        logger.warning("FCM credentials not found at '%s' — push notifications disabled",
+                       creds_path)
         return False
 
     try:
@@ -32,8 +32,11 @@ def init_fcm() -> bool:
         return False
 
 
-async def send_notification(fcm_token: str, title: str, body: str, data: dict | None = None) -> bool:
-    """Send FCM push notification. Returns True if delivered."""
+async def send_notification(fcm_token: str,
+                            title: str,
+                            body: str,
+                            data: dict | None = None
+                            ) -> bool:
     if _app is None:
         logger.debug("FCM not initialized, skipping notification")
         return False
