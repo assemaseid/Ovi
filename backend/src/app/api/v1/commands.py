@@ -10,7 +10,9 @@ from src.app.schemas.commands import (
     SignatureData,
     TokenData,
     UnlockRequest,
+    LockRequest,
     UnlockResponse,
+    LockResponse,
 )
 from src.app.services.crypto_service import crypto_service
 from src.app.services.mqtt_service import MQTTService
@@ -84,12 +86,12 @@ async def request_unlock_token(
     return UnlockResponse(token=token, signature=sig)
 
 
-@router.post("/lock", response_model=UnlockResponse)
+@router.post("/lock", response_model=LockResponse)
 async def request_lock_token(
-    body: UnlockRequest,
+    body: LockRequest,
     session: SessionDep,
     current_user: User = Depends(get_current_user),
-) -> UnlockResponse:
+) -> LockResponse:
 
     device = await require_device_permission(
         body.device_uuid, "lock", current_user, session
@@ -142,4 +144,4 @@ async def request_lock_token(
         except Exception as e:
             logger.warning("MQTT publish failed: %s", e)
 
-    return UnlockResponse(token=token, signature=sig)
+    return LockResponse(token=token, signature=sig)

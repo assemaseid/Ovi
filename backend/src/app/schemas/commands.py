@@ -4,6 +4,9 @@ from pydantic import BaseModel
 class UnlockRequest(BaseModel):
     device_uuid: str
 
+class LockRequest(BaseModel):
+    device_uuid: str
+
 
 class TokenData(BaseModel):
     version: int
@@ -24,6 +27,10 @@ class SignatureData(BaseModel):
 
 
 class UnlockResponse(BaseModel):
+    token: TokenData
+    signature: SignatureData
+
+class LockResponse(BaseModel):
     token: TokenData
     signature: SignatureData
 

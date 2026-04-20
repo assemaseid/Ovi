@@ -13,7 +13,11 @@ from src.app.schemas.auth import (
     RefreshTokenResponse,
     RefreshTokenRequest,
 )
-from src.app.schemas.user import UserCreateSchema, UserResponseSchema
+from src.app.schemas.user import (
+    UserCreateSchema,
+    UserCreateResponseSchema,
+    UserResponseSchema,
+)
 from src.app.security import jwt_password, jwt_utils
 from fastapi.security import HTTPBearer, OAuth2PasswordBearer
 from src.app.services.auth_service import (
@@ -80,13 +84,14 @@ async def register_user(
     hashed_password = jwt_password.hash_password(user_data.hashed_password)
 
     new_user = User(
-        hashed_password=hashed_password,
+        name=user_data.name,
         email=user_data.email,
+        hashed_password=hashed_password,
     )
     session.add(new_user)
     await session.commit()
     await session.refresh(new_user)
-    user_response = UserResponseSchema.model_validate(new_user)
+    user_response = UserCreateResponseSchema.model_validate(new_user)
 
     return create_token_pair(user=user_response)
 

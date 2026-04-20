@@ -28,7 +28,6 @@ class CryptoService:
         ).decode()
 
     def _load_or_generate_keys(self) -> tuple[EllipticCurvePrivateKey, EllipticCurvePublicKey]:
-        # TODO добавить ключи с certs в settings и сгенерить
         private_path = settings.server_private_key_pem
         public_path = settings.server_public_key_pem
 

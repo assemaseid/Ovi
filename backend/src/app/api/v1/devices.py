@@ -78,7 +78,7 @@ async def register_device(
             "grace_period_minutes": grace_period_minutes,
             "max_attempts": max_attempts,
             "lockout_seconds": lockout_seconds,
-            "device_secret": secrets.token_hex(8),
+            "device_secret": secrets.token_hex(32),
         },
     )
     session.add(device)

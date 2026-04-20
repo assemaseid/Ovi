@@ -19,8 +19,8 @@ class Settings(BaseSettings):
     POSTGRES_PORT: int
     POSTGRES_PASSWORD: str
 
-    server_private_key_pem: str | None = None
-    server_public_key_pem: str | None = None
+    server_private_key_pem: Path = BASE_DIR / "certs" / "server-private.pem"
+    server_public_key_pem: Path = BASE_DIR / "certs" / "server-public.pem"
 
     unlock_token_ttl_seconds: int = 30
 

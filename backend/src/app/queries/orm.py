@@ -19,10 +19,10 @@ class AsyncOrm:
             existing_user = result.scalars().first()
 
             if not existing_user:
-                user1 = User(email="user1@gmail.com", hashed_password=hash_password("12345678"),
+                user1 = User(name="User1", email="user1@gmail.com", hashed_password=hash_password("12345678"),
                              public_key="temp1", fcm_token="temp1",
                              last_login=datetime.now(timezone.utc))
-                user2 = User(email="user2@gmail.com", hashed_password=hash_password("87654321"),
+                user2 = User(name="User2", email="user2@gmail.com", hashed_password=hash_password("87654321"),
                              public_key="temp1", fcm_token="temp1",
                              last_login=datetime.now(timezone.utc))
                 session.add_all([user1, user2])

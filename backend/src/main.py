@@ -57,14 +57,19 @@ async def lifespan(app: FastAPI):
 
 def create_app() -> FastAPI:
     api_v1 = APIRouter(prefix="/api/v1")
-    
-    api_v1.include_router(auth.router)
-    api_v1.include_router(devices.router)
-    api_v1.include_router(commands.router)
-    api_v1.include_router(users.router)
-    api_v1.include_router(events.router)
-    api_v1.include_router(sync.router)
-    api_v1.include_router(grants.router)
+
+    routers = [
+        auth.router,
+        devices.router,
+        commands.router,
+        users.router,
+        events.router,
+        sync.router,
+        grants.router,
+    ]
+
+    for router in routers:
+        api_v1.include_router(router)
     
     app = FastAPI(lifespan=lifespan,
                   docs_url="/api/v1/docs",
