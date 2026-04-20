@@ -76,17 +76,26 @@ class AuthRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun logout(): Result<Exception> {
+    override suspend fun logout(): Result<Unit> {
         try {
+            clearFcmTokenOnServer()
             val refreshToken = sessionManager.getRefreshToken()
             if (refreshToken != null) {
                 authService.logout(LogoutRequest(refreshToken))
             }
-            return Result.success(Exception("Logout successful"))
+            return Result.success(Unit)
         } catch (e: Exception) {
             return Result.failure(Exception("Logout failed: ${e.message}"))
         } finally {
             sessionManager.clearSession()
+        }
+    }
+
+    private suspend fun clearFcmTokenOnServer() {
+        try {
+            userService.updateFcmToken(FcmTokenRequest(fcmToken = ""))
+        } catch (e: Exception) {
+            // Non-critical
         }
     }
 

@@ -18,6 +18,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -35,6 +36,13 @@ fun DevicesListScreen(
 ) {
     val devices by viewModel.devices.collectAsState()
     var deviceToDelete by remember { mutableStateOf<DeviceItem?>(null) }
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(Unit) {
+        viewModel.snackbarMessage.collect { msg ->
+            snackbarHostState.showSnackbar(msg)
+        }
+    }
 
     deviceToDelete?.let { device ->
         AlertDialog(
@@ -66,6 +74,14 @@ fun DevicesListScreen(
                 )
             )
     ) {
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
+                .padding(bottom = 120.dp)
+                .zIndex(1f)
+        )
         Column(
             modifier = Modifier
                 .fillMaxSize()

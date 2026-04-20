@@ -9,5 +9,7 @@ data class SmartLock(
     val batteryLevel: Int,
     val isLocked: Boolean,
     val firmwareVersion: String?,
-    val lastSynced: Long
+    val lastSynced: Long,
+    val deviceSecret: String = "",
+    val rotationHours: Int = 24
 )

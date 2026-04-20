@@ -7,6 +7,7 @@ import android.bluetooth.BluetoothManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.wifi.WifiManager
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -30,6 +31,12 @@ import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.BluetoothSearching
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -40,6 +47,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.ovi.presentation.viewmodel.BluetoothViewModel
@@ -47,7 +55,6 @@ import com.example.ovi.presentation.viewmodel.OnboardingState
 import com.example.ovi.ui.theme.*
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
 @SuppressLint("MissingPermission")
 @Composable
 fun BluetoothScreen(
@@ -61,6 +68,19 @@ fun BluetoothScreen(
     val onboardingState by viewModel.onboardingState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+
+    val detectedSsid = remember {
+        val wifiManager = context.getSystemService(Context.WIFI_SERVICE) as WifiManager
+        @Suppress("DEPRECATION")
+        wifiManager.connectionInfo.ssid
+            ?.removeSurrounding("\"")
+            ?.takeIf { it.isNotBlank() && it != "<unknown ssid>" }
+            ?: ""
+    }
+
+    var wifiSsid by remember { mutableStateOf(detectedSsid) }
+    var wifiPassword by remember { mutableStateOf("") }
+    var wifiPasswordVisible by remember { mutableStateOf(false) }
 
     LaunchedEffect(onboardingState) {
         when (val state = onboardingState) {
@@ -128,9 +148,15 @@ fun BluetoothScreen(
         label = "alpha"
     )
 
-    Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) }
-    ) { innerPadding ->
+    Box(modifier = Modifier.fillMaxSize()) {
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
+                .padding(bottom = 80.dp)
+                .zIndex(1f)
+        )
 
         Column(
             modifier = Modifier
@@ -140,7 +166,6 @@ fun BluetoothScreen(
                         colors = listOf(BgTop, BgBottom)
                     )
                 )
-                .padding(innerPadding)
                 .padding(horizontal = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -215,6 +240,53 @@ fun BluetoothScreen(
                 color = TextWhite.copy(alpha = 0.5f),
                 modifier = Modifier.padding(top = 4.dp, bottom = 28.dp)
             )
+
+            OutlinedTextField(
+                value = wifiSsid,
+                onValueChange = { wifiSsid = it },
+                label = { Text("WiFi name", color = TextWhite.copy(alpha = 0.7f)) },
+                placeholder = { Text("e.g. MyWiFi", color = TextWhite.copy(alpha = 0.3f)) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = TextWhite,
+                    unfocusedTextColor = TextWhite,
+                    focusedBorderColor = AccentBlue,
+                    unfocusedBorderColor = Color.White.copy(alpha = 0.3f),
+                    cursorColor = AccentBlue,
+                )
+            )
+
+            Spacer(Modifier.height(8.dp))
+
+            OutlinedTextField(
+                value = wifiPassword,
+                onValueChange = { wifiPassword = it },
+                label = { Text("WiFi password", color = TextWhite.copy(alpha = 0.7f)) },
+                singleLine = true,
+                visualTransformation = if (wifiPasswordVisible) VisualTransformation.None
+                                       else PasswordVisualTransformation(),
+                trailingIcon = {
+                    IconButton(onClick = { wifiPasswordVisible = !wifiPasswordVisible }) {
+                        Icon(
+                            imageVector = if (wifiPasswordVisible) Icons.Default.VisibilityOff
+                                          else Icons.Default.Visibility,
+                            contentDescription = null,
+                            tint = TextWhite.copy(alpha = 0.6f)
+                        )
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = TextWhite,
+                    unfocusedTextColor = TextWhite,
+                    focusedBorderColor = AccentBlue,
+                    unfocusedBorderColor = Color.White.copy(alpha = 0.3f),
+                    cursorColor = AccentBlue,
+                )
+            )
+
+            Spacer(Modifier.height(16.dp))
 
             Button(
                 onClick = {
@@ -294,7 +366,7 @@ fun BluetoothScreen(
 
             LazyColumn(
                 verticalArrangement = Arrangement.spacedBy(10.dp),
-                contentPadding = PaddingValues(bottom = 80.dp) // отступ под bottom bar
+                contentPadding = PaddingValues(bottom = 80.dp)
             ) {
                 items(scannedDevices) { device ->
                     val isConnected = connectedAddress == device.address
@@ -302,7 +374,15 @@ fun BluetoothScreen(
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { viewModel.pairAndConnect(device) },
+                            .clickable {
+                                if (wifiSsid.isBlank() || wifiPassword.isBlank()) {
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar("Enter WiFi name and password first")
+                                    }
+                                    return@clickable
+                                }
+                                viewModel.pairAndConnect(device, wifiSsid, wifiPassword)
+                            },
                         shape = RoundedCornerShape(18.dp),
                         colors = CardDefaults.cardColors(
                             containerColor = if (isConnected)

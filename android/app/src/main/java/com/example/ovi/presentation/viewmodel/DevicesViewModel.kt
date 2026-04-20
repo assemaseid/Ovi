@@ -24,9 +24,12 @@ import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -75,7 +78,7 @@ class DevicesViewModel @Inject constructor(
                     lockDao.updateLock(entity.copy(
                         batteryLevel = event.batteryLevel ?: entity.batteryLevel,
                         firmwareVersion = event.firmwareVersion ?: entity.firmwareVersion,
-                        lastSynced = System.currentTimeMillis()
+                        lastSynced = parseIsoToMillis(event.lastSeen)
                     ))
                 }
                 is WsEvent.DeviceEvent -> {
@@ -147,6 +150,9 @@ class DevicesViewModel @Inject constructor(
     private val _operationState = MutableStateFlow<LockOperationState>(LockOperationState.Idle)
     val operationState: StateFlow<LockOperationState> = _operationState.asStateFlow()
 
+    private val _snackbarMessage = MutableSharedFlow<String>(extraBufferCapacity = 1)
+    val snackbarMessage: SharedFlow<String> = _snackbarMessage.asSharedFlow()
+
     fun toggleLock(lockId: String) {
         viewModelScope.launch {
             val lock = devices.value.find { it.id == lockId } ?: return@launch
@@ -201,7 +207,8 @@ class DevicesViewModel @Inject constructor(
 
     fun deleteDevice(lockId: String) {
         viewModelScope.launch {
-            lockRepository.deleteDevice(lockId)
+            val success = lockRepository.deleteDevice(lockId)
+            if (!success) _snackbarMessage.tryEmit("Failed to remove device. Try again.")
         }
     }
 
@@ -236,5 +243,17 @@ class DevicesViewModel @Inject constructor(
     private fun formatTimestamp(millis: Long): String {
         if (millis == 0L) return "—"
         return SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(millis))
+    }
+
+    private fun parseIsoToMillis(iso: String?): Long {
+        iso ?: return System.currentTimeMillis()
+        return try {
+            SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US)
+                .apply { timeZone = java.util.TimeZone.getTimeZone("UTC") }
+                .parse(iso.substringBefore('.').trimEnd('Z'))
+                ?.time ?: System.currentTimeMillis()
+        } catch (e: Exception) {
+            System.currentTimeMillis()
+        }
     }
 }
