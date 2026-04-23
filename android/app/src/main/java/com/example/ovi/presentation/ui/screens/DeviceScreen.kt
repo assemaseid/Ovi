@@ -41,7 +41,7 @@ fun DeviceScreen(
     val device = viewModel.devices.collectAsState().value.find { it.id == deviceId }
     val operationState by viewModel.operationState.collectAsState()
     
-    val isLocked = device?.locked ?: true
+    val isLocked = device?.isLocked ?: true
     val isLoading = operationState is LockOperationState.Loading
     val statusMessage: String? = when (val s = operationState) {
         is LockOperationState.Loading -> "Processing..."
@@ -157,13 +157,13 @@ fun DeviceScreen(
                             color = TextHint
                         )
                         val batteryColor = when {
-                            (device?.battery_level ?: 0) > 85 -> Color(0xFF81C784)
-                            (device?.battery_level ?: 0) > 50 -> Color(0xFFFFB74D)
-                            (device?.battery_level ?: 0) > 20 -> Color(0xFFFF7F4D)
+                            (device?.batteryLevel ?: 0) > 85 -> Color(0xFF81C784)
+                            (device?.batteryLevel ?: 0) > 50 -> Color(0xFFFFB74D)
+                            (device?.batteryLevel ?: 0) > 20 -> Color(0xFFFF7F4D)
                             else -> Color(0xFFEF5350)
                         }
                         Text(
-                            text = "${device?.battery_level ?: 0}%",
+                            text = "${device?.batteryLevel ?: 0}%",
                             fontSize = 16.sp,
                             color = batteryColor,
                             fontWeight = FontWeight.Medium
@@ -177,7 +177,7 @@ fun DeviceScreen(
                             .clip(RoundedCornerShape(3.dp))
                             .background(Color.White.copy(alpha = 0.15f))
                     ) {
-                        val batteryLevel = device?.battery_level ?: 0
+                        val batteryLevel = device?.batteryLevel ?: 0
                         val batteryColor = when {
                             batteryLevel > 85 -> Color(0xFF81C784)
                             batteryLevel > 50 -> Color(0xFFFFB74D)
@@ -203,7 +203,7 @@ fun DeviceScreen(
                     ) {
                         Text(text = "Last opened", fontSize = 16.sp, color = TextHint)
                         Text(
-                            text = device?.lastSeen ?: "—",
+                            text = device?.lastSynced?.let { if (it == 0L) "—" else java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date(it)) } ?: "—",
                             fontSize = 16.sp,
                             color = TextWhite
                         )

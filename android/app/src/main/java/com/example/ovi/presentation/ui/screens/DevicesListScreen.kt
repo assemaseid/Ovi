@@ -24,7 +24,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.ovi.domain.model.DeviceItem
+import com.example.ovi.domain.model.SmartLock
 import com.example.ovi.presentation.viewmodel.DevicesViewModel
 import com.example.ovi.ui.theme.*
 
@@ -35,7 +35,7 @@ fun DevicesListScreen(
     onAddDevice: () -> Unit
 ) {
     val devices by viewModel.devices.collectAsState()
-    var deviceToDelete by remember { mutableStateOf<DeviceItem?>(null) }
+    var deviceToDelete by remember { mutableStateOf<SmartLock?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(Unit) {
@@ -176,7 +176,7 @@ fun DevicesListScreen(
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun LockCard(
-    device: DeviceItem,
+    device: SmartLock,
     onClick: () -> Unit,
     onLongClick: () -> Unit = {}
 ) {
@@ -220,7 +220,7 @@ fun LockCard(
                     color = TextWhite,
                     maxLines = 1
                 )
-                BatteryIndicator(level = device.battery_level)
+                BatteryIndicator(level = device.batteryLevel)
 
             }
         }

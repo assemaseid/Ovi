@@ -4,11 +4,11 @@ import android.bluetooth.BluetoothDevice
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.ovi.data.api.LockService
-import com.example.ovi.data.dto.BleDeviceInfo
-import com.example.ovi.data.dto.DeviceInfo
-import com.example.ovi.data.dto.DeviceRegistrationRequest
-import com.example.ovi.data.dto.DeviceRegistrationResponse
-import com.example.ovi.data.dto.OwnerInfo
+import com.example.ovi.data.dto.ble.BleDeviceInfo
+import com.example.ovi.data.dto.device.DeviceInfo
+import com.example.ovi.data.dto.device.DeviceRegistrationRequest
+import com.example.ovi.data.dto.device.DeviceRegistrationResponse
+import com.example.ovi.data.dto.device.OwnerInfo
 import com.example.ovi.data.local.SessionManager
 import com.example.ovi.domain.ble.BleManager
 import com.example.ovi.domain.model.SmartLock

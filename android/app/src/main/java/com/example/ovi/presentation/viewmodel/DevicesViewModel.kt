@@ -5,9 +5,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.ovi.data.local.dao.LockDao
 import com.example.ovi.data.mapper.toLockDomain
-import com.example.ovi.domain.model.DeviceItem
 import com.example.ovi.domain.model.EventType
 import com.example.ovi.domain.model.LockEvent
+import com.example.ovi.domain.model.SmartLock
 import com.example.ovi.domain.model.UnlockMethod
 import com.example.ovi.domain.ble.BleManager
 import com.example.ovi.domain.repository.EventRepository
@@ -17,7 +17,7 @@ import com.example.ovi.data.websocket.WsEvent
 import com.example.ovi.util.LockNotificationHelper
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
-import com.example.ovi.data.dto.BleDeviceInfo
+import com.example.ovi.data.dto.ble.BleDeviceInfo
 import com.example.ovi.util.BleConstants
 import com.google.gson.Gson
 import kotlinx.coroutines.CoroutineStart
@@ -128,19 +128,8 @@ class DevicesViewModel @Inject constructor(
         }
     }
 
-    val devices: StateFlow<List<DeviceItem>> = lockDao.getAllLocks()
-        .map { entities ->
-            entities.map { entity ->
-                val lock = entity.toLockDomain()
-                DeviceItem(
-                    id = lock.id,
-                    name = lock.name,
-                    battery_level = lock.batteryLevel,
-                    locked = lock.isLocked,
-                    lastSeen = formatTimestamp(lock.lastSynced)
-                )
-            }
-        }
+    val devices: StateFlow<List<SmartLock>> = lockDao.getAllLocks()
+        .map { entities -> entities.map { it.toLockDomain() } }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),
@@ -159,13 +148,13 @@ class DevicesViewModel @Inject constructor(
             _operationState.value = LockOperationState.Loading
             
             if (bleManager.connectedDeviceAddress.value == null) {
-                val success = if (lock.locked) {
+                val success = if (lock.isLocked) {
                     lockRepository.remoteUnlock(lockId)
                 } else {
                     lockRepository.remoteLock(lockId)
                 }
                 if (success) {
-                    val msg = if (lock.locked) "Unlock command sent, waiting..." else "Lock command sent, waiting..."
+                    val msg = if (lock.isLocked) "Unlock command sent, waiting..." else "Lock command sent, waiting..."
                     _operationState.value = LockOperationState.Success(msg)
                 } else {
                     _operationState.value = LockOperationState.Error("No internet connection or session expired")
@@ -175,13 +164,13 @@ class DevicesViewModel @Inject constructor(
                 return@launch
             }
 
-            val success = if (lock.locked) {
+            val success = if (lock.isLocked) {
                 lockRepository.unlock(lockId)
             } else {
                 lockRepository.lock(lockId)
             }
 
-            val eventType = if (lock.locked) EventType.UNLOCK else EventType.LOCK
+            val eventType = if (lock.isLocked) EventType.UNLOCK else EventType.LOCK
             _operationState.value = if (success) {
                 eventRepository.addEvent(
                     LockEvent(
@@ -193,11 +182,11 @@ class DevicesViewModel @Inject constructor(
                         method = UnlockMethod.BLUETOOTH
                     )
                 )
-                val msg = if (lock.locked) "Unlocked successfully" else "Locked"
+                val msg = if (lock.isLocked) "Unlocked successfully" else "Locked"
                 LockNotificationHelper.show(context, lock.name, msg)
                 LockOperationState.Success(msg)
             } else {
-                LockOperationState.Error(if (lock.locked) "Unlock failed" else "Lock failed")
+                LockOperationState.Error(if (lock.isLocked) "Unlock failed" else "Lock failed")
             }
 
             delay(2_000)
