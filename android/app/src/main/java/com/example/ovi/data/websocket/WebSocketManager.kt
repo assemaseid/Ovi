@@ -44,19 +44,26 @@ class WebSocketManager @Inject constructor(
     private var reconnectAttempts = 0
 
     fun connect() {
-        if (webSocket != null) return
+        // Уже подключены — ничего не делаем
+        if (_isConnected.value) return
+
         val token = sessionManager.getJwtToken() ?: run {
             Log.w("WS", "No JWT token — skipping WebSocket connection")
             return
         }
         if (sessionManager.isJwtExpired()) {
-            Log.w("WS", "JWT expired — skipping WebSocket connection, re-login required")
+            Log.w("WS", "JWT expired — skipping WebSocket connection")
             return
         }
-        Log.d("WS", "Connecting with token: ${token.take(20)}...")
+
+        // Закрываем старый мёртвый сокет если есть
+        webSocket?.cancel()
+        webSocket = null
+
+        Log.d("WS", "Connecting...")
         isManualDisconnect = false
         reconnectAttempts = 0
-        openSocket(token)
+        openSocket()
     }
 
     fun disconnect() {
@@ -66,7 +73,17 @@ class WebSocketManager @Inject constructor(
         _isConnected.value = false
     }
 
-    private fun openSocket(token: String) {
+    private fun openSocket() {
+        // Берём свежий токен при каждом открытии сокета
+        val token = sessionManager.getJwtToken() ?: run {
+            Log.w("WS", "No token on openSocket — aborting")
+            return
+        }
+        if (sessionManager.isJwtExpired()) {
+            Log.w("WS", "Token expired on openSocket — aborting")
+            return
+        }
+
         val request = Request.Builder()
             .url("${wsBaseUrl}ws/events?token=$token")
             .build()
@@ -87,13 +104,15 @@ class WebSocketManager @Inject constructor(
             override fun onFailure(ws: WebSocket, t: Throwable, response: Response?) {
                 Log.e("WS", "Failure: ${t.message}")
                 _isConnected.value = false
-                scheduleReconnect(token)
+                webSocket = null  // сбрасываем чтобы connect() мог переподключить
+                scheduleReconnect()
             }
 
             override fun onClosed(ws: WebSocket, code: Int, reason: String) {
                 Log.d("WS", "Closed: $code $reason")
                 _isConnected.value = false
-                if (!isManualDisconnect) scheduleReconnect(token)
+                webSocket = null  // сбрасываем чтобы connect() мог переподключить
+                if (!isManualDisconnect) scheduleReconnect()
             }
         })
     }
@@ -121,7 +140,6 @@ class WebSocketManager @Inject constructor(
                     _events.tryEmit(WsEvent.DeviceStatus(deviceUuid, batteryLevel, lastSeen, firmwareVersion))
                 }
 
-                // Backend format: root has device_uuid + event (no "type" at root)
                 map.containsKey("device_uuid") && map.containsKey("event") -> {
                     val deviceUuid = map["device_uuid"] as? String ?: return
                     @Suppress("UNCHECKED_CAST")
@@ -138,14 +156,21 @@ class WebSocketManager @Inject constructor(
         }
     }
 
-    private fun scheduleReconnect(token: String) {
-        if (isManualDisconnect || reconnectAttempts >= 5) return
+    private fun scheduleReconnect() {
+        if (isManualDisconnect) return
+        if (reconnectAttempts >= 10) {
+            // После 10 попыток сбрасываем счётчик — connect() сможет попробовать снова
+            Log.w("WS", "Max reconnect attempts reached, resetting")
+            reconnectAttempts = 0
+            webSocket = null
+            return
+        }
         reconnectAttempts++
         val delayMs = (reconnectAttempts * 2000L).coerceAtMost(30_000L)
         Log.d("WS", "Reconnecting in ${delayMs}ms (attempt $reconnectAttempts)")
         scope.launch {
             delay(delayMs)
-            if (!isManualDisconnect) openSocket(token)
+            if (!isManualDisconnect) openSocket()
         }
     }
 }
