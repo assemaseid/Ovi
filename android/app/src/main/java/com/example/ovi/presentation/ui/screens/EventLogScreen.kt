@@ -221,11 +221,11 @@ fun EventCard(event: LockEvent) {
                         }
                     }
                 }
-//                Text(
-//                    text = "via $methodLabel",
-//                    fontSize = 12.sp,
-//                    color = TextWhite.copy(alpha = 0.5f)
-//                )
+                Text(
+                    text = "via $methodLabel",
+                    fontSize = 12.sp,
+                    color = TextWhite.copy(alpha = 0.5f)
+                )
             }
 
             Text(
