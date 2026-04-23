@@ -1,12 +1,12 @@
 package com.example.ovi.data.api
 
-import com.example.ovi.data.dto.LoginRequest
-import com.example.ovi.data.dto.LoginResponse
-import com.example.ovi.data.dto.LogoutRequest
-import com.example.ovi.data.dto.RefreshRequest
-import com.example.ovi.data.dto.RefreshResponse
-import com.example.ovi.data.dto.RegisterRequest
-import com.example.ovi.data.dto.RegisterResponse
+import com.example.ovi.data.dto.auth.LoginRequest
+import com.example.ovi.data.dto.auth.LoginResponse
+import com.example.ovi.data.dto.auth.LogoutRequest
+import com.example.ovi.data.dto.auth.RefreshRequest
+import com.example.ovi.data.dto.auth.RefreshResponse
+import com.example.ovi.data.dto.auth.RegisterRequest
+import com.example.ovi.data.dto.auth.RegisterResponse
 import retrofit2.http.Body
 import retrofit2.http.POST
 

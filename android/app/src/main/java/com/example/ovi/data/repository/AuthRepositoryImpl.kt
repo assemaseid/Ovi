@@ -2,10 +2,10 @@ package com.example.ovi.data.repository
 
 import com.example.ovi.data.api.AuthService
 import com.example.ovi.data.api.UserService
-import com.example.ovi.data.dto.FcmTokenRequest
-import com.example.ovi.data.dto.LoginRequest
-import com.example.ovi.data.dto.LogoutRequest
-import com.example.ovi.data.dto.RegisterRequest
+import com.example.ovi.data.dto.auth.FcmTokenRequest
+import com.example.ovi.data.dto.auth.LoginRequest
+import com.example.ovi.data.dto.auth.LogoutRequest
+import com.example.ovi.data.dto.auth.RegisterRequest
 import com.example.ovi.data.local.SessionManager
 import com.example.ovi.data.mapper.toDomain
 import com.example.ovi.domain.model.User

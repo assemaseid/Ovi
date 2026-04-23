@@ -3,8 +3,8 @@ package com.example.ovi.data.repository
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import com.example.ovi.data.api.LockService
-import com.example.ovi.data.dto.TokenData
-import com.example.ovi.data.dto.UnlockTokenRequest
+import com.example.ovi.data.dto.command.TokenData
+import com.example.ovi.data.dto.command.UnlockTokenRequest
 import org.json.JSONObject
 import com.example.ovi.data.local.SessionManager
 import com.example.ovi.data.local.dao.LockDao

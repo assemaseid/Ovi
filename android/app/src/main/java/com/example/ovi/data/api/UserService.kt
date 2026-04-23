@@ -1,6 +1,6 @@
 package com.example.ovi.data.api
 
-import com.example.ovi.data.dto.FcmTokenRequest
+import com.example.ovi.data.dto.auth.FcmTokenRequest
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.PUT

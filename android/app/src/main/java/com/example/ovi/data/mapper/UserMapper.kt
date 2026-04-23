@@ -1,6 +1,6 @@
 package com.example.ovi.data.mapper
 
-import com.example.ovi.data.dto.UserDto
+import com.example.ovi.data.dto.auth.UserDto
 import com.example.ovi.domain.model.User
 
 fun UserDto.toDomain(jwtToken: String? = null): User {

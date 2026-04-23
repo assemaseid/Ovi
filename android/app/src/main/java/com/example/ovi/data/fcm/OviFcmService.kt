@@ -2,7 +2,7 @@ package com.example.ovi.data.fcm
 
 import android.util.Log
 import com.example.ovi.data.api.UserService
-import com.example.ovi.data.dto.FcmTokenRequest
+import com.example.ovi.data.dto.auth.FcmTokenRequest
 import com.example.ovi.data.local.SessionManager
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
