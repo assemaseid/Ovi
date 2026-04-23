@@ -2,7 +2,7 @@ package com.example.ovi.presentation.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.ovi.data.local.dao.LockDao
+import com.example.ovi.domain.repository.LockRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -16,7 +16,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class AutoPinViewModel @Inject constructor(
-    private val lockDao: LockDao
+    private val lockRepository: LockRepository
 ) : ViewModel() {
 
     private val _currentPin = MutableStateFlow<String?>(null)
@@ -36,17 +36,17 @@ class AutoPinViewModel @Inject constructor(
             _isLoading.value = true
             _error.value = null
             try {
-                val entity = lockDao.getLockById(deviceId)
-                if (entity == null) {
+                val lock = lockRepository.getLockById(deviceId)
+                if (lock == null) {
                     _error.value = "Device not found"
                     return@launch
                 }
-                if (entity.deviceSecret.isEmpty()) {
+                if (lock.deviceSecret.isEmpty()) {
                     _error.value = "Device secret not available. Re-pair the lock to enable Auto PIN."
                     return@launch
                 }
-                _rotationHours.value = entity.rotationHours
-                _currentPin.value = computePin(entity.deviceSecret, entity.rotationHours)
+                _rotationHours.value = lock.rotationHours
+                _currentPin.value = computePin(lock.deviceSecret, lock.rotationHours)
             } catch (e: Exception) {
                 _error.value = "Failed to compute PIN"
             } finally {

@@ -3,8 +3,6 @@ package com.example.ovi.presentation.viewmodel
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.ovi.data.local.dao.LockDao
-import com.example.ovi.data.mapper.toLockDomain
 import com.example.ovi.domain.model.EventType
 import com.example.ovi.domain.model.LockEvent
 import com.example.ovi.domain.model.SmartLock
@@ -32,14 +30,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.UUID
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 import javax.inject.Inject
 
 sealed class LockOperationState {
@@ -52,7 +46,6 @@ sealed class LockOperationState {
 @HiltViewModel
 class DevicesViewModel @Inject constructor(
     private val lockRepository: LockRepository,
-    private val lockDao: LockDao,
     private val eventRepository: EventRepository,
     private val bleManager: BleManager,
     private val wsManager: WebSocketManager,
@@ -74,29 +67,29 @@ class DevicesViewModel @Inject constructor(
         wsManager.events.collect { event ->
             when (event) {
                 is WsEvent.DeviceStatus -> {
-                    val entity = lockDao.getLockById(event.deviceUuid) ?: return@collect
-                    lockDao.updateLock(entity.copy(
-                        batteryLevel = event.batteryLevel ?: entity.batteryLevel,
-                        firmwareVersion = event.firmwareVersion ?: entity.firmwareVersion,
-                        lastSynced = parseIsoToMillis(event.lastSeen)
-                    ))
+                    lockRepository.updateLockFromStatus(
+                        lockId = event.deviceUuid,
+                        battery = event.batteryLevel,
+                        firmware = event.firmwareVersion,
+                        lastSeen = event.lastSeen
+                    )
                 }
                 is WsEvent.DeviceEvent -> {
-                    val entity = lockDao.getLockById(event.deviceUuid) ?: return@collect
+                    val lock = lockRepository.getLockById(event.deviceUuid) ?: return@collect
                     when (event.eventType) {
                         "unlock_success" -> {
-                            lockDao.updateLock(entity.copy(isLocked = false, lastSynced = System.currentTimeMillis()))
+                            lockRepository.updateLockState(event.deviceUuid, isLocked = false)
                             if (bleManager.connectedDeviceAddress.value == null) {
                                 eventRepository.addEvent(LockEvent(
                                     id = "", lockId = event.deviceUuid,
                                     timestamp = System.currentTimeMillis(),
                                     type = EventType.UNLOCK, success = true, method = UnlockMethod.REMOTE
                                 ))
-                                LockNotificationHelper.show(context, entity.name, "Unlocked remotely")
+                                LockNotificationHelper.show(context, lock.name, "Unlocked remotely")
                             }
                         }
                         "lock_success" -> {
-                            lockDao.updateLock(entity.copy(isLocked = true, lastSynced = System.currentTimeMillis()))
+                            lockRepository.updateLockState(event.deviceUuid, isLocked = true)
                             if (bleManager.connectedDeviceAddress.value == null) {
                                 eventRepository.addEvent(LockEvent(
                                     id = "", lockId = event.deviceUuid,
@@ -111,7 +104,7 @@ class DevicesViewModel @Inject constructor(
                                 timestamp = System.currentTimeMillis(),
                                 type = EventType.TAMPER_DETECTED, success = true, method = UnlockMethod.MANUAL
                             ))
-                            LockNotificationHelper.show(context, entity.name, "Tamper detected!")
+                            LockNotificationHelper.show(context, lock.name, "Tamper detected!")
                         }
                         "low_battery", "battery_low" -> {
                             eventRepository.addEvent(LockEvent(
@@ -119,7 +112,7 @@ class DevicesViewModel @Inject constructor(
                                 timestamp = System.currentTimeMillis(),
                                 type = EventType.LOW_BATTERY, success = true, method = UnlockMethod.MANUAL
                             ))
-                            LockNotificationHelper.show(context, entity.name, "Battery low")
+                            LockNotificationHelper.show(context, lock.name, "Battery low")
                         }
                     }
                 }
@@ -128,8 +121,7 @@ class DevicesViewModel @Inject constructor(
         }
     }
 
-    val devices: StateFlow<List<SmartLock>> = lockDao.getAllLocks()
-        .map { entities -> entities.map { it.toLockDomain() } }
+    val devices: StateFlow<List<SmartLock>> = lockRepository.observeAllLocks()
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),
@@ -146,7 +138,7 @@ class DevicesViewModel @Inject constructor(
         viewModelScope.launch {
             val lock = devices.value.find { it.id == lockId } ?: return@launch
             _operationState.value = LockOperationState.Loading
-            
+
             if (bleManager.connectedDeviceAddress.value == null) {
                 val success = if (lock.isLocked) {
                     lockRepository.remoteUnlock(lockId)
@@ -203,7 +195,7 @@ class DevicesViewModel @Inject constructor(
 
     fun refreshBattery(lockId: String) {
         viewModelScope.launch { doRefreshBattery(lockId) }
-    }    
+    }
 
     private suspend fun doRefreshBattery(lockId: String) {
         if (bleManager.connectedDeviceAddress.value == null) return
@@ -224,25 +216,6 @@ class DevicesViewModel @Inject constructor(
         } catch (e: Exception) {
             return
         }
-        lockDao.getLockById(lockId)?.let { entity ->
-            lockDao.updateLock(entity.copy(batteryLevel = battery))
-        }
-    }
-
-    private fun formatTimestamp(millis: Long): String {
-        if (millis == 0L) return "—"
-        return SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(millis))
-    }
-
-    private fun parseIsoToMillis(iso: String?): Long {
-        iso ?: return System.currentTimeMillis()
-        return try {
-            SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US)
-                .apply { timeZone = java.util.TimeZone.getTimeZone("UTC") }
-                .parse(iso.substringBefore('.').trimEnd('Z'))
-                ?.time ?: System.currentTimeMillis()
-        } catch (e: Exception) {
-            System.currentTimeMillis()
-        }
+        lockRepository.updateLockBattery(lockId, battery)
     }
 }
