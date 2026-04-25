@@ -182,14 +182,14 @@ fun BluetoothScreen(
                     Icon(
                         imageVector = Icons.Default.ArrowBack,
                         contentDescription = "Back",
-                        tint = TextWhite
+                        tint = White
                     )
                 }
                 Text(
                     text = "Pair Lock",
                     fontSize = 22.sp,
                     fontWeight = FontWeight.Bold,
-                    color = TextWhite
+                    color = White
                 )
             }
 
@@ -231,28 +231,28 @@ fun BluetoothScreen(
                 text = if (isScanning) "Searching for OVI Locks…" else "Ready to scan",
                 fontSize = 16.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = TextWhite
+                color = White
             )
             Text(
                 text = if (isScanning) "Keep your lock close to the phone"
                 else "Tap the button below to find nearby locks",
                 fontSize = 13.sp,
-                color = TextWhite.copy(alpha = 0.5f),
+                color = White.copy(alpha = 0.5f),
                 modifier = Modifier.padding(top = 4.dp, bottom = 28.dp)
             )
 
             OutlinedTextField(
                 value = wifiSsid,
                 onValueChange = { wifiSsid = it },
-                label = { Text("WiFi name", color = TextWhite.copy(alpha = 0.7f)) },
-                placeholder = { Text("e.g. MyWiFi", color = TextWhite.copy(alpha = 0.3f)) },
+                label = { Text("WiFi name", color = White.copy(alpha = 0.7f)) },
+                placeholder = { Text("e.g. MyWiFi", color = White.copy(alpha = 0.3f)) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedTextColor = TextWhite,
-                    unfocusedTextColor = TextWhite,
+                    focusedTextColor = White,
+                    unfocusedTextColor = White,
                     focusedBorderColor = AccentBlue,
-                    unfocusedBorderColor = Color.White.copy(alpha = 0.3f),
+                    unfocusedBorderColor = White.copy(alpha = 0.3f),
                     cursorColor = AccentBlue,
                 )
             )
@@ -262,7 +262,7 @@ fun BluetoothScreen(
             OutlinedTextField(
                 value = wifiPassword,
                 onValueChange = { wifiPassword = it },
-                label = { Text("WiFi password", color = TextWhite.copy(alpha = 0.7f)) },
+                label = { Text("WiFi password", color = White.copy(alpha = 0.7f)) },
                 singleLine = true,
                 visualTransformation = if (wifiPasswordVisible) VisualTransformation.None
                                        else PasswordVisualTransformation(),
@@ -272,16 +272,16 @@ fun BluetoothScreen(
                             imageVector = if (wifiPasswordVisible) Icons.Default.VisibilityOff
                                           else Icons.Default.Visibility,
                             contentDescription = null,
-                            tint = TextWhite.copy(alpha = 0.6f)
+                            tint = White.copy(alpha = 0.6f)
                         )
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedTextColor = TextWhite,
-                    unfocusedTextColor = TextWhite,
+                    focusedTextColor = White,
+                    unfocusedTextColor = White,
                     focusedBorderColor = AccentBlue,
-                    unfocusedBorderColor = Color.White.copy(alpha = 0.3f),
+                    unfocusedBorderColor = White.copy(alpha = 0.3f),
                     cursorColor = AccentBlue,
                 )
             )
@@ -298,7 +298,7 @@ fun BluetoothScreen(
                     .height(52.dp),
                 shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = if (isScanning) Color(0xFFEF5350).copy(alpha = 0.85f)
+                    containerColor = if (isScanning) Red.copy(alpha = 0.85f)
                     else AccentBlue
                 )
             ) {
@@ -306,14 +306,14 @@ fun BluetoothScreen(
                     imageVector = if (isScanning) Icons.Default.BluetoothSearching
                     else Icons.Default.Bluetooth,
                     contentDescription = null,
-                    tint = Color.White,
+                    tint = White,
                     modifier = Modifier.size(18.dp)
                 )
                 Spacer(Modifier.width(8.dp))
                 Text(
                     text = if (isScanning) "Stop Scanning" else "Start Scanning",
                     fontWeight = FontWeight.SemiBold,
-                    color = Color.White
+                    color = White
                 )
             }
 
@@ -343,7 +343,7 @@ fun BluetoothScreen(
                             strokeWidth = 2.dp
                         )
                         Spacer(Modifier.width(10.dp))
-                        Text(text = statusText, fontSize = 13.sp, color = TextWhite)
+                        Text(text = statusText, fontSize = 13.sp, color = White)
                     }
                 }
                 Spacer(Modifier.height(12.dp))
@@ -356,7 +356,7 @@ fun BluetoothScreen(
                     text = "FOUND DEVICES",
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
-                    color = TextWhite.copy(alpha = 0.4f),
+                    color = White.copy(alpha = 0.4f),
                     letterSpacing = 1.5.sp,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -421,12 +421,12 @@ fun BluetoothScreen(
                                     text = device.name ?: "Unknown Device",
                                     fontSize = 15.sp,
                                     fontWeight = FontWeight.Medium,
-                                    color = TextWhite
+                                    color = White
                                 )
                                 Text(
                                     text = device.address,
                                     fontSize = 12.sp,
-                                    color = TextWhite.copy(alpha = 0.4f)
+                                    color = White.copy(alpha = 0.4f)
                                 )
                             }
 
@@ -448,7 +448,7 @@ fun BluetoothScreen(
                 Text(
                     text = "No devices found yet",
                     fontSize = 14.sp,
-                    color = TextWhite.copy(alpha = 0.3f)
+                    color = White.copy(alpha = 0.3f)
                 )
             }
         }

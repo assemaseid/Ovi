@@ -12,7 +12,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -66,7 +65,7 @@ fun PersonalScreen(
                 text = "Profile",
                 fontSize = 25.sp,
                 fontWeight = FontWeight.Bold,
-                color = TextWhite,
+                color = White,
                 modifier = Modifier
                     .align(Alignment.Start)
                     .padding(bottom = 32.dp)
@@ -79,8 +78,8 @@ fun PersonalScreen(
                     .background(
                         brush = Brush.radialGradient(
                             colors = listOf(
-                                Color.White.copy(alpha = 0.3f),
-                                Color.White.copy(alpha = 0.1f)
+                                White.copy(alpha = 0.3f),
+                                White.copy(alpha = 0.1f)
                             )
                         )
                     ),
@@ -90,7 +89,7 @@ fun PersonalScreen(
                     text = initials,
                     fontSize = 35.sp,
                     fontWeight = FontWeight.Bold,
-                    color = TextWhite
+                    color = White
                 )
             }
 
@@ -101,7 +100,7 @@ fun PersonalScreen(
                     text = name,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = TextWhite
+                    color = White
                 )
                 Spacer(modifier = Modifier.height(2.dp))
             }
@@ -109,7 +108,7 @@ fun PersonalScreen(
             Text(
                 text = email,
                 fontSize = 14.sp,
-                color = TextWhite.copy(alpha = 0.6f)
+                color = White.copy(alpha = 0.6f)
             )
 
             Spacer(modifier = Modifier.height(32.dp))
@@ -150,7 +149,7 @@ fun PersonalScreen(
                     .fillMaxWidth()
                     .height(52.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color.White.copy(alpha = 0.6f)
+                    containerColor = White.copy(alpha = 0.6f)
                 ),
                 shape = RoundedCornerShape(14.dp)
             ) {
@@ -190,7 +189,7 @@ fun ProfileRow(
         Icon(
             imageVector = icon,
             contentDescription = null,
-            tint = TextWhite.copy(alpha = 0.7f),
+            tint = White.copy(alpha = 0.7f),
             modifier = Modifier.size(20.dp)
         )
         Column {
@@ -202,7 +201,7 @@ fun ProfileRow(
             Text(
                 text = value,
                 fontSize = 15.sp,
-                color = TextWhite,
+                color = White,
                 fontWeight = FontWeight.Medium
             )
         }

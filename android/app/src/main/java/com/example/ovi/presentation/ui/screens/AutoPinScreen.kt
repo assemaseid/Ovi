@@ -1,6 +1,5 @@
 package com.example.ovi.presentation.ui.screens
 
-import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -82,7 +81,7 @@ fun AutoPinScreen(
                     Icon(
                         imageVector = Icons.Default.ArrowBack,
                         contentDescription = "Back",
-                        tint = TextWhite
+                        tint = White
                     )
                 }
                 Column(modifier = Modifier.weight(1f)) {
@@ -90,12 +89,12 @@ fun AutoPinScreen(
                         text = "Auto PIN",
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
-                        color = TextWhite
+                        color = White
                     )
                     Text(
                         text = lockName,
                         fontSize = 13.sp,
-                        color = TextWhite.copy(alpha = 0.6f)
+                        color = White.copy(alpha = 0.6f)
                     )
                 }
             }
@@ -106,7 +105,7 @@ fun AutoPinScreen(
 
                 Surface(
                     shape = RoundedCornerShape(20.dp),
-                    color = Color.White.copy(alpha = 0.12f),
+                    color = White.copy(alpha = 0.12f),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(
@@ -120,14 +119,14 @@ fun AutoPinScreen(
                             Icon(
                                 imageVector = Icons.Default.Pin,
                                 contentDescription = null,
-                                tint = TextWhite.copy(alpha = 0.7f),
+                                tint = White.copy(alpha = 0.7f),
                                 modifier = Modifier.size(18.dp)
                             )
                             Text(
                                 text = "CURRENT PIN",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = TextWhite.copy(alpha = 0.5f),
+                                color = White.copy(alpha = 0.5f),
                                 letterSpacing = 1.5.sp
                             )
                         }
@@ -138,7 +137,7 @@ fun AutoPinScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(14.dp))
-                                .background(Color.Black.copy(alpha = 0.2f))
+                                .background(Black.copy(alpha = 0.2f))
                                 .padding(vertical = 20.dp),
                             contentAlignment = Alignment.Center
                         ) {
@@ -153,7 +152,7 @@ fun AutoPinScreen(
                                     text = if (pinVisible) currentPin else "••••••",
                                     fontSize = 36.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = TextWhite,
+                                    color = White,
                                     letterSpacing = 8.sp
                                 )
                             }
@@ -172,10 +171,10 @@ fun AutoPinScreen(
                                     .height(44.dp),
                                 shape = RoundedCornerShape(12.dp),
                                 border = androidx.compose.foundation.BorderStroke(
-                                    1.dp, Color.White.copy(alpha = 0.25f)
+                                    1.dp, White.copy(alpha = 0.25f)
                                 ),
                                 colors = ButtonDefaults.outlinedButtonColors(
-                                    contentColor = TextWhite
+                                    contentColor = White
                                 )
                             ) {
                                 Icon(
@@ -236,13 +235,13 @@ fun AutoPinScreen(
                             Icon(
                                 imageVector = Icons.Default.Schedule,
                                 contentDescription = null,
-                                tint = TextWhite.copy(alpha = 0.5f),
+                                tint = White.copy(alpha = 0.5f),
                                 modifier = Modifier.size(16.dp)
                             )
                             Text(
                                 text = "Next rotation: ${formatNextRotation(nextRotation)}",
                                 fontSize = 13.sp,
-                                color = TextWhite.copy(alpha = 0.6f)
+                                color = White.copy(alpha = 0.6f)
                             )
                         }
                     }
@@ -265,14 +264,14 @@ fun AutoPinScreen(
                             Icon(
                                 imageVector = Icons.Default.Settings,
                                 contentDescription = null,
-                                tint = TextWhite.copy(alpha = 0.7f),
+                                tint = White.copy(alpha = 0.7f),
                                 modifier = Modifier.size(18.dp)
                             )
                             Text(
                                 text = "ROTATION SETTINGS",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = TextWhite.copy(alpha = 0.5f),
+                                color = White.copy(alpha = 0.5f),
                                 letterSpacing = 1.5.sp
                             )
                         }
@@ -290,13 +289,13 @@ fun AutoPinScreen(
                                 Text(
                                     text = "Rotation period",
                                     fontSize = 14.sp,
-                                    color = TextWhite.copy(alpha = 0.8f),
+                                    color = White.copy(alpha = 0.8f),
                                     fontWeight = FontWeight.Medium
                                 )
                                 Text(
                                     text = "Configured by server",
                                     fontSize = 11.sp,
-                                    color = TextWhite.copy(alpha = 0.4f),
+                                    color = White.copy(alpha = 0.4f),
                                     modifier = Modifier.padding(top = 2.dp)
                                 )
                             }

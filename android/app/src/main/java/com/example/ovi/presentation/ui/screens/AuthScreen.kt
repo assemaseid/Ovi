@@ -29,10 +29,10 @@ import com.example.ovi.ui.theme.BgTop
 import com.example.ovi.ui.theme.BorderFocused
 import com.example.ovi.ui.theme.BorderUnfocused
 import com.example.ovi.ui.theme.CardBackground
-import com.example.ovi.ui.theme.ErrorRed
+import com.example.ovi.ui.theme.Red
 import com.example.ovi.ui.theme.SignInBtn
 import com.example.ovi.ui.theme.TextHint
-import com.example.ovi.ui.theme.TextWhite
+import com.example.ovi.ui.theme.White
 
 @Composable
 fun AuthScreen(
@@ -72,7 +72,7 @@ fun AuthScreen(
                 .background(
                     brush = Brush.radialGradient(
                         colors = listOf(
-                            Color.White.copy(alpha = 0.1f),
+                            White.copy(alpha = 0.1f),
                             Color.Transparent
                         )
                     )
@@ -118,7 +118,7 @@ fun AuthScreen(
                     Text(
                         text = if (isLoginMode) "Sign in to continue" else "Create Account",
                         fontSize = 15.sp,
-                        color = TextWhite.copy(alpha = 1f)
+                        color = White.copy(alpha = 1f)
                     )
 
                     if (!isLoginMode) {
@@ -156,7 +156,7 @@ fun AuthScreen(
                     if (authState is AuthViewModel.AuthState.Error) {
                         Text(
                             text = (authState as AuthViewModel.AuthState.Error).message,
-                            color = Color(0xFFFF6B6B),
+                            color = Red,
                             fontSize = 12.sp
                         )
                     }
@@ -173,8 +173,8 @@ fun AuthScreen(
                                 (isLoginMode || name.isNotBlank()) &&
                                 authState !is AuthViewModel.AuthState.Loading,
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color.White.copy(alpha = 0.3f),
-                            disabledContainerColor = Color.White.copy(alpha = 0.08f)
+                            containerColor = White.copy(alpha = 0.3f),
+                            disabledContainerColor = White.copy(alpha = 0.08f)
                         ),
                         shape = RoundedCornerShape(14.dp)
                     ) {
@@ -182,12 +182,12 @@ fun AuthScreen(
                             CircularProgressIndicator(
                                 modifier = Modifier.size(22.dp),
                                 strokeWidth = 2.dp,
-                                color = TextWhite
+                                color = White
                             )
                         } else {
                             Text(
                                 text = if (isLoginMode) "Sign In" else "Create Account",
-                                color = TextWhite,
+                                color = White,
                                 fontWeight = FontWeight.Medium,
                                 fontSize = 15.sp
                             )
@@ -210,7 +210,7 @@ fun AuthScreen(
                     ) {
                         Text(
                             text = if (isLoginMode) "Sign up" else "Back to Sign In",
-                            color = TextWhite,
+                            color = White,
                             fontWeight = FontWeight.Bold,
                             fontSize = 15.sp
                         )
@@ -270,12 +270,12 @@ fun AuthTextField(
         colors = TextFieldDefaults.outlinedTextFieldColors(
             unfocusedBorderColor = BorderUnfocused,
             focusedBorderColor = BorderFocused,
-            errorBorderColor = ErrorRed,
-            cursorColor = TextWhite,
+            errorBorderColor = Red,
+            cursorColor = White,
             unfocusedLabelColor = TextHint,
-            focusedLabelColor = TextWhite,
+            focusedLabelColor = White,
             unfocusedLeadingIconColor = TextHint,
-            focusedLeadingIconColor = TextWhite,
+            focusedLeadingIconColor = White,
         )
     )
 }

@@ -22,6 +22,7 @@ import com.example.ovi.presentation.viewmodel.AuthViewModel
 import com.example.ovi.ui.theme.BgBottom
 import com.example.ovi.ui.theme.BgMiddle
 import com.example.ovi.ui.theme.BgTop
+import com.example.ovi.ui.theme.White
 import kotlinx.coroutines.launch
 
 @Composable
@@ -74,7 +75,7 @@ fun SplashScreen(
                 .background(
                     brush = Brush.radialGradient(
                         colors = listOf(
-                            Color.White.copy(alpha = 0.12f),
+                            White.copy(0.12f),
                             Color.Transparent
                         )
                     )
@@ -102,7 +103,7 @@ fun SplashScreen(
                         brush = Brush.horizontalGradient(
                             colors = listOf(
                                 Color.Transparent,
-                                Color.White.copy(alpha = 0.7f),
+                                White.copy(alpha = 0.7f),
                                 Color.Transparent
                             )
                         )
@@ -113,7 +114,7 @@ fun SplashScreen(
                 text = "SMART LOCK",
                 fontSize = 17.sp,
                 fontWeight = FontWeight.Medium,
-                color = Color.White.copy(alpha = 0.75f),
+                color = White.copy(alpha = 0.75f),
                 letterSpacing = 5.sp
             )
         }
@@ -121,7 +122,7 @@ fun SplashScreen(
         Text(
             text = "v1.0",
             fontSize = 11.sp,
-            color = Color.White.copy(alpha = 0.35f),
+            color = White.copy(alpha = 0.35f),
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .padding(bottom = 32.dp)
