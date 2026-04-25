@@ -3,6 +3,7 @@ package com.example.ovi.presentation.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.ovi.data.local.SessionManager
+import com.example.ovi.data.websocket.WebSocketManager
 import com.example.ovi.domain.model.User
 import com.example.ovi.domain.repository.AuthRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -15,7 +16,8 @@ import javax.inject.Inject
 @HiltViewModel
 class AuthViewModel @Inject constructor(
     private val authRepository: AuthRepository,
-    private val sessionManager: SessionManager
+    private val sessionManager: SessionManager,
+    private val wsManager: WebSocketManager
 ) : ViewModel() {
 
     sealed class AuthState {
@@ -31,58 +33,51 @@ class AuthViewModel @Inject constructor(
     private val _currentUser = MutableStateFlow<User?>(null)
     val currentUser: StateFlow<User?> = _currentUser.asStateFlow()
 
-    fun checkLoginStatus(): Boolean {
-        return sessionManager.isLoggedIn()
-    }
+    fun checkLoginStatus(): Boolean = sessionManager.isLoggedIn()
 
     fun loadCurrentUser() {
         viewModelScope.launch {
             if (sessionManager.isLoggedIn()) {
-                val user = authRepository.getCurrentUser()
-                _currentUser.value = user
+                _currentUser.value = authRepository.getCurrentUser()
             }
         }
     }
 
-    fun getUserName(): String {
-        return sessionManager.getName() ?:"User"
-    }
-    fun getUserEmail():String {
-        return sessionManager.getEmail() ?:"No email"
-    }
+    fun getUserEmail(): String = sessionManager.getEmail() ?: "No email"
 
     fun login(email: String, password: String) {
         viewModelScope.launch {
             _authState.value = AuthState.Loading
-
-            val result = authRepository.login(email, password)
-
-            result.onSuccess { user ->
-                _currentUser.value = user
-                _authState.value = AuthState.Success("Login successful!")
-            }.onFailure { error ->
-                _authState.value = AuthState.Error(error.message ?: "Login failed")
-            }
+            authRepository.login(email, password)
+                .onSuccess { user ->
+                    _currentUser.value = user
+                    _authState.value = AuthState.Success("Login successful!")
+                    wsManager.connect()
+                }
+                .onFailure { error ->
+                    _authState.value = AuthState.Error(error.message ?: "Login failed")
+                }
         }
     }
 
-    fun register(email: String, password: String, name: String) {
+    fun register(name: String, email: String, password: String) {
         viewModelScope.launch {
             _authState.value = AuthState.Loading
-
-            val result = authRepository.register(email, password, name)
-
-            result.onSuccess { user ->
-                _currentUser.value = user
-                _authState.value = AuthState.Success("Registration successful!")
-            }.onFailure { error ->
-                _authState.value = AuthState.Error(error.message ?: "Registration failed")
-            }
+            authRepository.register(name, email, password)
+                .onSuccess { user ->
+                    _currentUser.value = user
+                    _authState.value = AuthState.Success("Registration successful!")
+                    wsManager.connect()
+                }
+                .onFailure { error ->
+                    _authState.value = AuthState.Error(error.message ?: "Registration failed")
+                }
         }
     }
 
     fun logout() {
         viewModelScope.launch {
+            wsManager.disconnect()
             authRepository.logout()
             _currentUser.value = null
             _authState.value = AuthState.Initial
@@ -93,5 +88,3 @@ class AuthViewModel @Inject constructor(
         _authState.value = AuthState.Initial
     }
 }
-
-

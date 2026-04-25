@@ -1,8 +1,8 @@
-package com.example.ovi.data.dto
+package com.example.ovi.data.dto.auth
 
 import com.google.gson.annotations.SerializedName
 
-data class LoginResponse(
+data class RegisterResponse(
     @SerializedName("access_token")
     val accessToken: String,
 

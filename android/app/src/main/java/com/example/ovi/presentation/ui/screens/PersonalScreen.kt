@@ -12,7 +12,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -31,15 +30,17 @@ fun PersonalScreen(
     }
 
     val currentUser by viewModel.currentUser.collectAsState()
-    val name = currentUser?.name ?: viewModel.getUserName()
     val email = currentUser?.email ?: viewModel.getUserEmail()
+    val name = currentUser?.name
 
-    val initials = name
-        .split(" ")
-        .take(2)
-        .mapNotNull { it.firstOrNull()?.uppercaseChar() }
-        .joinToString("")
-        .ifEmpty { "?" }
+    val initials = if (!name.isNullOrBlank()) {
+        name.trim().split("\\s+".toRegex())
+            .take(2)
+            .mapNotNull { it.firstOrNull()?.uppercaseChar() }
+            .joinToString("")
+    } else {
+        email.firstOrNull()?.uppercaseChar()?.toString() ?: "?"
+    }
 
     Box(
         modifier = Modifier
@@ -64,7 +65,7 @@ fun PersonalScreen(
                 text = "Profile",
                 fontSize = 25.sp,
                 fontWeight = FontWeight.Bold,
-                color = TextWhite,
+                color = White,
                 modifier = Modifier
                     .align(Alignment.Start)
                     .padding(bottom = 32.dp)
@@ -77,8 +78,8 @@ fun PersonalScreen(
                     .background(
                         brush = Brush.radialGradient(
                             colors = listOf(
-                                Color.White.copy(alpha = 0.3f),
-                                Color.White.copy(alpha = 0.1f)
+                                White.copy(alpha = 0.3f),
+                                White.copy(alpha = 0.1f)
                             )
                         )
                     ),
@@ -88,28 +89,30 @@ fun PersonalScreen(
                     text = initials,
                     fontSize = 35.sp,
                     fontWeight = FontWeight.Bold,
-                    color = TextWhite
+                    color = White
                 )
             }
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            Text(
-                text = name,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = TextWhite
-            )
+            if (!name.isNullOrBlank()) {
+                Text(
+                    text = name,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = White
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+            }
 
             Text(
                 text = email,
-                fontSize = 15.sp,
-                color = TextHint
+                fontSize = 14.sp,
+                color = White.copy(alpha = 0.6f)
             )
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // Карточка с данными
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(20.dp),
@@ -119,21 +122,19 @@ fun PersonalScreen(
                 Column(
                     modifier = Modifier.padding(4.dp)
                 ) {
-                    ProfileRow(
-                        icon = Icons.Default.Person,
-                        label = "Name",
-                        value = name
-                    )
-
-                    Divider(color = Color.White.copy(alpha = 0.15f), thickness = 0.5.dp)
+                    if (!name.isNullOrBlank()) {
+                        ProfileRow(
+                            icon = Icons.Default.Person,
+                            label = "Name",
+                            value = name
+                        )
+                    }
 
                     ProfileRow(
                         icon = Icons.Default.Email,
                         label = "Email",
                         value = email
                     )
-
-
                 }
             }
 
@@ -148,7 +149,7 @@ fun PersonalScreen(
                     .fillMaxWidth()
                     .height(52.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color.White.copy(alpha = 0.6f)
+                    containerColor = White.copy(alpha = 0.6f)
                 ),
                 shape = RoundedCornerShape(14.dp)
             ) {
@@ -167,7 +168,7 @@ fun PersonalScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(120.dp))
+            Spacer(modifier = Modifier.height(133.dp))
         }
     }
 }
@@ -188,7 +189,7 @@ fun ProfileRow(
         Icon(
             imageVector = icon,
             contentDescription = null,
-            tint = TextWhite.copy(alpha = 0.7f),
+            tint = White.copy(alpha = 0.7f),
             modifier = Modifier.size(20.dp)
         )
         Column {
@@ -200,7 +201,7 @@ fun ProfileRow(
             Text(
                 text = value,
                 fontSize = 15.sp,
-                color = TextWhite,
+                color = White,
                 fontWeight = FontWeight.Medium
             )
         }

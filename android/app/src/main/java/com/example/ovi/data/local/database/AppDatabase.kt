@@ -4,16 +4,20 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import com.example.ovi.data.local.dao.*
+import com.example.ovi.data.local.entity.*
 import com.example.ovi.data.local.entity.LockEntity
 
 
 @Database(
-    entities = [LockEntity::class],
-    version = 3,
+    entities = [EventEntity:: class, LockEntity::class],
+    version = 6,
     exportSchema = false
 )
 
 abstract class AppDatabase: RoomDatabase() {
+    abstract fun eventDao(): EventDao
+    abstract fun lockDao(): LockDao
 
     companion object {
         @Volatile
@@ -26,6 +30,7 @@ abstract class AppDatabase: RoomDatabase() {
                     AppDatabase::class.java,
                     "ovi_database"
                 )
+                    .fallbackToDestructiveMigration()
                     .build()
                 INSTANCE = instance
                 instance

@@ -23,24 +23,32 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
 import com.example.ovi.R
+import com.example.ovi.presentation.navigation.Screen
 import com.example.ovi.presentation.viewmodel.DevicesViewModel
+import com.example.ovi.presentation.viewmodel.LockOperationState
 import com.example.ovi.ui.theme.*
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+
 
 @Composable
 fun DeviceScreen(
     deviceId: String,
     viewModel: DevicesViewModel,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    navController: NavController
 ) {
     val device = viewModel.devices.collectAsState().value.find { it.id == deviceId }
-    var isLocked by remember { mutableStateOf(device?.locked ?: true) }
-    var isLoading by remember { mutableStateOf(false) }
-    var statusMessage by remember { mutableStateOf<String?>(null) }
-    val scope = rememberCoroutineScope()
-
+    val operationState by viewModel.operationState.collectAsState()
+    
+    val isLocked = device?.isLocked ?: true
+    val isLoading = operationState is LockOperationState.Loading
+    val statusMessage: String? = when (val s = operationState) {
+        is LockOperationState.Loading -> "Processing..."
+        is LockOperationState.Success -> s.message
+        is LockOperationState.Error -> s.message
+        else -> null
+    }
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
     val pulseScale by infiniteTransition.animateFloat(
         initialValue = 1f,
@@ -71,7 +79,6 @@ fun DeviceScreen(
         ) {
             Spacer(modifier = Modifier.height(48.dp))
 
-            // TopBar
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
@@ -80,14 +87,14 @@ fun DeviceScreen(
                     Icon(
                         imageVector = Icons.Default.ArrowBack,
                         contentDescription = "Back",
-                        tint = TextWhite
+                        tint = White
                     )
                 }
                 Text(
                     text = device?.name ?: "Lock",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
-                    color = TextWhite,
+                    color = White,
                     modifier = Modifier.weight(1f)
                 )
 
@@ -101,8 +108,8 @@ fun DeviceScreen(
                     .scale(if (!isLocked) pulseScale else 1f)
                     .clip(CircleShape)
                     .background(
-                        if (isLocked) Color.White.copy(alpha = 0.12f)
-                        else Color(0xFF81C784).copy(alpha = 0.2f)
+                        if (isLocked) White.copy(alpha = 0.12f)
+                        else Green.copy(alpha = 0.2f)
                     ),
                 contentAlignment = Alignment.Center
             ) {
@@ -118,31 +125,28 @@ fun DeviceScreen(
 
             Text(
                 text = if (isLocked) "Locked" else "Unlocked",
-                fontSize = 20.sp,
+                fontSize = 23.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = if (isLocked) Color(0xFFEF9A9A) else Color(0xFF81C784)
+                color = if (isLocked) Green else UnlockBtn
             )
 
-            // Статус сообщение (результат unlock)
             statusMessage?.let {
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = it,
                     fontSize = 12.sp,
-                    color = TextWhite.copy(alpha = 0.7f)
+                    color = White.copy(alpha = 0.7f)
                 )
             }
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Карточка с данными
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(20.dp),
-                color = Color.White.copy(alpha = 0.15f)
+                color = White.copy(alpha = 0.15f)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    // Батарея
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
@@ -153,13 +157,14 @@ fun DeviceScreen(
                             color = TextHint
                         )
                         val batteryColor = when {
-                            (device?.battery_level ?: 0) > 85 -> Color(0xFF81C784)
-                            (device?.battery_level ?: 0) > 50 -> Color(0xFFFFB74D)
-                            (device?.battery_level ?: 0) > 20 -> Color(0xFFFF7F4D)
-                            else -> Color(0xFFEF5350)
+                            (device?.batteryLevel ?: 0) > 85 -> Green
+                            (device?.batteryLevel ?: 0) > 50 -> Yellow
+                            (device?.batteryLevel ?: 0) > 20 -> BatteryLow
+                            else -> RedCritical
+
                         }
                         Text(
-                            text = "${device?.battery_level ?: 0}%",
+                            text = "${device?.batteryLevel ?: 0}%",
                             fontSize = 16.sp,
                             color = batteryColor,
                             fontWeight = FontWeight.Medium
@@ -173,12 +178,12 @@ fun DeviceScreen(
                             .clip(RoundedCornerShape(3.dp))
                             .background(Color.White.copy(alpha = 0.15f))
                     ) {
-                        val batteryLevel = device?.battery_level ?: 0
+                        val batteryLevel = device?.batteryLevel ?: 0
                         val batteryColor = when {
-                            batteryLevel > 85 -> Color(0xFF81C784)
-                            batteryLevel > 50 -> Color(0xFFFFB74D)
-                            batteryLevel > 20 -> Color(0xFFFF7F4D)
-                            else -> Color(0xFFEF5350)
+                            batteryLevel > 85 -> Green
+                            batteryLevel > 50 -> Yellow
+                            batteryLevel > 20 -> BatteryLow
+                            else -> RedCritical
                         }
                         Box(
                             modifier = Modifier
@@ -193,16 +198,15 @@ fun DeviceScreen(
                     Divider(color = Color.White.copy(alpha = 0.1f))
                     Spacer(modifier = Modifier.height(14.dp))
 
-                    // Last seen
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(text = "Last opened", fontSize = 14.sp, color = TextHint)
+                        Text(text = "Last opened", fontSize = 16.sp, color = TextHint)
                         Text(
-                            text = device?.lastSeen ?: "—",
-                            fontSize = 14.sp,
-                            color = TextWhite
+                            text = device?.lastSynced?.let { if (it == 0L) "—" else java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date(it)) } ?: "—",
+                            fontSize = 16.sp,
+                            color = White
                         )
                     }
 
@@ -213,32 +217,18 @@ fun DeviceScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Кнопка Unlock/Lock — главная
             Button(
-                onClick = {
-                    scope.launch {
-                        isLoading = true
-                        statusMessage = "Requesting token..."
-                        delay(1000) // имитация запроса к серверу
-                        statusMessage = "Sending via BLE..."
-                        delay(800)
-                        isLocked = !isLocked
-                        statusMessage = if (!isLocked) "Unlocked successfully" else "Locked"
-                        isLoading = false
-                        delay(2000)
-                        statusMessage = null
-                    }
-                },
+                onClick = { viewModel.toggleLock(deviceId) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
                 enabled = !isLoading,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = if (isLocked)
-                        Color(0xFF81C784).copy(alpha = 0.9f)
+                        Green.copy(alpha = 0.9f)
                     else
-                        Color(0xFFEF9A9A).copy(alpha = 0.9f),
-                    disabledContainerColor = Color.White.copy(alpha = 0.2f)
+                        UnlockBtn.copy(alpha = 0.9f),
+                    disabledContainerColor = White.copy(alpha = 0.2f)
                 ),
                 shape = RoundedCornerShape(16.dp)
             ) {
@@ -246,19 +236,19 @@ fun DeviceScreen(
                     CircularProgressIndicator(
                         modifier = Modifier.size(22.dp),
                         strokeWidth = 2.dp,
-                        color = Color.White
+                        color = White
                     )
                 } else {
                     Icon(
                         imageVector = if (isLocked) Icons.Default.LockOpen else Icons.Default.Lock,
                         contentDescription = null,
-                        tint = Color.White,
+                        tint = White,
                         modifier = Modifier.size(20.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = if (isLocked) "Unlock" else "Lock",
-                        color = Color.White,
+                        color = White,
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 16.sp
                     )
@@ -267,34 +257,36 @@ fun DeviceScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Три кнопки действий
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 ActionButton(
-                    icon = Icons.Default.Pin,
-                    label = "Change PIN",
-                    onClick = { /* TODO */ },
-                    modifier = Modifier.weight(1f)
-                )
-                ActionButton(
                     icon = Icons.Default.Schedule,
                     label = "Auto PIN",
-                    onClick = { /* TODO */ },
+                    onClick = { navController.navigate(
+                        "auto_pin/${deviceId}/${device?.name ?: "Lock"}"
+                    ) { launchSingleTop = true } },
                     modifier = Modifier.weight(1f)
                 )
                 ActionButton(
                     icon = Icons.Default.History,
                     label = "Event Log",
-                    onClick = { /* TODO */ },
+                    onClick = {
+                        navController.navigate(
+                            Screen.EventLog.createRoute(deviceId, device?.name ?: "Lock")
+                        ) { launchSingleTop = true }
+                    },
                     modifier = Modifier.weight(1f)
                 )
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Spacer(modifier = Modifier.height(16.dp))
         }
     }
+
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -308,24 +300,24 @@ fun ActionButton(
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(16.dp),
-        color = Color.White.copy(alpha = 0.15f),
+        color = White.copy(alpha = 0.15f),
         onClick = onClick
     ) {
         Column(
-            modifier = Modifier.padding(vertical = 14.dp),
+            modifier = Modifier.padding(vertical = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = label,
-                tint = TextWhite,
+                tint = White,
                 modifier = Modifier.size(22.dp)
             )
             Text(
                 text = label,
                 fontSize = 13.sp,
-                color = TextWhite.copy(alpha = 0.9f),
+                color = White.copy(alpha = 0.9f),
                 fontWeight = FontWeight.Medium
             )
         }

@@ -4,6 +4,7 @@ import androidx.compose.foundation.Image
 import com.example.ovi.R
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -17,12 +18,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.ovi.domain.model.DeviceItem
+import com.example.ovi.domain.model.SmartLock
 import com.example.ovi.presentation.viewmodel.DevicesViewModel
 import com.example.ovi.ui.theme.*
 
@@ -33,6 +35,35 @@ fun DevicesListScreen(
     onAddDevice: () -> Unit
 ) {
     val devices by viewModel.devices.collectAsState()
+    var deviceToDelete by remember { mutableStateOf<SmartLock?>(null) }
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(Unit) {
+        viewModel.snackbarMessage.collect { msg ->
+            snackbarHostState.showSnackbar(msg)
+        }
+    }
+
+    deviceToDelete?.let { device ->
+        AlertDialog(
+            onDismissRequest = { deviceToDelete = null },
+            title = { Text("Remove lock") },
+            text = { Text("Remove \"${device.name}\" from your account?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.deleteDevice(device.id)
+                    deviceToDelete = null
+                }) {
+                    Text("Remove", color = Red)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { deviceToDelete = null }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 
     Box(
         modifier = Modifier
@@ -43,6 +74,14 @@ fun DevicesListScreen(
                 )
             )
     ) {
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
+                .padding(bottom = 120.dp)
+                .zIndex(1f)
+        )
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -59,21 +98,21 @@ fun DevicesListScreen(
                     text = "My Locks",
                     fontSize = 25.sp,
                     fontWeight = FontWeight.Bold,
-                    color = TextWhite
+                    color = White
                 )
 
                 Box(
                     modifier = Modifier
                         .size(36.dp)
                         .clip(RoundedCornerShape(10.dp))
-                        .background(Color.White.copy(alpha = 0.2f))
+                        .background(White.copy(alpha = 0.2f))
                         .clickable { onAddDevice() },
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.Add,
                         contentDescription = "Add lock",
-                        tint = TextWhite,
+                        tint = White,
                         modifier = Modifier.size(22.dp)
                     )
                 }
@@ -82,7 +121,6 @@ fun DevicesListScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             if (devices.isEmpty()) {
-                // Пустое состояние
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
@@ -94,17 +132,17 @@ fun DevicesListScreen(
                         Icon(
                             imageVector = Icons.Default.LockOpen,
                             contentDescription = null,
-                            tint = TextWhite.copy(alpha = 0.3f),
+                            tint = White.copy(alpha = 0.3f),
                             modifier = Modifier.size(64.dp)
                         )
                         Text(
                             text = "No locks added yet",
-                            color = TextWhite.copy(alpha = 0.5f),
+                            color = White.copy(alpha = 0.5f),
                             fontSize = 15.sp
                         )
                         Text(
                             text = "Tap + to add your first lock",
-                            color = TextWhite.copy(alpha = 0.35f),
+                            color = White.copy(alpha = 0.35f),
                             fontSize = 13.sp
                         )
                     }
@@ -113,7 +151,7 @@ fun DevicesListScreen(
                 Text(
                     text = "Devices",
                     fontSize = 16.sp,
-                    color = TextWhite.copy(alpha = 0.8f),
+                    color = White.copy(alpha = 0.8f),
                     modifier = Modifier.padding(bottom = 12.dp)
                 )
 
@@ -125,7 +163,8 @@ fun DevicesListScreen(
                     items(devices) { device ->
                         LockCard(
                             device = device,
-                            onClick = { onDeviceClick(device.id) }
+                            onClick = { onDeviceClick(device.id) },
+                            onLongClick = { deviceToDelete = device }
                         )
                     }
                 }
@@ -134,24 +173,25 @@ fun DevicesListScreen(
     }
 }
 
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun LockCard(
-    device: DeviceItem,
-    onClick: () -> Unit
+    device: SmartLock,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit = {}
 ) {
     Box(
         modifier = Modifier
             .aspectRatio(0.9f)
             .clip(RoundedCornerShape(20.dp))
             .background(Color(0xFF1E2D3D).copy(alpha = 0.5f))
-            .clickable { onClick() }
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
             .padding(16.dp)
     ) {
         Column(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // Верх — иконка замка + батарейка
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -159,9 +199,9 @@ fun LockCard(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(100.dp)
+                        .size(80.dp)
                         .clip(RoundedCornerShape(12.dp))
-                        .background(Color.White.copy(alpha = 0.08f)),
+                        .background(White.copy(alpha = 0.08f)),
                     contentAlignment = Alignment.Center
                 ) {
                     Image(
@@ -177,21 +217,10 @@ fun LockCard(
                     text = device.name,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = TextWhite,
+                    color = White,
                     maxLines = 1
                 )
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(6.dp)
-                            .clip(RoundedCornerShape(50))
-                    )
-
-                }
-                BatteryIndicator(level = device.battery_level)
+                BatteryIndicator(level = device.batteryLevel)
 
             }
         }
@@ -201,10 +230,10 @@ fun LockCard(
 @Composable
 fun BatteryIndicator(level: Int) {
     val color = when {
-        level > 85 -> Color(0xFF81C784)
-        level > 50 -> Color(0xFFFFB74D)
-        level > 20 -> Color(0xFFFF7F4D)
-        else -> Color(0xFFEF5350)
+        level > 85 -> Green
+        level > 50 -> Yellow
+        level > 20 -> BatteryLow
+        else -> RedCritical
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -215,7 +244,7 @@ fun BatteryIndicator(level: Int) {
             Text(
                 text = "Battery",
                 fontSize = 10.sp,
-                color = TextWhite.copy(alpha = 0.5f)
+                color = White.copy(alpha = 0.5f)
             )
             Text(
                 text = "$level%",
@@ -230,7 +259,7 @@ fun BatteryIndicator(level: Int) {
                 .fillMaxWidth()
                 .height(4.dp)
                 .clip(RoundedCornerShape(2.dp))
-                .background(Color.White.copy(alpha = 0.15f))
+                .background(White.copy(alpha = 0.15f))
         ) {
             Box(
                 modifier = Modifier

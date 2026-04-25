@@ -1,39 +1,40 @@
 package com.example.ovi.data.repository
 
 import com.example.ovi.data.api.AuthService
-import com.example.ovi.data.dto.LoginRequest
-import com.example.ovi.data.dto.RegisterRequest
+import com.example.ovi.data.api.UserService
+import com.example.ovi.data.dto.auth.FcmTokenRequest
+import com.example.ovi.data.dto.auth.LoginRequest
+import com.example.ovi.data.dto.auth.LogoutRequest
+import com.example.ovi.data.dto.auth.RegisterRequest
 import com.example.ovi.data.local.SessionManager
 import com.example.ovi.data.mapper.toDomain
 import com.example.ovi.domain.model.User
 import com.example.ovi.domain.repository.AuthRepository
+import com.google.firebase.messaging.FirebaseMessaging
+import kotlinx.coroutines.tasks.await
 import retrofit2.HttpException
 import java.io.IOException
 import javax.inject.Inject
 
 class AuthRepositoryImpl @Inject constructor(
     private val authService: AuthService,
+    private val userService: UserService,
     private val sessionManager: SessionManager
 ): AuthRepository {
-    override suspend fun login(
-        email: String,
-        password: String
-    ): Result<User> {
+
+    override suspend fun login(email: String, password: String): Result<User> {
         return try {
-            val request = LoginRequest(email = email, password = password)
-            val response = authService.login(request)
-
+            val response = authService.login(LoginRequest(email = email, password = password))
             val user = response.user.toDomain(jwtToken = response.accessToken)
-
             sessionManager.saveUserSession(
                 userId = user.id,
                 email = user.email,
                 name = user.name,
-                jwtToken = response.accessToken
+                jwtToken = response.accessToken,
+                refreshToken = response.refreshToken
             )
-
+            sendFcmTokenToServer()
             Result.success(user)
-
         } catch (e: HttpException) {
             val errorMessage = when (e.code()) {
                 401 -> "Invalid email or password"
@@ -42,30 +43,26 @@ class AuthRepositoryImpl @Inject constructor(
                 else -> "Login failed: ${e.message()}"
             }
             Result.failure(Exception(errorMessage))
-
         } catch (e: IOException) {
             Result.failure(Exception("Network error. Check your internet connection"))
-
         } catch (e: Exception) {
             Result.failure(Exception("Login failed: ${e.message}"))
         }
     }
 
-    override suspend fun register(
-        email: String,
-        password: String,
-        name: String
-    ): Result<User> {
+    override suspend fun register(name: String, email: String, password: String): Result<User> {
         return try {
-            val request = RegisterRequest(
-                email = email,
-                password = password,
-                name = name
+            val response = authService.register(RegisterRequest(name = name, email = email, password = password))
+            val user = response.user.toDomain(jwtToken = response.accessToken)
+            sessionManager.saveUserSession(
+                userId = user.id,
+                email = user.email,
+                name = user.name ?: name,
+                jwtToken = response.accessToken,
+                refreshToken = response.refreshToken
             )
-            authService.register(request)
-
-            login(email, password)
-
+            sendFcmTokenToServer()
+            Result.success(user)
         } catch (e: HttpException) {
             val errorMessage = when (e.code()) {
                 400 -> "Invalid registration data"
@@ -74,20 +71,21 @@ class AuthRepositoryImpl @Inject constructor(
                 else -> "Registration failed: ${e.message()}"
             }
             Result.failure(Exception(errorMessage))
-
         } catch (e: IOException) {
             Result.failure(Exception("Network error. Check your internet connection"))
-
         } catch (e: Exception) {
             Result.failure(Exception("Registration failed: ${e.message}"))
         }
     }
 
-
-    override suspend fun logout(): Result<Exception> {
+    override suspend fun logout(): Result<Unit> {
         try {
-            authService.logout()
-            return Result.success(Exception("Logout successful"))
+            clearFcmTokenOnServer()
+            val refreshToken = sessionManager.getRefreshToken()
+            if (refreshToken != null) {
+                authService.logout(LogoutRequest(refreshToken))
+            }
+            return Result.success(Unit)
         } catch (e: Exception) {
             return Result.failure(Exception("Logout failed: ${e.message}"))
         } finally {
@@ -95,24 +93,33 @@ class AuthRepositoryImpl @Inject constructor(
         }
     }
 
+    private suspend fun clearFcmTokenOnServer() {
+        try {
+            userService.updateFcmToken(FcmTokenRequest(fcmToken = ""))
+        } catch (e: Exception) {
+            // Non-critical
+        }
+    }
+
+    private suspend fun sendFcmTokenToServer() {
+        try {
+            val token = FirebaseMessaging.getInstance().token.await()
+            userService.updateFcmToken(FcmTokenRequest(fcmToken = token))
+        } catch (e: Exception) {
+            // Non-critical — server will get token via OviFcmService.onNewToken()
+        }
+    }
+
     override suspend fun getCurrentUser(): User? {
         return try {
-            if (!sessionManager.isLoggedIn()) {
-                return null
-            }
-
-            val userId = sessionManager.getUserId()
-            if (userId == -1) {
-                return null
-            }
-
-            return User(
+            if (!sessionManager.isLoggedIn()) return null
+            val userId = sessionManager.getUserId() ?: return null
+            User(
                 id = userId,
                 email = sessionManager.getEmail() ?: return null,
-                name = sessionManager.getName() ?: return null,
+                name = sessionManager.getName(),
                 jwtToken = sessionManager.getJwtToken()
             )
-
         } catch (e: Exception) {
             null
         }

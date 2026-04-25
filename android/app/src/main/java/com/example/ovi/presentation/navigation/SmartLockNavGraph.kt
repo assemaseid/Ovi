@@ -7,7 +7,6 @@ import androidx.compose.runtime.Composable
 import androidx.navigation.compose.rememberNavController
 import com.example.ovi.presentation.ui.screens.AuthScreen
 import com.example.ovi.presentation.ui.screens.MainScreen
-import com.example.ovi.presentation.ui.screens.PersonalScreen
 import com.example.ovi.presentation.ui.screens.SplashScreen
 
 
@@ -62,18 +61,6 @@ fun SmartLockNavGraph(){
             )
         }
 
-        composable(Screen.Personal.route) {
-            PersonalScreen(
-                onLogout = {
-                    navController.navigate(Screen.Auth.route) {
-                        popUpTo(Screen.Main.route) {
-                            inclusive = true
-                        }
-                    }
-                }
-            )
-
-        }
     }
 }
 
