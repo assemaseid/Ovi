@@ -1,5 +1,7 @@
 package com.example.ovi.presentation.ui.screens
 
+import androidx.biometric.BiometricManager
+import androidx.biometric.BiometricPrompt
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -14,9 +16,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
+import androidx.fragment.app.FragmentActivity
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.ovi.presentation.viewmodel.AutoPinViewModel
 import com.example.ovi.ui.theme.*
@@ -36,22 +41,67 @@ fun AutoPinScreen(
     val pinError by viewModel.error.collectAsState()
     val rotationHours by viewModel.rotationHours.collectAsState()
 
-    var currentPin by remember { mutableStateOf("••••••") }
     var pinVisible by remember { mutableStateOf(false) }
+    var biometricError by remember { mutableStateOf<String?>(null) }
+
+    val context = LocalContext.current
 
     LaunchedEffect(lockId) {
         viewModel.refreshPin(lockId)
     }
 
+    // Hide PIN whenever it changes (after a refresh)
     LaunchedEffect(fetchedPin) {
-        fetchedPin?.let {
-            currentPin = it
-            pinVisible = true
-        }
+        pinVisible = false
     }
 
     val nextRotation = remember(rotationHours) {
         viewModel.getNextRotationMillis(rotationHours)
+    }
+
+    fun requestBiometric() {
+        biometricError = null
+        val activity = context as? FragmentActivity ?: return
+
+        val canAuth = BiometricManager.from(context)
+            .canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_WEAK or BiometricManager.Authenticators.DEVICE_CREDENTIAL)
+
+        if (canAuth != BiometricManager.BIOMETRIC_SUCCESS) {
+            // No biometric/screen lock enrolled — reveal PIN directly
+            pinVisible = true
+            return
+        }
+
+        val prompt = BiometricPrompt(
+            activity,
+            ContextCompat.getMainExecutor(context),
+            object : BiometricPrompt.AuthenticationCallback() {
+                override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                    pinVisible = true
+                }
+                override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+                    if (errorCode != BiometricPrompt.ERROR_USER_CANCELED &&
+                        errorCode != BiometricPrompt.ERROR_NEGATIVE_BUTTON
+                    ) {
+                        biometricError = errString.toString()
+                    }
+                }
+                override fun onAuthenticationFailed() {
+                    biometricError = "Authentication failed"
+                }
+            }
+        )
+
+        val info = BiometricPrompt.PromptInfo.Builder()
+            .setTitle("Confirm identity")
+            .setSubtitle("Authenticate to view your PIN")
+            .setAllowedAuthenticators(
+                BiometricManager.Authenticators.BIOMETRIC_WEAK or
+                BiometricManager.Authenticators.DEVICE_CREDENTIAL
+            )
+            .build()
+
+        prompt.authenticate(info)
     }
 
     Box(
@@ -149,7 +199,7 @@ fun AutoPinScreen(
                                 )
                             } else {
                                 Text(
-                                    text = if (pinVisible) currentPin else "••••••",
+                                    text = if (pinVisible && fetchedPin != null) fetchedPin!! else "••••••",
                                     fontSize = 36.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = White,
@@ -165,10 +215,17 @@ fun AutoPinScreen(
                             horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
                             OutlinedButton(
-                                onClick = { pinVisible = !pinVisible },
+                                onClick = {
+                                    if (pinVisible) {
+                                        pinVisible = false
+                                    } else {
+                                        requestBiometric()
+                                    }
+                                },
                                 modifier = Modifier
                                     .weight(1f)
                                     .height(44.dp),
+                                enabled = !isLoadingPin && fetchedPin != null,
                                 shape = RoundedCornerShape(12.dp),
                                 border = androidx.compose.foundation.BorderStroke(
                                     1.dp, White.copy(alpha = 0.25f)
@@ -191,7 +248,10 @@ fun AutoPinScreen(
                             }
 
                             Button(
-                                onClick = { viewModel.refreshPin(lockId) },
+                                onClick = {
+                                    pinVisible = false
+                                    viewModel.refreshPin(lockId)
+                                },
                                 modifier = Modifier
                                     .weight(1f)
                                     .height(44.dp),
@@ -211,7 +271,8 @@ fun AutoPinScreen(
                             }
                         }
 
-                        pinError?.let { err ->
+                        val displayError = biometricError ?: pinError
+                        displayError?.let { err ->
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
                                 text = err,
@@ -249,7 +310,6 @@ fun AutoPinScreen(
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                // Rotation info card (read-only)
                 Surface(
                     shape = RoundedCornerShape(20.dp),
                     color = Color.White.copy(alpha = 0.12f),

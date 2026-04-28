@@ -100,7 +100,7 @@ class BluetoothViewModel @Inject constructor(
             _onboardingState.value = OnboardingState.ReadingInfo
             android.util.Log.d("ONBOARD", "4. sending get_info")
             val infoReqId = UUID.randomUUID().toString()
-            val getInfoCmd = """{"cmd":"get_info","req_id":"$infoReqId"}"""
+            val getInfoCmd = """{"cmd":"get_info","req_id":"$infoReqId","timestamp":${System.currentTimeMillis() / 1000}}"""
 
             // Subscribe BEFORE writing — if we write first the notification may arrive before
             // the collector is active and be silently dropped by SharedFlow.

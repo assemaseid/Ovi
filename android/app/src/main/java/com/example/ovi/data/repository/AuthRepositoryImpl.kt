@@ -65,7 +65,14 @@ class AuthRepositoryImpl @Inject constructor(
             Result.success(user)
         } catch (e: HttpException) {
             val errorMessage = when (e.code()) {
-                400 -> "Invalid registration data"
+                400 -> {
+                    val detail = runCatching {
+                        e.response()?.errorBody()?.string()
+                            ?.let { org.json.JSONObject(it).optString("detail") }
+                            ?.takeIf { it.isNotBlank() }
+                    }.getOrNull()
+                    detail ?: "Invalid registration data"
+                }
                 409 -> "User with this email already exists"
                 500 -> "Server error. Please try again later"
                 else -> "Registration failed: ${e.message()}"

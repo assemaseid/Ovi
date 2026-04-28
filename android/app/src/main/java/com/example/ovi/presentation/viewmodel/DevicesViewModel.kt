@@ -114,6 +114,14 @@ class DevicesViewModel @Inject constructor(
                             ))
                             LockNotificationHelper.show(context, lock.name, "Battery low")
                         }
+                        "pin_rotation" -> {
+                            eventRepository.addEvent(LockEvent(
+                                id = "", lockId = event.deviceUuid,
+                                timestamp = System.currentTimeMillis(),
+                                type = EventType.PIN_ROTATION, success = true, method = UnlockMethod.MANUAL
+                            ))
+                            LockNotificationHelper.show(context, lock.name, "PIN has been rotated")
+                        }
                     }
                 }
                 else -> Unit

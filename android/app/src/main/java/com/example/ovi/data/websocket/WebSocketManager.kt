@@ -47,7 +47,7 @@ class WebSocketManager @Inject constructor(
         // Уже подключены — ничего не делаем
         if (_isConnected.value) return
 
-        val token = sessionManager.getJwtToken() ?: run {
+        if (sessionManager.getJwtToken() == null) {
             Log.w("WS", "No JWT token — skipping WebSocket connection")
             return
         }
@@ -158,15 +158,14 @@ class WebSocketManager @Inject constructor(
 
     private fun scheduleReconnect() {
         if (isManualDisconnect) return
-        if (reconnectAttempts >= 10) {
-            // После 10 попыток сбрасываем счётчик — connect() сможет попробовать снова
-            Log.w("WS", "Max reconnect attempts reached, resetting")
-            reconnectAttempts = 0
-            webSocket = null
-            return
-        }
         reconnectAttempts++
-        val delayMs = (reconnectAttempts * 2000L).coerceAtMost(30_000L)
+        val delayMs = if (reconnectAttempts > 10) {
+            Log.w("WS", "Max reconnect attempts reached, backing off 60s")
+            reconnectAttempts = 0
+            60_000L
+        } else {
+            (reconnectAttempts * 2000L).coerceAtMost(30_000L)
+        }
         Log.d("WS", "Reconnecting in ${delayMs}ms (attempt $reconnectAttempts)")
         scope.launch {
             delay(delayMs)
