@@ -1,6 +1,11 @@
 package com.example.ovi.data.api
 
-import com.example.ovi.data.dto.*
+import com.example.ovi.data.dto.device.DeviceOutDto
+import com.example.ovi.data.dto.device.DeviceRegistrationRequest
+import com.example.ovi.data.dto.device.DeviceRegistrationResponse
+import com.example.ovi.data.dto.device.PinResponse
+import com.example.ovi.data.dto.command.UnlockTokenRequest
+import com.example.ovi.data.dto.command.UnlockTokenResponse
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.DELETE

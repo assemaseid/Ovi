@@ -41,7 +41,7 @@ fun DeviceScreen(
     val device = viewModel.devices.collectAsState().value.find { it.id == deviceId }
     val operationState by viewModel.operationState.collectAsState()
     
-    val isLocked = device?.locked ?: true
+    val isLocked = device?.isLocked ?: true
     val isLoading = operationState is LockOperationState.Loading
     val statusMessage: String? = when (val s = operationState) {
         is LockOperationState.Loading -> "Processing..."
@@ -87,14 +87,14 @@ fun DeviceScreen(
                     Icon(
                         imageVector = Icons.Default.ArrowBack,
                         contentDescription = "Back",
-                        tint = TextWhite
+                        tint = White
                     )
                 }
                 Text(
                     text = device?.name ?: "Lock",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
-                    color = TextWhite,
+                    color = White,
                     modifier = Modifier.weight(1f)
                 )
 
@@ -108,8 +108,8 @@ fun DeviceScreen(
                     .scale(if (!isLocked) pulseScale else 1f)
                     .clip(CircleShape)
                     .background(
-                        if (isLocked) Color.White.copy(alpha = 0.12f)
-                        else Color(0xFF81C784).copy(alpha = 0.2f)
+                        if (isLocked) White.copy(alpha = 0.12f)
+                        else Green.copy(alpha = 0.2f)
                     ),
                 contentAlignment = Alignment.Center
             ) {
@@ -127,7 +127,7 @@ fun DeviceScreen(
                 text = if (isLocked) "Locked" else "Unlocked",
                 fontSize = 23.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = if (isLocked) Color(0xFFEF9A9A) else Color(0xFF81C784)
+                color = if (isLocked) Green else UnlockBtn
             )
 
             statusMessage?.let {
@@ -135,7 +135,7 @@ fun DeviceScreen(
                 Text(
                     text = it,
                     fontSize = 12.sp,
-                    color = TextWhite.copy(alpha = 0.7f)
+                    color = White.copy(alpha = 0.7f)
                 )
             }
 
@@ -144,7 +144,7 @@ fun DeviceScreen(
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(20.dp),
-                color = Color.White.copy(alpha = 0.15f)
+                color = White.copy(alpha = 0.15f)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(
@@ -157,13 +157,14 @@ fun DeviceScreen(
                             color = TextHint
                         )
                         val batteryColor = when {
-                            (device?.battery_level ?: 0) > 85 -> Color(0xFF81C784)
-                            (device?.battery_level ?: 0) > 50 -> Color(0xFFFFB74D)
-                            (device?.battery_level ?: 0) > 20 -> Color(0xFFFF7F4D)
-                            else -> Color(0xFFEF5350)
+                            (device?.batteryLevel ?: 0) > 85 -> Green
+                            (device?.batteryLevel ?: 0) > 50 -> Yellow
+                            (device?.batteryLevel ?: 0) > 20 -> BatteryLow
+                            else -> RedCritical
+
                         }
                         Text(
-                            text = "${device?.battery_level ?: 0}%",
+                            text = "${device?.batteryLevel ?: 0}%",
                             fontSize = 16.sp,
                             color = batteryColor,
                             fontWeight = FontWeight.Medium
@@ -177,12 +178,12 @@ fun DeviceScreen(
                             .clip(RoundedCornerShape(3.dp))
                             .background(Color.White.copy(alpha = 0.15f))
                     ) {
-                        val batteryLevel = device?.battery_level ?: 0
+                        val batteryLevel = device?.batteryLevel ?: 0
                         val batteryColor = when {
-                            batteryLevel > 85 -> Color(0xFF81C784)
-                            batteryLevel > 50 -> Color(0xFFFFB74D)
-                            batteryLevel > 20 -> Color(0xFFFF7F4D)
-                            else -> Color(0xFFEF5350)
+                            batteryLevel > 85 -> Green
+                            batteryLevel > 50 -> Yellow
+                            batteryLevel > 20 -> BatteryLow
+                            else -> RedCritical
                         }
                         Box(
                             modifier = Modifier
@@ -201,11 +202,11 @@ fun DeviceScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(text = "Last opened", fontSize = 16.sp, color = TextHint)
+                        Text(text = "Last activity", fontSize = 16.sp, color = TextHint)
                         Text(
-                            text = device?.lastSeen ?: "—",
+                            text = device?.lastSynced?.let { if (it == 0L) "—" else java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date(it)) } ?: "—",
                             fontSize = 16.sp,
-                            color = TextWhite
+                            color = White
                         )
                     }
 
@@ -224,10 +225,10 @@ fun DeviceScreen(
                 enabled = !isLoading,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = if (isLocked)
-                        Color(0xFF81C784).copy(alpha = 0.9f)
+                        Green.copy(alpha = 0.9f)
                     else
-                        Color(0xFFEF9A9A).copy(alpha = 0.9f),
-                    disabledContainerColor = Color.White.copy(alpha = 0.2f)
+                        UnlockBtn.copy(alpha = 0.9f),
+                    disabledContainerColor = White.copy(alpha = 0.2f)
                 ),
                 shape = RoundedCornerShape(16.dp)
             ) {
@@ -235,19 +236,19 @@ fun DeviceScreen(
                     CircularProgressIndicator(
                         modifier = Modifier.size(22.dp),
                         strokeWidth = 2.dp,
-                        color = Color.White
+                        color = White
                     )
                 } else {
                     Icon(
                         imageVector = if (isLocked) Icons.Default.LockOpen else Icons.Default.Lock,
                         contentDescription = null,
-                        tint = Color.White,
+                        tint = White,
                         modifier = Modifier.size(20.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = if (isLocked) "Unlock" else "Lock",
-                        color = Color.White,
+                        color = White,
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 16.sp
                     )
@@ -299,7 +300,7 @@ fun ActionButton(
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(16.dp),
-        color = Color.White.copy(alpha = 0.15f),
+        color = White.copy(alpha = 0.15f),
         onClick = onClick
     ) {
         Column(
@@ -310,13 +311,13 @@ fun ActionButton(
             Icon(
                 imageVector = icon,
                 contentDescription = label,
-                tint = TextWhite,
+                tint = White,
                 modifier = Modifier.size(22.dp)
             )
             Text(
                 text = label,
                 fontSize = 13.sp,
-                color = TextWhite.copy(alpha = 0.9f),
+                color = White.copy(alpha = 0.9f),
                 fontWeight = FontWeight.Medium
             )
         }

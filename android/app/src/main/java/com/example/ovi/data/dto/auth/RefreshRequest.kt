@@ -1,8 +1,8 @@
-package com.example.ovi.data.dto
+package com.example.ovi.data.dto.auth
 
 import com.google.gson.annotations.SerializedName
 
-data class LogoutRequest(
+data class RefreshRequest(
     @SerializedName("refresh_token")
     val refreshToken: String
 )

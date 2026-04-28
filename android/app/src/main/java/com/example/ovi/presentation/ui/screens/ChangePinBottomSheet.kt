@@ -61,7 +61,7 @@ fun ChangePinBottomSheet(
                         .padding(top = 12.dp, bottom = 16.dp)
                         .size(width = 36.dp, height = 4.dp)
                         .clip(CircleShape)
-                        .background(Color.White.copy(alpha = 0.3f))
+                        .background(White.copy(alpha = 0.3f))
                 )
 
                 Box(
@@ -74,7 +74,7 @@ fun ChangePinBottomSheet(
                     Icon(
                         imageVector = Icons.Default.Lock,
                         contentDescription = null,
-                        tint = Color.White,
+                        tint = White,
                         modifier = Modifier.size(26.dp)
                     )
                 }
@@ -85,12 +85,12 @@ fun ChangePinBottomSheet(
                     text = "Change PIN",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White
+                    color = White
                 )
                 Text(
                     text = lockName,
                     fontSize = 13.sp,
-                    color = Color.White.copy(alpha = 0.5f),
+                    color = White.copy(alpha = 0.5f),
                     modifier = Modifier.padding(top = 2.dp, bottom = 24.dp)
                 )
 
@@ -99,13 +99,13 @@ fun ChangePinBottomSheet(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(16.dp))
-                            .background(Color(0xFF81C784).copy(alpha = 0.15f))
+                            .background(Green.copy(alpha = 0.15f))
                             .padding(16.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
                             text = "PIN changed successfully",
-                            color = Color(0xFF81C784),
+                            color = Green,
                             fontWeight = FontWeight.SemiBold,
                             fontSize = 15.sp
                         )
@@ -152,7 +152,7 @@ fun ChangePinBottomSheet(
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = it,
-                            color = Color(0xFFEF5350),
+                            color = Red,
                             fontSize = 13.sp,
                             modifier = Modifier.fillMaxWidth()
                         )
@@ -162,7 +162,7 @@ fun ChangePinBottomSheet(
                     Text(
                         text = "PIN must be 6 digits",
                         fontSize = 12.sp,
-                        color = Color.White.copy(alpha = 0.35f),
+                        color = White.copy(alpha = 0.35f),
                         modifier = Modifier.fillMaxWidth()
                     )
 
@@ -177,10 +177,10 @@ fun ChangePinBottomSheet(
                             modifier = Modifier.weight(1f).height(52.dp),
                             shape = RoundedCornerShape(14.dp),
                             border = androidx.compose.foundation.BorderStroke(
-                                1.dp, Color.White.copy(alpha = 0.2f)
+                                1.dp, White.copy(alpha = 0.2f)
                             ),
                             colors = ButtonDefaults.outlinedButtonColors(
-                                contentColor = Color.White.copy(alpha = 0.7f)
+                                contentColor = White.copy(alpha = 0.7f)
                             )
                         ) {
                             Text("Cancel", fontWeight = FontWeight.Medium)
@@ -203,7 +203,7 @@ fun ChangePinBottomSheet(
                             shape = RoundedCornerShape(14.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = AccentBlue)
                         ) {
-                            Text("Confirm", fontWeight = FontWeight.SemiBold, color = Color.White)
+                            Text("Confirm", fontWeight = FontWeight.SemiBold, color = White)
                         }
                     }
                 }
@@ -226,7 +226,7 @@ private fun PinInputField(
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
-        label = { Text(label, color = Color.White.copy(alpha = 0.5f)) },
+        label = { Text(label, color = White.copy(alpha = 0.5f)) },
         singleLine = true,
         modifier = Modifier.fillMaxWidth(),
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
@@ -238,17 +238,17 @@ private fun PinInputField(
                     imageVector = if (visible) Icons.Default.VisibilityOff
                     else Icons.Default.Visibility,
                     contentDescription = null,
-                    tint = Color.White.copy(alpha = 0.5f)
+                    tint = White.copy(alpha = 0.5f)
                 )
             }
         },
-        textStyle = TextStyle(color = Color.White),
+        textStyle = TextStyle(color = White),
         colors = TextFieldDefaults.outlinedTextFieldColors(
             focusedBorderColor = AccentBlue,
-            unfocusedBorderColor = Color.White.copy(alpha = 0.2f),
-            cursorColor = Color.White,
+            unfocusedBorderColor = White.copy(alpha = 0.2f),
+            cursorColor = White,
             focusedLabelColor = AccentBlue,
-            unfocusedLabelColor = Color.White.copy(alpha = 0.5f)
+            unfocusedLabelColor = White.copy(alpha = 0.5f)
         ),
         shape = RoundedCornerShape(14.dp)
     )

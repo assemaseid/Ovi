@@ -1,5 +1,6 @@
-package com.example.ovi.data.dto
+package com.example.ovi.data.api
 
+import com.example.ovi.data.dto.auth.RefreshRequest
 import com.example.ovi.data.local.SessionManager
 import kotlinx.coroutines.runBlocking
 import okhttp3.Authenticator
@@ -12,7 +13,7 @@ import javax.inject.Provider
 class TokenAuthenticator @Inject constructor(
     private val sessionManager: SessionManager,
     // Provider breaks the circular dependency: AppModule → OkHttpClient → TokenAuthenticator → AuthService → OkHttpClient
-    private val authServiceProvider: Provider<com.example.ovi.data.api.AuthService>
+    private val authServiceProvider: Provider<AuthService>
 ) : Authenticator {
 
     override fun authenticate(route: Route?, response: Response): Request? {

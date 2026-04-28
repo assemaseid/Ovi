@@ -1,4 +1,4 @@
-package com.example.ovi.data.dto
+package com.example.ovi.data.dto.auth
 
 import com.google.gson.annotations.SerializedName
 
@@ -8,6 +8,9 @@ data class UserDto(
 
     @SerializedName("email")
     val email: String,
+
+    @SerializedName("name")
+    val name: String? = null,
 
     @SerializedName("is_active")
     val isActive: Boolean

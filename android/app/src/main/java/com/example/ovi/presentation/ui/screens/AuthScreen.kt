@@ -29,10 +29,10 @@ import com.example.ovi.ui.theme.BgTop
 import com.example.ovi.ui.theme.BorderFocused
 import com.example.ovi.ui.theme.BorderUnfocused
 import com.example.ovi.ui.theme.CardBackground
-import com.example.ovi.ui.theme.ErrorRed
+import com.example.ovi.ui.theme.Red
 import com.example.ovi.ui.theme.SignInBtn
 import com.example.ovi.ui.theme.TextHint
-import com.example.ovi.ui.theme.TextWhite
+import com.example.ovi.ui.theme.White
 
 @Composable
 fun AuthScreen(
@@ -41,6 +41,7 @@ fun AuthScreen(
     onNavigateToMain: () -> Unit
 ) {
     var isLoginMode by remember { mutableStateOf(true) }
+    var name by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var isPasswordVisible by remember { mutableStateOf(false) }
@@ -71,7 +72,7 @@ fun AuthScreen(
                 .background(
                     brush = Brush.radialGradient(
                         colors = listOf(
-                            Color.White.copy(alpha = 0.1f),
+                            White.copy(alpha = 0.1f),
                             Color.Transparent
                         )
                     )
@@ -117,8 +118,19 @@ fun AuthScreen(
                     Text(
                         text = if (isLoginMode) "Sign in to continue" else "Create Account",
                         fontSize = 15.sp,
-                        color = TextWhite.copy(alpha = 1f)
+                        color = White.copy(alpha = 1f)
                     )
+
+                    if (!isLoginMode) {
+                        AuthTextField(
+                            value = name,
+                            onValueChange = { name = it },
+                            label = "Full Name",
+                            icon = Icons.Default.Person,
+                            keyboardType = KeyboardType.Text,
+                            isError = authState is AuthViewModel.AuthState.Error
+                        )
+                    }
 
                     AuthTextField(
                         value = email,
@@ -144,7 +156,7 @@ fun AuthScreen(
                     if (authState is AuthViewModel.AuthState.Error) {
                         Text(
                             text = (authState as AuthViewModel.AuthState.Error).message,
-                            color = Color(0xFFFF6B6B),
+                            color = Red,
                             fontSize = 12.sp
                         )
                     }
@@ -152,16 +164,17 @@ fun AuthScreen(
                     Button(
                         onClick = {
                             if (isLoginMode) viewModel.login(email, password)
-                            else viewModel.register(email, password)
+                            else viewModel.register(name, email, password)
                         },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(50.dp),
                         enabled = email.isNotBlank() && password.isNotBlank() &&
+                                (isLoginMode || name.isNotBlank()) &&
                                 authState !is AuthViewModel.AuthState.Loading,
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color.White.copy(alpha = 0.3f),
-                            disabledContainerColor = Color.White.copy(alpha = 0.08f)
+                            containerColor = White.copy(alpha = 0.3f),
+                            disabledContainerColor = White.copy(alpha = 0.08f)
                         ),
                         shape = RoundedCornerShape(14.dp)
                     ) {
@@ -169,12 +182,12 @@ fun AuthScreen(
                             CircularProgressIndicator(
                                 modifier = Modifier.size(22.dp),
                                 strokeWidth = 2.dp,
-                                color = TextWhite
+                                color = White
                             )
                         } else {
                             Text(
                                 text = if (isLoginMode) "Sign In" else "Create Account",
-                                color = TextWhite,
+                                color = White,
                                 fontWeight = FontWeight.Medium,
                                 fontSize = 15.sp
                             )
@@ -184,6 +197,7 @@ fun AuthScreen(
                     Button(
                         onClick = {
                             isLoginMode = !isLoginMode
+                            name = ""
                             viewModel.resetState()
                         },
                         modifier = Modifier
@@ -196,7 +210,7 @@ fun AuthScreen(
                     ) {
                         Text(
                             text = if (isLoginMode) "Sign up" else "Back to Sign In",
-                            color = TextWhite,
+                            color = White,
                             fontWeight = FontWeight.Bold,
                             fontSize = 15.sp
                         )
@@ -256,12 +270,12 @@ fun AuthTextField(
         colors = TextFieldDefaults.outlinedTextFieldColors(
             unfocusedBorderColor = BorderUnfocused,
             focusedBorderColor = BorderFocused,
-            errorBorderColor = ErrorRed,
-            cursorColor = TextWhite,
+            errorBorderColor = Red,
+            cursorColor = White,
             unfocusedLabelColor = TextHint,
-            focusedLabelColor = TextWhite,
+            focusedLabelColor = White,
             unfocusedLeadingIconColor = TextHint,
-            focusedLeadingIconColor = TextWhite,
+            focusedLeadingIconColor = White,
         )
     )
 }

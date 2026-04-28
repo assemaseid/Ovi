@@ -1,4 +1,4 @@
-package com.example.ovi.data.dto
+package com.example.ovi.data.dto.device
 
 import com.google.gson.annotations.SerializedName
 
@@ -11,6 +11,7 @@ data class DeviceOutDto(
     @SerializedName("created_at") val createdAt: String?,
     @SerializedName("config") val config: Map<String, Any?> = emptyMap()
 )
+
 data class DeviceRegistrationRequest(
     val device: DeviceInfo,
     val owner_info: OwnerInfo
@@ -59,50 +60,6 @@ data class MqttTopics(
     val status: String
 )
 
-data class UnlockTokenRequest(
-    val device_uuid: String
-)
-
-data class UnlockTokenResponse(
-    val token: TokenData,
-    val signature: ServerSignature
-)
-
-data class TokenData(
-    val version: Int,
-    val nonce: String,
-    val expires_at: Long,
-    val issued_at: Long,
-    val device_uuid: String,
-    val user_uuid: String,
-    val action: String = "unlock",
-    val session_id: String
-)
-
-data class ServerSignature(
-    val value: String,
-    val algorithm: String,
-    val curve: String,
-    val public_key_id: String
-)
-
 data class PinResponse(
     val message: String
-)
-
-data class BleDeviceInfo(
-    val cmd: String,
-    val req_id: String,
-    val data: BleData,
-    val signature: String?
-)
-
-data class BleData(
-    val device_id: String,
-    val public_key: String,
-    val fw_version: String,
-    val hw_version: String,
-    val battery_level: Int,
-    val rssi: Int,
-    val time_sync_required: Boolean
 )

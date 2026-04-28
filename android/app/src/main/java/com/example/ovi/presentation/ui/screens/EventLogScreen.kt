@@ -62,7 +62,7 @@ fun EventLogScreen(
                     Icon(
                         imageVector = Icons.Default.ArrowBack,
                         contentDescription = "Back",
-                        tint = TextWhite
+                        tint = White
                     )
                 }
                 Column(modifier = Modifier.weight(1f)) {
@@ -70,12 +70,12 @@ fun EventLogScreen(
                         text = "Event Log",
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
-                        color = TextWhite
+                        color = White
                     )
                     Text(
                         text = lockName,
                         fontSize = 13.sp,
-                        color = TextWhite.copy(alpha = 0.6f)
+                        color = White.copy(alpha = 0.6f)
                     )
                 }
                 Box(
@@ -87,7 +87,7 @@ fun EventLogScreen(
                     Text(
                         text = "${events.size} events",
                         fontSize = 12.sp,
-                        color = TextWhite,
+                        color = White,
                         fontWeight = FontWeight.Medium
                     )
                 }
@@ -107,12 +107,12 @@ fun EventLogScreen(
                         Icon(
                             imageVector = Icons.Default.History,
                             contentDescription = null,
-                            tint = TextWhite.copy(alpha = 0.3f),
+                            tint = White.copy(alpha = 0.3f),
                             modifier = Modifier.size(56.dp)
                         )
                         Text(
                             text = "No events yet",
-                            color = TextWhite.copy(alpha = 0.5f),
+                            color = White.copy(alpha = 0.5f),
                             fontSize = 15.sp
                         )
                     }
@@ -139,27 +139,27 @@ fun EventCard(event: LockEvent) {
         EventType.UNLOCK -> Triple(
             Icons.Default.LockOpen,
             "Unlocked",
-            Color(0xFF81C784)
+            Green
         )
         EventType.LOCK -> Triple(
             Icons.Default.Lock,
             "Locked",
-            Color(0xFF90CAF9)
+            UnlockBtn
         )
         EventType.PIN_ROTATION -> Triple(
             Icons.Default.Pin,
             "PIN Rotated",
-            Color(0xFFFFB74D)
+            Yellow
         )
         EventType.LOW_BATTERY -> Triple(
             Icons.Default.BatteryAlert,
             "Low Battery",
-            Color(0xFFFF7043)
+            RedCritical
         )
         EventType.TAMPER_DETECTED -> Triple(
             Icons.Default.Warning,
             "Tamper Detected",
-            Color(0xFFEF5350)
+            RedCritical
         )
     }
 
@@ -172,7 +172,7 @@ fun EventCard(event: LockEvent) {
 
     Surface(
         shape = RoundedCornerShape(16.dp),
-        color = Color.White.copy(alpha = 0.1f),
+        color = White.copy(alpha = 0.1f),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
@@ -202,36 +202,36 @@ fun EventCard(event: LockEvent) {
                         text = label,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = TextWhite
+                        color = White
                     )
                     if (!event.success) {
                         Spacer(modifier = Modifier.width(8.dp))
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(4.dp))
-                                .background(Color(0xFFEF5350).copy(alpha = 0.2f))
+                                .background(RedCritical.copy(alpha = 0.2f))
                                 .padding(horizontal = 6.dp, vertical = 2.dp)
                         ) {
                             Text(
                                 text = "Failed",
                                 fontSize = 10.sp,
-                                color = Color(0xFFEF5350),
+                                color = RedCritical,
                                 fontWeight = FontWeight.Medium
                             )
                         }
                     }
                 }
-//                Text(
-//                    text = "via $methodLabel",
-//                    fontSize = 12.sp,
-//                    color = TextWhite.copy(alpha = 0.5f)
-//                )
+                Text(
+                    text = "via $methodLabel",
+                    fontSize = 12.sp,
+                    color = White.copy(alpha = 0.5f)
+                )
             }
 
             Text(
                 text = formatEventTime(event.timestamp),
                 fontSize = 12.sp,
-                color = TextWhite.copy(alpha = 0.45f)
+                color = White.copy(alpha = 0.45f)
             )
         }
     }

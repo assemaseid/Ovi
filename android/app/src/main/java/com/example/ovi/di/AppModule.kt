@@ -8,7 +8,7 @@ import com.example.ovi.data.api.AuthService
 import com.example.ovi.data.api.LockService
 import com.example.ovi.data.api.UserService
 import com.example.ovi.data.ble.AndroidBleManager
-import com.example.ovi.data.dto.TokenAuthenticator
+import com.example.ovi.data.api.TokenAuthenticator
 import com.example.ovi.data.local.SessionManager
 import com.example.ovi.data.local.database.AppDatabase
 import com.example.ovi.data.local.dao.EventDao

@@ -3,8 +3,8 @@ package com.example.ovi.data.repository
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import com.example.ovi.data.api.LockService
-import com.example.ovi.data.dto.TokenData
-import com.example.ovi.data.dto.UnlockTokenRequest
+import com.example.ovi.data.dto.command.TokenData
+import com.example.ovi.data.dto.command.UnlockTokenRequest
 import org.json.JSONObject
 import com.example.ovi.data.local.SessionManager
 import com.example.ovi.data.local.dao.LockDao
@@ -14,6 +14,10 @@ import com.example.ovi.data.mapper.toLockEntity
 import com.example.ovi.domain.ble.BleManager
 import com.example.ovi.domain.model.SmartLock
 import com.example.ovi.domain.repository.LockRepository
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+import java.text.SimpleDateFormat
+import java.util.Locale
 import com.example.ovi.util.BleConstants
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
@@ -34,6 +38,46 @@ class LockRepositoryImpl @Inject constructor(
 
     override suspend fun getPairedLocks(): List<SmartLock> =
         lockDao.getAllLocks().first().map { it.toLockDomain() }
+
+    override suspend fun getLockById(lockId: String): SmartLock? =
+        lockDao.getLockById(lockId)?.toLockDomain()
+
+    override fun observeAllLocks(): Flow<List<SmartLock>> =
+        lockDao.getAllLocks().map { entities -> entities.map { it.toLockDomain() } }
+
+    override suspend fun updateLockState(lockId: String, isLocked: Boolean) {
+        lockDao.getLockById(lockId)?.let { entity ->
+            lockDao.updateLock(entity.copy(isLocked = isLocked, lastSynced = System.currentTimeMillis()))
+        }
+    }
+
+    override suspend fun updateLockFromStatus(lockId: String, battery: Int?, firmware: String?, lastSeen: String?) {
+        lockDao.getLockById(lockId)?.let { entity ->
+            lockDao.updateLock(entity.copy(
+                batteryLevel = battery ?: entity.batteryLevel,
+                firmwareVersion = firmware ?: entity.firmwareVersion,
+                lastSynced = parseIsoToMillis(lastSeen)
+            ))
+        }
+    }
+
+    override suspend fun updateLockBattery(lockId: String, battery: Int) {
+        lockDao.getLockById(lockId)?.let { entity ->
+            lockDao.updateLock(entity.copy(batteryLevel = battery))
+        }
+    }
+
+    private fun parseIsoToMillis(iso: String?): Long {
+        iso ?: return System.currentTimeMillis()
+        return try {
+            SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US)
+                .apply { timeZone = java.util.TimeZone.getTimeZone("UTC") }
+                .parse(iso.substringBefore('.').trimEnd('Z'))
+                ?.time ?: System.currentTimeMillis()
+        } catch (e: Exception) {
+            System.currentTimeMillis()
+        }
+    }
 
     override suspend fun addLock(lock: SmartLock) {
         val existing = lockDao.getLockByHardwareId(lock.hardwareId)

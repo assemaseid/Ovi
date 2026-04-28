@@ -2,10 +2,10 @@ package com.example.ovi.data.repository
 
 import com.example.ovi.data.api.AuthService
 import com.example.ovi.data.api.UserService
-import com.example.ovi.data.dto.FcmTokenRequest
-import com.example.ovi.data.dto.LoginRequest
-import com.example.ovi.data.dto.LogoutRequest
-import com.example.ovi.data.dto.RegisterRequest
+import com.example.ovi.data.dto.auth.FcmTokenRequest
+import com.example.ovi.data.dto.auth.LoginRequest
+import com.example.ovi.data.dto.auth.LogoutRequest
+import com.example.ovi.data.dto.auth.RegisterRequest
 import com.example.ovi.data.local.SessionManager
 import com.example.ovi.data.mapper.toDomain
 import com.example.ovi.domain.model.User
@@ -29,6 +29,7 @@ class AuthRepositoryImpl @Inject constructor(
             sessionManager.saveUserSession(
                 userId = user.id,
                 email = user.email,
+                name = user.name,
                 jwtToken = response.accessToken,
                 refreshToken = response.refreshToken
             )
@@ -49,13 +50,14 @@ class AuthRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun register(email: String, password: String): Result<User> {
+    override suspend fun register(name: String, email: String, password: String): Result<User> {
         return try {
-            val response = authService.register(RegisterRequest(email = email, password = password))
+            val response = authService.register(RegisterRequest(name = name, email = email, password = password))
             val user = response.user.toDomain(jwtToken = response.accessToken)
             sessionManager.saveUserSession(
                 userId = user.id,
                 email = user.email,
+                name = user.name ?: name,
                 jwtToken = response.accessToken,
                 refreshToken = response.refreshToken
             )
@@ -63,7 +65,14 @@ class AuthRepositoryImpl @Inject constructor(
             Result.success(user)
         } catch (e: HttpException) {
             val errorMessage = when (e.code()) {
-                400 -> "Invalid registration data"
+                400 -> {
+                    val detail = runCatching {
+                        e.response()?.errorBody()?.string()
+                            ?.let { org.json.JSONObject(it).optString("detail") }
+                            ?.takeIf { it.isNotBlank() }
+                    }.getOrNull()
+                    detail ?: "Invalid registration data"
+                }
                 409 -> "User with this email already exists"
                 500 -> "Server error. Please try again later"
                 else -> "Registration failed: ${e.message()}"
@@ -115,6 +124,7 @@ class AuthRepositoryImpl @Inject constructor(
             User(
                 id = userId,
                 email = sessionManager.getEmail() ?: return null,
+                name = sessionManager.getName(),
                 jwtToken = sessionManager.getJwtToken()
             )
         } catch (e: Exception) {

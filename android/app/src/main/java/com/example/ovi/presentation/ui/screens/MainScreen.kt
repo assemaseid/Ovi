@@ -1,17 +1,9 @@
 package com.example.ovi.presentation.ui.screens
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -19,8 +11,9 @@ import androidx.navigation.compose.*
 import androidx.navigation.navArgument
 import com.example.ovi.presentation.navigation.BottomNavItem
 import com.example.ovi.presentation.navigation.BottomNavigationBar
+import com.example.ovi.presentation.navigation.DEVICE_ID_KEY
+import com.example.ovi.presentation.navigation.DEVICE_ROUTE
 import com.example.ovi.presentation.viewmodel.DevicesViewModel
-import com.example.ovi.ui.theme.AccentBlue
 
 @Composable
 fun MainScreen(
@@ -37,39 +30,6 @@ fun MainScreen(
         }
     }
 }
-
-@Composable
-fun NavBarItem(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    label: String,
-    selected: Boolean,
-    onClick: () -> Unit
-) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(2.dp),
-        modifier = Modifier
-            .clip(RoundedCornerShape(12.dp))
-            .clickable { onClick() }
-            .padding(horizontal = 16.dp, vertical = 8.dp)
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = label,
-            tint = if (selected) AccentBlue else Color.Gray.copy(alpha = 0.5f),
-            modifier = Modifier.size(22.dp)
-        )
-        Text(
-            text = label,
-            fontSize = 11.sp,
-            color = if (selected) AccentBlue else Color.Gray.copy(alpha = 0.5f),
-            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
-        )
-    }
-}
-
-const val DEVICE_ID_KEY = "deviceId"
-const val DEVICE_ROUTE = "device"
 
 @Composable
 fun MainNavigationGraph(
@@ -110,7 +70,7 @@ fun MainNavigationGraph(
                     deviceId = deviceId,
                     viewModel = devicesViewModel,
                     onBack = { navController.popBackStack() },
-                    navController = navController  // ← вот это было missing
+                    navController = navController
                 )
             }
         }
