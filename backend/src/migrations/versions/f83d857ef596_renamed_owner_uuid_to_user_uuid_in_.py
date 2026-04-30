@@ -1,0 +1,88 @@
+"""renamed owner_uuid to user_uuid in device model
+
+Revision ID: f83d857ef596
+Revises: 0ccad8c9b563
+Create Date: 2026-04-06 10:59:38.191113
+
+"""
+from typing import Sequence, Union
+
+from alembic import op
+import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
+
+# revision identifiers, used by Alembic.
+revision: str = 'f83d857ef596'
+down_revision: Union[str, Sequence[str], None] = '0ccad8c9b563'
+branch_labels: Union[str, Sequence[str], None] = None
+depends_on: Union[str, Sequence[str], None] = None
+
+
+def upgrade() -> None:
+    """Upgrade schema."""
+    pass
+
+
+def downgrade() -> None:
+    """Downgrade schema."""
+    pass
+
+# LEGACY DOWNGRADE (kept for reference, not executed)
+def _legacy_downgrade() -> None:
+    op.create_table('devices',
+    sa.Column('device_uuid', sa.UUID(), autoincrement=False, nullable=False),
+    sa.Column('hardware_id', sa.VARCHAR(), autoincrement=False, nullable=False),
+    sa.Column('public_key', sa.TEXT(), autoincrement=False, nullable=False),
+    sa.Column('owner_uuid', sa.UUID(), autoincrement=False, nullable=False),
+    sa.Column('config', postgresql.JSONB(astext_type=sa.Text()), autoincrement=False, nullable=False),
+    sa.Column('firmware_version', sa.VARCHAR(), autoincrement=False, nullable=False),
+    sa.Column('last_seen', postgresql.TIMESTAMP(timezone=True), autoincrement=False, nullable=False),
+    sa.Column('last_time_sync', postgresql.TIMESTAMP(timezone=True), autoincrement=False, nullable=False),
+    sa.Column('battery_level', sa.INTEGER(), autoincrement=False, nullable=False),
+    sa.Column('wifi_ssid', sa.VARCHAR(length=64), autoincrement=False, nullable=True),
+    sa.Column('ip_address', postgresql.INET(), autoincrement=False, nullable=False),
+    sa.Column('created_at', postgresql.TIMESTAMP(timezone=True), server_default=sa.text('now()'), autoincrement=False, nullable=False),
+    sa.ForeignKeyConstraint(['owner_uuid'], ['users.user_uuid'], name=op.f('devices_owner_uuid_fkey')),
+    sa.PrimaryKeyConstraint('device_uuid', name=op.f('devices_pkey')),
+    sa.UniqueConstraint('hardware_id', name=op.f('devices_hardware_id_key'), postgresql_include=[], postgresql_nulls_not_distinct=False)
+    )
+    op.create_table('grants',
+    sa.Column('grant_uuid', sa.UUID(), autoincrement=False, nullable=False),
+    sa.Column('device_uuid', sa.UUID(), autoincrement=False, nullable=False),
+    sa.Column('user_uuid', sa.UUID(), autoincrement=False, nullable=False),
+    sa.Column('permissions', postgresql.JSONB(astext_type=sa.Text()), autoincrement=False, nullable=False),
+    sa.Column('valid_from', postgresql.TIMESTAMP(timezone=True), server_default=sa.text('now()'), autoincrement=False, nullable=False),
+    sa.Column('valid_until', postgresql.TIMESTAMP(timezone=True), autoincrement=False, nullable=False),
+    sa.Column('created_by', sa.UUID(), autoincrement=False, nullable=False),
+    sa.Column('created_at', postgresql.TIMESTAMP(timezone=True), server_default=sa.text('now()'), autoincrement=False, nullable=False),
+    sa.ForeignKeyConstraint(['created_by'], ['users.user_uuid'], name=op.f('grants_created_by_fkey')),
+    sa.ForeignKeyConstraint(['device_uuid'], ['devices.device_uuid'], name=op.f('grants_device_uuid_fkey')),
+    sa.ForeignKeyConstraint(['user_uuid'], ['users.user_uuid'], name=op.f('grants_user_uuid_fkey')),
+    sa.PrimaryKeyConstraint('grant_uuid', name=op.f('grants_pkey'))
+    )
+    op.create_table('events',
+    sa.Column('event_uuid', sa.UUID(), autoincrement=False, nullable=False),
+    sa.Column('msq_id', sa.VARCHAR(length=64), autoincrement=False, nullable=False),
+    sa.Column('device_uuid', sa.UUID(), autoincrement=False, nullable=False),
+    sa.Column('user_uuid', sa.UUID(), autoincrement=False, nullable=False),
+    sa.Column('event_type', sa.VARCHAR(length=50), autoincrement=False, nullable=False),
+    sa.Column('event_data', postgresql.JSONB(astext_type=sa.Text()), autoincrement=False, nullable=False),
+    sa.Column('signature', sa.TEXT(), autoincrement=False, nullable=True),
+    sa.Column('verified', sa.BOOLEAN(), autoincrement=False, nullable=False),
+    sa.Column('source_ip', postgresql.INET(), autoincrement=False, nullable=True),
+    sa.Column('created_at', postgresql.TIMESTAMP(timezone=True), server_default=sa.text('now()'), autoincrement=False, nullable=False),
+    sa.ForeignKeyConstraint(['device_uuid'], ['devices.device_uuid'], name=op.f('events_device_uuid_fkey')),
+    sa.ForeignKeyConstraint(['user_uuid'], ['users.user_uuid'], name=op.f('events_user_uuid_fkey')),
+    sa.PrimaryKeyConstraint('event_uuid', name=op.f('events_pkey')),
+    sa.UniqueConstraint('msq_id', name=op.f('events_msq_id_key'), postgresql_include=[], postgresql_nulls_not_distinct=False)
+    )
+    op.create_table('pin_states',
+    sa.Column('device_uuid', sa.UUID(), autoincrement=False, nullable=False),
+    sa.Column('rotation_counter', sa.INTEGER(), autoincrement=False, nullable=False),
+    sa.Column('last_rotation_slot', sa.INTEGER(), autoincrement=False, nullable=False),
+    sa.Column('last_rotation_at', postgresql.TIMESTAMP(timezone=True), autoincrement=False, nullable=False),
+    sa.Column('updated_at', postgresql.TIMESTAMP(timezone=True), server_default=sa.text('now()'), autoincrement=False, nullable=False),
+    sa.ForeignKeyConstraint(['device_uuid'], ['devices.device_uuid'], name=op.f('pin_states_device_uuid_fkey')),
+    sa.PrimaryKeyConstraint('device_uuid', name=op.f('pin_states_pkey'))
+    )
+    # ### end Alembic commands ###

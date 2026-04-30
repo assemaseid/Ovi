@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1019733050392",
+    "project_id": "ovi-diploma",
+    "storage_bucket": "ovi-diploma.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1019733050392:android:7b64440c7f3b64503def6d",
+        "android_client_info": {
+          "package_name": "com.example.ovi"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCYvdHFb7gwt9_wWXp3SHMC80-BL_Ks7jQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
