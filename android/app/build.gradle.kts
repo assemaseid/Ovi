@@ -96,6 +96,10 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.11.0")
     implementation("com.squareup.okhttp3:logging-interceptor:4.10.0")
 
+    // Biometric
+    implementation("androidx.biometric:biometric:1.1.0")
+    implementation("androidx.appcompat:appcompat:1.6.1")
+
     // Coil
     implementation("io.coil-kt:coil-compose:2.4.0")
 

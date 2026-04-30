@@ -167,6 +167,42 @@ async def list_devices(
     return result_unique_devices
 
 
+@router.get("/{device_uuid}/reconfig", response_model=DeviceRegisterResponse)
+async def get_device_reconfig(
+    device_uuid: str,
+    session: SessionDep,
+    current_user: User = Depends(get_current_user),
+) -> DeviceRegisterResponse:
+    device = await require_device_permission(device_uuid, "admin", current_user, session)
+
+    dev_uuid_str = str(device.device_uuid)
+    cfg = device.config or {}
+
+    return DeviceRegisterResponse(
+        status="registered",
+        device_uuid=dev_uuid_str,
+        server_public_key=crypto_service.public_key_pem,
+        device_secret=cfg.get("device_secret", ""),
+        config=DeviceConfig(
+            pin_length=cfg.get("pin_length", 6),
+            rotation_hours=cfg.get("rotation_hours", 24),
+            grace_period_minutes=cfg.get("grace_period_minutes", 5),
+            max_attempts=cfg.get("max_attempts", 5),
+            lockout_seconds=cfg.get("lockout_seconds", 30),
+        ),
+        mqtt_config=MqttConfig(
+            broker=_cfg("MQTT_HOST", "localhost"),
+            port=_cfg("MQTT_PORT", 1883),
+            client_id=dev_uuid_str,
+            topics=MqttTopics(
+                commands=MQTTService.cmd_topic(dev_uuid_str),
+                events=MQTTService.events_topic(dev_uuid_str),
+                status=MQTTService.status_topic(dev_uuid_str),
+            ),
+        ),
+    )
+
+
 @router.get("/{device_uuid}", response_model=DeviceOut)
 async def get_device(
     device_uuid: str,
@@ -223,6 +259,7 @@ async def get_diagnostics(
     session: SessionDep,
     current_user: User = Depends(get_current_user),
 ) -> DiagnosticsResponse:
+
     device = await require_device_permission(device_uuid,
                                              "admin",
                                              current_user,

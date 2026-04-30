@@ -1,3 +1,7 @@
+"""
+Offline events synchronization.
+After network recovery, the lock sends all accumulated events to this endpoint.
+"""
 import logging
 import uuid
 from datetime import datetime, UTC

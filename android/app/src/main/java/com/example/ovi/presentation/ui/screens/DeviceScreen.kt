@@ -202,7 +202,7 @@ fun DeviceScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(text = "Last opened", fontSize = 16.sp, color = TextHint)
+                        Text(text = "Last activity", fontSize = 16.sp, color = TextHint)
                         Text(
                             text = device?.lastSynced?.let { if (it == 0L) "—" else java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date(it)) } ?: "—",
                             fontSize = 16.sp,

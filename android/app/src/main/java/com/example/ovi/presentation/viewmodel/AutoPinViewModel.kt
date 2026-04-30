@@ -9,7 +9,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.math.BigInteger
-import java.nio.ByteBuffer
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
 import javax.inject.Inject
@@ -65,7 +64,7 @@ class AutoPinViewModel @Inject constructor(
         val rotationSeconds = rotationHours * 3600L
         val timeSlot = System.currentTimeMillis() / 1000L / rotationSeconds
         val keyBytes = deviceSecret.toByteArray(Charsets.UTF_8)
-        val messageBytes = ByteBuffer.allocate(8).putLong(timeSlot).array()
+        val messageBytes = timeSlot.toString().toByteArray(Charsets.UTF_8)
         val mac = Mac.getInstance("HmacSHA256")
         mac.init(SecretKeySpec(keyBytes, "HmacSHA256"))
         val hashBytes = mac.doFinal(messageBytes)

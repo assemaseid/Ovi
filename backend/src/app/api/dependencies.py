@@ -17,6 +17,7 @@ async def require_device_permission(
     current_user: User,
     session: SessionDep,
 ) -> Device:
+
     try:
         device_uuid_formatted = uuid.UUID(device_uuid)
     except ValueError:
