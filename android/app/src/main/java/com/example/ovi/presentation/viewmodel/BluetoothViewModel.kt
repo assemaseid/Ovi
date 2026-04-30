@@ -167,7 +167,7 @@ class BluetoothViewModel @Inject constructor(
                         registrationBody = body
                     }
                 } else if (response.code() == 409) {
-                    android.util.Log.d("REGISTER", "409: already registered, fetching existing device")
+                    android.util.Log.d("REGISTER", "409: already registered, fetching reconfig")
                     val devicesResponse = lockService.getDevices()
                     if (devicesResponse.isSuccessful) {
                         val existing = devicesResponse.body()
@@ -175,7 +175,12 @@ class BluetoothViewModel @Inject constructor(
                         if (existing != null) {
                             android.util.Log.d("REGISTER", "found: ${existing.deviceUuid}")
                             lockId = existing.deviceUuid
-                            alreadyRegistered = true
+                            val reconfigResponse = lockService.getDeviceReconfig(existing.deviceUuid)
+                            if (reconfigResponse.isSuccessful) {
+                                registrationBody = reconfigResponse.body()
+                            } else {
+                                alreadyRegistered = true
+                            }
                         }
                     }
                 } else {
@@ -224,10 +229,10 @@ class BluetoothViewModel @Inject constructor(
             val regBody = registrationBody
             android.util.Log.d("ONBOARD", "regBody=${regBody != null}, connectedAddr=${bleManager.connectedDeviceAddress.value}")
             if (regBody != null) {
-                val configPacket = JSONObject().apply {
+                // Write 1: main config (без server_public_key чтобы не превышать лимит BLE 512 байт)
+                val mainConfigPacket = JSONObject().apply {
                     put("cmd", "config")
                     put("device_uuid", regBody.device_uuid)
-                    put("server_public_key", regBody.server_public_key)
                     put("device_secret", regBody.device_secret)
                     put("wifi_ssid", wifiSsid)
                     put("wifi_password", wifiPassword)
@@ -236,7 +241,7 @@ class BluetoothViewModel @Inject constructor(
                     put("mqtt_client_id", regBody.mqtt_config.client_id)
                 }.toString()
 
-                android.util.Log.d("ONBOARD", "sending config packet (${configPacket.length} bytes)")
+                android.util.Log.d("ONBOARD", "sending main config (${mainConfigPacket.length} bytes)")
 
                 var writeOk = false
                 val notified = coroutineScope {
@@ -247,21 +252,45 @@ class BluetoothViewModel @Inject constructor(
                             }
                         }
                     }
-                    writeOk = bleManager.writeCharacteristic(
-                        device.address,
-                        BleConstants.CHAR_COMMAND_WRITE,
-                        configPacket
-                    )
+                    writeOk = bleManager.writeCharacteristic(device.address, BleConstants.CHAR_COMMAND_WRITE, mainConfigPacket)
                     android.util.Log.d("ONBOARD", "writeCharacteristic result: $writeOk")
                     if (writeOk) notifJob.await() else { notifJob.cancel(); null }
                 }
-                android.util.Log.d("ONBOARD", "notified=${notified != null}")
                 if (!writeOk) {
                     _onboardingState.value = OnboardingState.Error("Failed to write config to device")
                     return
                 }
                 if (notified == null) {
                     _onboardingState.value = OnboardingState.Error("Lock did not confirm configuration")
+                    return
+                }
+
+                // Write 2: server_public_key отдельно (слишком большой для одного BLE пакета)
+                val keyPacket = JSONObject().apply {
+                    put("cmd", "config")
+                    put("server_public_key", regBody.server_public_key)
+                }.toString()
+
+                android.util.Log.d("ONBOARD", "sending server key (${keyPacket.length} bytes)")
+
+                var keyWriteOk = false
+                val keyNotified = coroutineScope {
+                    val notifJob = async(start = CoroutineStart.UNDISPATCHED) {
+                        withTimeoutOrNull(10_000L) {
+                            bleManager.notifications.first { (uuid, value) ->
+                                uuid == BleConstants.CHAR_STATUS_NOTIFY && value.contains("configured")
+                            }
+                        }
+                    }
+                    keyWriteOk = bleManager.writeCharacteristic(device.address, BleConstants.CHAR_COMMAND_WRITE, keyPacket)
+                    if (keyWriteOk) notifJob.await() else { notifJob.cancel(); null }
+                }
+                if (!keyWriteOk) {
+                    _onboardingState.value = OnboardingState.Error("Failed to write server key to device")
+                    return
+                }
+                if (keyNotified == null) {
+                    _onboardingState.value = OnboardingState.Error("Lock did not confirm server key")
                     return
                 }
             } else {

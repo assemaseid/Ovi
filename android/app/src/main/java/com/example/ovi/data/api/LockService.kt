@@ -36,4 +36,9 @@ interface LockService {
 
     @GET("devices/{device_uuid}/pin")
     suspend fun getCurrentPin(@Path("device_uuid") deviceUuid: String): Response<PinResponse>
+
+    @GET("devices/{device_uuid}/reconfig")
+    suspend fun getDeviceReconfig(
+        @Path("device_uuid") deviceUuid: String
+    ): Response<DeviceRegistrationResponse>
 }
