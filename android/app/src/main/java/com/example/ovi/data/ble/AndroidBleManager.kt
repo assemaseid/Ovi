@@ -399,7 +399,13 @@ class AndroidBleManager @Inject constructor(
                 return false
             }
             val result = withTimeoutOrNull(BleConstants.BLE_OPERATION_TIMEOUT_MS) { deferred.await() }
-            if (result == null) Log.e("BLE", "writeCharacteristic: timed out waiting for onCharacteristicWrite callback")
+            if (result == null) {
+                Log.e("BLE", "writeCharacteristic: timed out, clearing dead GATT connection")
+                gatt?.close()
+                gatt = null
+                _connectedDeviceAddress.value = null
+                _isServicesReady.value = false
+            }
             result ?: false
         }
     }

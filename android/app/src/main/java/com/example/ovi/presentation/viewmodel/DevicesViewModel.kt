@@ -71,7 +71,8 @@ class DevicesViewModel @Inject constructor(
                         lockId = event.deviceUuid,
                         battery = event.batteryLevel,
                         firmware = event.firmwareVersion,
-                        lastSeen = event.lastSeen
+                        lastSeen = event.lastSeen,
+                        isLocked = event.isLocked
                     )
                 }
                 is WsEvent.DeviceEvent -> {
@@ -164,6 +165,8 @@ class DevicesViewModel @Inject constructor(
                 return@launch
             }
 
+            // Запоминаем до операции — BLE может оборваться внутри unlock/lock
+            val wasBleConnected = bleManager.connectedDeviceAddress.value != null
             val success = if (lock.isLocked) {
                 lockRepository.unlock(lockId)
             } else {
@@ -184,6 +187,11 @@ class DevicesViewModel @Inject constructor(
                 )
                 val msg = if (lock.isLocked) "Unlocked successfully" else "Locked"
                 LockNotificationHelper.show(context, lock.name, msg)
+                LockOperationState.Success(msg)
+            } else if (wasBleConnected) {
+                // BLE отвалился во время операции, но бэкенд уже опубликовал команду
+                // через MQTT — замок откроется/закроется, WS-событие обновит статус.
+                val msg = if (lock.isLocked) "Command sent, waiting for device..." else "Command sent, waiting for device..."
                 LockOperationState.Success(msg)
             } else {
                 LockOperationState.Error(if (lock.isLocked) "Unlock failed" else "Lock failed")
