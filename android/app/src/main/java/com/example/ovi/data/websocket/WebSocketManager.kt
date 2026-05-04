@@ -137,7 +137,8 @@ class WebSocketManager @Inject constructor(
                     val batteryLevel = (map["battery_level"] as? Number)?.toInt()
                     val lastSeen = map["last_seen"] as? String
                     val firmwareVersion = map["firmware_version"] as? String
-                    _events.tryEmit(WsEvent.DeviceStatus(deviceUuid, batteryLevel, lastSeen, firmwareVersion))
+                    val isLocked = map["locked"] as? Boolean
+                    _events.tryEmit(WsEvent.DeviceStatus(deviceUuid, batteryLevel, lastSeen, firmwareVersion, isLocked))
                 }
 
                 map.containsKey("device_uuid") && map.containsKey("event") -> {

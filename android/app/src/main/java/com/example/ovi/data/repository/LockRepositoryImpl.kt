@@ -51,12 +51,13 @@ class LockRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun updateLockFromStatus(lockId: String, battery: Int?, firmware: String?, lastSeen: String?) {
+    override suspend fun updateLockFromStatus(lockId: String, battery: Int?, firmware: String?, lastSeen: String?, isLocked: Boolean?) {
         lockDao.getLockById(lockId)?.let { entity ->
             lockDao.updateLock(entity.copy(
                 batteryLevel = battery ?: entity.batteryLevel,
                 firmwareVersion = firmware ?: entity.firmwareVersion,
-                lastSynced = parseIsoToMillis(lastSeen)
+                lastSynced = parseIsoToMillis(lastSeen),
+                isLocked = isLocked ?: entity.isLocked
             ))
         }
     }

@@ -9,12 +9,26 @@ services:
     depends_on:
       database_service:
         condition: service_healthy
+      mqtt_broker:
+        condition: service_started
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: ovi
       POSTGRES_HOST: database_service
       POSTGRES_PORT: 5432
+      MQTT_HOST: mqtt_broker
+      MQTT_PORT: 1883
+      MQTT_DEVICE_HOST: 172.22.100.128
+    networks:
+      - local
+
+  mqtt_broker:
+    image: eclipse-mosquitto:2
+    container_name: mqtt_broker
+    ports:
+      - "1883:1883"
+    command: /bin/sh -c "echo 'listener 1883' > /mosquitto/config/mosquitto.conf && echo 'allow_anonymous true' >> /mosquitto/config/mosquitto.conf && mosquitto -c /mosquitto/config/mosquitto.conf"
     networks:
       - local
 
@@ -38,6 +52,7 @@ services:
       interval: 1s
       timeout: 1s
       retries: 60
+
 volumes:
   pg_data:
 

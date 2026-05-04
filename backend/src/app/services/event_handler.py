@@ -60,6 +60,7 @@ async def _get_user_fcm_tokens(user_uuids: set[str]) -> dict[str, str]:
 
 
 async def _save_event(payload: dict, device_uuid: str, verified: bool) -> bool:
+    """Return True if event is new, False if it's a duplicate (msg_id conflict)."""
     msg_id = payload.get("msg_id", "")
     event_data = payload.get("event", {})
     event_type = event_data.get("type", "unknown")
@@ -80,15 +81,19 @@ async def _save_event(payload: dict, device_uuid: str, verified: bool) -> bool:
             session.add(event)
             await session.commit()
             return True
-        except IntegrityError:
-            logger.debug("Duplicate event msg_id=%s, skipping", msg_id)
-            return False
+        except IntegrityError as e:
+            orig = str(e.orig) if e.orig else str(e)
+            if "msg_id" in orig or "unique" in orig.lower():
+                logger.debug("Duplicate event msg_id=%s, skipping", msg_id)
+                return False
+            logger.error("Failed to save event msg_id=%s: %s", msg_id, orig)
+            return True  # не дубликат — позволяем разослать через WS
 
 
 async def _verify_device_signature(payload: dict, device_uuid: str) -> bool:
 
     signature = payload.get("signature")
-    if len(signature) > 0:
+    if not signature:
         return False
 
     async with async_session_factory() as session:
@@ -174,7 +179,50 @@ async def handle_device_cmd(topic: str, payload: dict) -> None:
 
 async def handle_device_status(topic: str, payload: dict) -> None:
     device_uuid = payload.get("device_uuid", "")
-    logger.debug("Device status update: device=%s", device_uuid)
+    status = payload.get("status", {})
+    logger.debug("Device status update: device=%s payload=%s", device_uuid, status)
+
+    if not device_uuid:
+        return
+
+    battery = status.get("battery_level")
+    locked = status.get("locked")
+
+    # Update device fields in DB
+    async with async_session_factory() as session:
+        result = await session.execute(
+            select(Device).where(Device.device_uuid == device_uuid)
+        )
+        device = result.scalar_one_or_none()
+        if device:
+            from datetime import datetime, timezone
+            if battery is not None:
+                device.battery_level = battery
+            device.last_seen = datetime.now(timezone.utc)
+            await session.commit()
+
+    # Broadcast status to WebSocket clients so Android updates its UI
+    allowed_users = await _get_allowed_users(device_uuid)
+    ws_manager = _get_ws_manager()
+    import json as _json
+    payload_str = _json.dumps({
+        "type": "device_status",
+        "device_uuid": device_uuid,
+        "battery_level": battery,
+        "locked": locked,
+        "last_seen": None,
+        "firmware_version": status.get("fw_version"),
+    })
+    dead = []
+    for user_uuid, ws in list(ws_manager._connections.items()):
+        if user_uuid not in allowed_users:
+            continue
+        try:
+            await ws.send_text(payload_str)
+        except Exception:
+            dead.append(user_uuid)
+    for u in dead:
+        ws_manager._connections.pop(u, None)
 
 
 def _build_notification(event_type: str, event: dict) -> tuple[str, str]:

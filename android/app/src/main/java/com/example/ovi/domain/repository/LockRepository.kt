@@ -8,7 +8,7 @@ interface LockRepository {
     suspend fun getLockById(lockId: String): SmartLock?
     fun observeAllLocks(): Flow<List<SmartLock>>
     suspend fun updateLockState(lockId: String, isLocked: Boolean)
-    suspend fun updateLockFromStatus(lockId: String, battery: Int?, firmware: String?, lastSeen: String?)
+    suspend fun updateLockFromStatus(lockId: String, battery: Int?, firmware: String?, lastSeen: String?, isLocked: Boolean? = null)
     suspend fun updateLockBattery(lockId: String, battery: Int)
     suspend fun addLock(lock: SmartLock)
     suspend fun syncDevicesFromServer()
