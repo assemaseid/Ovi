@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     MQTT_USERNAME: str | None = None
     MQTT_PASSWORD: str | None = None
     MQTT_CLIENT_ID: str = "ovi_server"
+    MQTT_DEVICE_HOST: str = ""
 
     FIREBASE_CREDENTIALS_PATH: str | None = None
 

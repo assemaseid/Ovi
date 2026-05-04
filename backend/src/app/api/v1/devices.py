@@ -118,8 +118,8 @@ async def register_device(
             lockout_seconds=lockout_seconds,
         ),
         mqtt_config=MqttConfig(
-            broker=_cfg("MQTT_HOST", "localhost"),
-            port=_cfg("MQTT_PORT", 8883),
+            broker=settings.MQTT_DEVICE_HOST or settings.MQTT_HOST,
+            port=_cfg("MQTT_PORT", 1883),
             client_id=dev_uuid_str,
             topics=MqttTopics(
                 commands=MQTTService.cmd_topic(dev_uuid_str),
@@ -191,7 +191,7 @@ async def get_device_reconfig(
             lockout_seconds=cfg.get("lockout_seconds", 30),
         ),
         mqtt_config=MqttConfig(
-            broker=_cfg("MQTT_HOST", "localhost"),
+            broker=settings.MQTT_DEVICE_HOST or settings.MQTT_HOST,
             port=_cfg("MQTT_PORT", 1883),
             client_id=dev_uuid_str,
             topics=MqttTopics(

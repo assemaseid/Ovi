@@ -13,6 +13,7 @@ sealed class WsEvent {
         val deviceUuid: String,
         val batteryLevel: Int?,
         val lastSeen: String?,
-        val firmwareVersion: String?
+        val firmwareVersion: String?,
+        val isLocked: Boolean?
     ) : WsEvent()
 }

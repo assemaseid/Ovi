@@ -1,7 +1,8 @@
 from datetime import datetime
 from typing import Optional
+import uuid as uuid_lib
 from sqlalchemy import Boolean, Text, ForeignKey, func, DateTime
-from sqlalchemy.dialects.postgresql import JSONB, INET
+from sqlalchemy.dialects.postgresql import JSONB, INET, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.database import Base, uuid_pk, uuid_fk, str_50, str_64
@@ -15,8 +16,10 @@ class Event(Base):
     device_uuid: Mapped[uuid_fk] = mapped_column(
         ForeignKey("devices.device_uuid")
     )
-    user_uuid: Mapped[uuid_fk] = mapped_column(
-        ForeignKey("users.user_uuid")
+    user_uuid: Mapped[Optional[uuid_lib.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.user_uuid"),
+        nullable=True,
     )
     event_type: Mapped[str_50]
     event_data: Mapped[dict] = mapped_column(JSONB, nullable=False)

@@ -70,7 +70,10 @@ class MQTTService:
             # Route by suffix
             for suffix, handler in _suffix_handlers.items():
                 if topic.endswith(suffix):
-                    await handler(topic, payload)
+                    try:
+                        await handler(topic, payload)
+                    except Exception as e:
+                        logger.error("MQTT handler error topic=%s: %s", topic, e)
                     break
 
     async def disconnect(self):
