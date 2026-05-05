@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.ovi.domain.repository.LockRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -30,6 +32,11 @@ class AutoPinViewModel @Inject constructor(
     private val _rotationHours = MutableStateFlow(24)
     val rotationHours: StateFlow<Int> = _rotationHours.asStateFlow()
 
+    private val _nextRotationMillis = MutableStateFlow(0L)
+    val nextRotationMillis: StateFlow<Long> = _nextRotationMillis.asStateFlow()
+
+    private var autoRefreshJob: Job? = null
+
     fun refreshPin(deviceId: String) {
         viewModelScope.launch {
             _isLoading.value = true
@@ -46,11 +53,23 @@ class AutoPinViewModel @Inject constructor(
                 }
                 _rotationHours.value = lock.rotationHours
                 _currentPin.value = computePin(lock.deviceSecret, lock.rotationHours)
+                val next = getNextRotationMillis(lock.rotationHours)
+                _nextRotationMillis.value = next
+                scheduleAutoRefresh(deviceId, next)
             } catch (e: Exception) {
                 _error.value = "Failed to compute PIN"
             } finally {
                 _isLoading.value = false
             }
+        }
+    }
+
+    private fun scheduleAutoRefresh(deviceId: String, nextRotationMillis: Long) {
+        autoRefreshJob?.cancel()
+        val delayMs = (nextRotationMillis - System.currentTimeMillis()).coerceAtLeast(0L)
+        autoRefreshJob = viewModelScope.launch {
+            delay(delayMs)
+            refreshPin(deviceId)
         }
     }
 
@@ -70,5 +89,10 @@ class AutoPinViewModel @Inject constructor(
         val hashBytes = mac.doFinal(messageBytes)
         val pinNum = BigInteger(1, hashBytes).mod(BigInteger.valueOf(1_000_000L)).toLong()
         return String.format("%06d", pinNum)
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        autoRefreshJob?.cancel()
     }
 }

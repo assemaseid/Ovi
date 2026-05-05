@@ -11,6 +11,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -41,8 +42,11 @@ fun AutoPinScreen(
     val pinError by viewModel.error.collectAsState()
     val rotationHours by viewModel.rotationHours.collectAsState()
 
+    val nextRotationMillis by viewModel.nextRotationMillis.collectAsState()
+
     var pinVisible by remember { mutableStateOf(false) }
     var biometricError by remember { mutableStateOf<String?>(null) }
+    var countdownMs by remember { mutableStateOf(0L) }
 
     val context = LocalContext.current
 
@@ -55,8 +59,12 @@ fun AutoPinScreen(
         pinVisible = false
     }
 
-    val nextRotation = remember(rotationHours) {
-        viewModel.getNextRotationMillis(rotationHours)
+    // Live countdown ticker — updates every second, restarts when rotation epoch changes
+    LaunchedEffect(nextRotationMillis) {
+        while (true) {
+            countdownMs = (nextRotationMillis - System.currentTimeMillis()).coerceAtLeast(0L)
+            delay(1_000L)
+        }
     }
 
     fun requestBiometric() {
@@ -300,7 +308,10 @@ fun AutoPinScreen(
                                 modifier = Modifier.size(16.dp)
                             )
                             Text(
-                                text = "Next rotation: ${formatNextRotation(nextRotation)}",
+                                text = if (nextRotationMillis > 0L)
+                                    "Next rotation: ${formatCountdown(countdownMs)}"
+                                else
+                                    "Next rotation: --",
                                 fontSize = 13.sp,
                                 color = White.copy(alpha = 0.6f)
                             )
@@ -375,12 +386,12 @@ fun AutoPinScreen(
     }
 }
 
-private fun formatNextRotation(timestamp: Long): String {
-    val now = System.currentTimeMillis()
-    val diff = timestamp - now
+private fun formatCountdown(ms: Long): String {
+    val totalSecs = ms / 1000L
     return when {
-        diff < 60 * 60 * 1000 -> "in ${diff / (60 * 1000)} min"
-        diff < 24 * 60 * 60 * 1000 -> "in ${diff / (60 * 60 * 1000)}h"
-        else -> SimpleDateFormat("MMM d, HH:mm", Locale.getDefault()).format(Date(timestamp))
+        totalSecs < 60 -> "in ${totalSecs}s"
+        totalSecs < 3600 -> "in ${totalSecs / 60}m ${totalSecs % 60}s"
+        totalSecs < 86400 -> "in ${totalSecs / 3600}h ${(totalSecs % 3600) / 60}m"
+        else -> SimpleDateFormat("MMM d, HH:mm", Locale.getDefault()).format(Date(ms + System.currentTimeMillis()))
     }
 }
