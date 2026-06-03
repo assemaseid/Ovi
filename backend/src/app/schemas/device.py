@@ -82,6 +82,7 @@ class EventOut(BaseModel):
     event_uuid: uuid.UUID
     msg_id: str
     device_uuid: uuid.UUID
+    user_uuid: uuid.UUID | None = None
     event_type: str
     event_data: dict[str, Any]
     verified: bool
@@ -108,3 +109,16 @@ class DiagnosticsResponse(BaseModel):
     pin_state: PinStateOut | None
     recent_events: list[EventOut]
     config: dict[str, Any]
+
+
+class PinScheduleRequest(BaseModel):
+    enabled: bool
+    rotation_interval_hours: int = 24
+    next_rotation_at: str
+
+
+class PinScheduleResponse(BaseModel):
+    enabled: bool
+    rotation_interval_hours: int
+    next_rotation_at: str | None
+    current_pin: str | None

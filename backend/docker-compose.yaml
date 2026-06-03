@@ -19,7 +19,7 @@ services:
       POSTGRES_PORT: 5432
       MQTT_HOST: mqtt_broker
       MQTT_PORT: 1883
-      MQTT_DEVICE_HOST: 172.22.100.128
+      MQTT_DEVICE_HOST: 172.20.10.5
     networks:
       - local
 

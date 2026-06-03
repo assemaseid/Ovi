@@ -1,6 +1,7 @@
 import uuid
 import logging
 
+from datetime import datetime
 from fastapi import (
                      APIRouter,
                      Depends,
@@ -10,11 +11,13 @@ from fastapi import (
                      )
 from pydantic import BaseModel
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from typing import Any
 
 from src.app.api.dependencies import require_device_permission
 from src.app.models.device import Device
 from src.app.models.event import Event
+from src.app.models.grant import Grant
 from src.app.models.user import User
 from src.app.schemas.device import EventOut
 from src.app.services.fcm_service import send_notification
@@ -106,6 +109,64 @@ async def post_device_event(
             )
 
     return DeviceEventResponse(accepted=True)
+
+
+class MobileEventIn(BaseModel):
+    msg_id: str
+    device_uuid: str
+    event_type: str
+    event_data: dict[str, Any]
+    created_at: datetime
+
+
+class MobileSyncRequest(BaseModel):
+    events: list[MobileEventIn]
+
+
+class MobileSyncResponse(BaseModel):
+    received: int
+    duplicates: int
+
+
+@router.post("/mobile-sync", response_model=MobileSyncResponse, status_code=200)
+async def sync_mobile_events(
+    body: MobileSyncRequest,
+    session: SessionDep,
+    current_user: User = Depends(get_current_user),
+) -> MobileSyncResponse:
+    received = 0
+    duplicates = 0
+    for ev in body.events:
+        try:
+            dev_uuid = uuid.UUID(ev.device_uuid)
+        except ValueError:
+            continue
+        grant_res = await session.execute(
+            select(Grant).where(
+                Grant.device_uuid == dev_uuid,
+                Grant.user_uuid == current_user.user_uuid,
+            )
+        )
+        if not grant_res.scalar_one_or_none():
+            continue
+        try:
+            session.add(Event(
+                msg_id=ev.msg_id,
+                device_uuid=dev_uuid,
+                user_uuid=current_user.user_uuid,
+                event_type=ev.event_type,
+                event_data=ev.event_data,
+                verified=False,
+            ))
+            await session.flush()
+            received += 1
+        except IntegrityError:
+            await session.rollback()
+            duplicates += 1
+    await session.commit()
+    logger.info("Mobile sync user=%s received=%d duplicates=%d",
+                current_user.user_uuid, received, duplicates)
+    return MobileSyncResponse(received=received, duplicates=duplicates)
 
 
 @router.get("/{device_uuid}", response_model=list[EventOut])
