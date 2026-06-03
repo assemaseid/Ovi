@@ -1,8 +1,9 @@
 import hashlib
 import hmac
 import logging
+import secrets
 import time
-from datetime import datetime, UTC
+from datetime import datetime, UTC, timedelta
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -85,6 +86,79 @@ async def check_and_rotate(session: SessionDep, device: Device) -> bool:
     return True
 
 
+async def check_scheduled_rotation(session, device: Device) -> bool:
+    from sqlalchemy.orm.attributes import flag_modified
+    from src.app.services.mqtt_service import MQTTService
+    from src.app.services.crypto_service import crypto_service
+    import uuid as uuid_lib
+
+    await session.refresh(device)
+    cfg = device.config or {}
+    schedule = cfg.get("pin_schedule", {})
+    if not schedule.get("enabled", False):
+        return False
+    next_rotation_str = schedule.get("next_rotation_at")
+    if not next_rotation_str:
+        return False
+    try:
+        next_rotation = datetime.fromisoformat(next_rotation_str.replace("Z", "+00:00"))
+        if next_rotation.tzinfo is None:
+            next_rotation = next_rotation.replace(tzinfo=UTC)
+    except ValueError:
+        logger.warning("Invalid next_rotation_at for device=%s: %s", device.device_uuid, next_rotation_str)
+        return False
+
+    now = datetime.now(UTC)
+    if now < next_rotation:
+        return False
+
+    # Generate a new device_secret so the PIN actually changes
+    new_secret = secrets.token_hex(32)
+    interval_hours = schedule.get("rotation_interval_hours", 24)
+    new_next = next_rotation + timedelta(hours=interval_hours)
+    while new_next <= now:
+        new_next += timedelta(hours=interval_hours)
+
+    new_cfg = dict(cfg)
+    new_cfg["device_secret"] = new_secret
+    new_cfg["pin_schedule"] = {**schedule, "next_rotation_at": new_next.isoformat()}
+    device.config = new_cfg
+    flag_modified(device, "config")
+    await session.commit()
+
+    # Push new secret to device so it can verify keypad PINs with the new secret
+    dev_uuid_str = str(device.device_uuid)
+    mqtt = MQTTService()
+    if mqtt.is_connected:
+        payload = {
+            "cmd": "rotate_pin",
+            "msg_id": f"msg_{uuid_lib.uuid4()}",
+            "timestamp": int(time.time()),
+            "new_secret": new_secret,
+            "signature": crypto_service.sign_dict({
+                "device_uuid": dev_uuid_str,
+                "new_secret": new_secret,
+                "type": "rotate_pin",
+            }),
+        }
+        await mqtt.publish(payload=payload, packetId=0,
+                           topicName=MQTTService.cmd_topic(dev_uuid_str))
+
+    # FCM notification
+    owner_q = await session.execute(select(User).where(User.user_uuid == device.user_uuid))
+    owner = owner_q.scalar_one_or_none()
+    if owner and owner.fcm_token:
+        await send_notification(
+            fcm_token=owner.fcm_token,
+            title="PIN Rotated",
+            body="Your lock PIN has been automatically rotated. Open the app to view it.",
+            data={"action": "show_pin", "device_uuid": dev_uuid_str},
+        )
+
+    logger.info("Scheduled rotation done for device=%s, next=%s", dev_uuid_str, new_next.isoformat())
+    return True
+
+
 async def run_rotation_check() -> None:
     async with async_session_factory() as session:
         result = await session.execute(select(Device))
@@ -92,5 +166,6 @@ async def run_rotation_check() -> None:
         for device in devices:
             try:
                 await check_and_rotate(session, device)
+                await check_scheduled_rotation(session, device)
             except Exception as e:
                 logger.error("PIN rotation check failed for device=%s: %s", device.device_uuid, e)

@@ -87,14 +87,34 @@ async def list_grants(
     return [GrantOut.model_validate(g) for g in result.scalars().all()]
 
 
+@router.delete("/self/{device_uuid}", status_code=204)
+async def revoke_own_grant(
+    device_uuid: str,
+    session: SessionDep,
+    current_user: User = Depends(get_current_user),
+) -> None:
+    """Пользователь удаляет свой собственный доступ к замку (без прав admin)."""
+    result = await session.execute(
+        select(Grant).where(
+            Grant.device_uuid == uuid.UUID(device_uuid),
+            Grant.user_uuid == current_user.user_uuid,
+        )
+    )
+    grant = result.scalar_one_or_none()
+    if not grant:
+        raise HTTPException(status_code=404, detail="Grant not found")
+
+    await session.delete(grant)
+    await session.commit()
+
+
 @router.delete("/{grant_uuid}", status_code=204)
 async def revoke_grant(
     grant_uuid: str,
     session: SessionDep,
     current_user: User = Depends(get_current_user),
 ) -> None:
-
-    # revoke a grant
+    """Владелец отзывает чужой доступ к замку."""
     result = await session.execute(
         select(Grant).where(Grant.grant_uuid == uuid.UUID(grant_uuid))
     )

@@ -2,7 +2,7 @@ import logging
 import secrets
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import delete as sql_delete, select
 
 from src.database import SessionDep
 from src.dependencies import get_current_user
@@ -10,6 +10,7 @@ from src.app.api.dependencies import require_device_permission
 from src.app.models.device import Device
 from src.app.models.event import Event
 from src.app.models.grant import Grant
+from src.app.models.offline_events_queue import OfflineEventsQueue
 from src.app.models.pin_state import PinState
 from src.app.models.user import User
 from src.app.schemas.device import (
@@ -22,11 +23,13 @@ from src.app.schemas.device import (
     MqttConfig,
     MqttTopics,
     OkResponse,
+    PinScheduleRequest,
+    PinScheduleResponse,
     PinStateOut,
 )
 from src.app.services.crypto_service import crypto_service
 from src.app.services.mqtt_service import MQTTService
-from src.app.services.pin_service import check_and_rotate, get_current_pin
+from src.app.services.pin_service import check_and_rotate, check_scheduled_rotation, get_current_pin
 from src.config import settings
 
 router = APIRouter(prefix="/devices", tags=["Devices"])
@@ -234,6 +237,11 @@ async def delete_device(
                                              session)
     if device.user_uuid != current_user.user_uuid:
         raise HTTPException(status_code=403, detail="Only owner can delete device")
+
+    dev_uuid = device.device_uuid
+    await session.execute(sql_delete(Grant).where(Grant.device_uuid == dev_uuid))
+    await session.execute(sql_delete(Event).where(Event.device_uuid == dev_uuid))
+    await session.execute(sql_delete(OfflineEventsQueue).where(OfflineEventsQueue.device_uuid == dev_uuid))
     await session.delete(device)
     await session.commit()
     return OkResponse(message="Device deleted")
@@ -311,27 +319,100 @@ async def force_rotate_pin(
     session: SessionDep,
     current_user: User = Depends(get_current_user),
 ) -> OkResponse:
+    import uuid as uuid_lib
+    import time
+    from sqlalchemy.orm.attributes import flag_modified
 
     device = await require_device_permission(device_uuid, "admin", current_user, session)
 
-    # Send MQTT command to device
+    new_secret = secrets.token_hex(32)
+    device.config = {**(device.config or {}), "device_secret": new_secret}
+    flag_modified(device, "config")
+    await session.commit()
+
     mqtt = MQTTService()
     if mqtt.is_connected:
-        import uuid as uuid_lib
-        import time
-        cmd = {
+        payload = {
+            "cmd": "rotate_pin",
             "msg_id": f"msg_{uuid_lib.uuid4()}",
             "timestamp": int(time.time()),
-            "command": {"type": "rotate_pin"},
-            "signature": crypto_service.sign_dict({"type": "rotate_pin"}),
+            "new_secret": new_secret,
+            "signature": crypto_service.sign_dict({
+                "device_uuid": device_uuid,
+                "new_secret": new_secret,
+                "type": "rotate_pin",
+            }),
         }
         await mqtt.publish(
-            payload=cmd,
+            payload=payload,
             packetId=0,
             topicName=MQTTService.cmd_topic(device_uuid),
         )
+        logger.info("rotate_pin MQTT sent for device=%s", device_uuid)
+    else:
+        logger.warning("rotate_pin: MQTT not connected, device=%s won't update until reconnect", device_uuid)
 
-    rotated = await check_and_rotate(session, device)
-    if not rotated:
-        raise HTTPException(status_code=400, detail="PIN already rotated for current time slot")
-    return OkResponse(message="PIN rotation triggered")
+    await check_and_rotate(session, device)
+    pin = await get_current_pin(device)
+    return OkResponse(message=pin or "")
+
+
+@router.get("/{device_uuid}/pin-schedule", response_model=PinScheduleResponse)
+async def get_pin_schedule(
+    device_uuid: str,
+    session: SessionDep,
+    current_user: User = Depends(get_current_user),
+) -> PinScheduleResponse:
+
+    device = await require_device_permission(device_uuid, "admin", current_user, session)
+    schedule = (device.config or {}).get("pin_schedule", {})
+    pin = await get_current_pin(device)
+    return PinScheduleResponse(
+        enabled=schedule.get("enabled", False),
+        rotation_interval_hours=schedule.get("rotation_interval_hours", 24),
+        next_rotation_at=schedule.get("next_rotation_at"),
+        current_pin=pin,
+    )
+
+
+@router.patch("/{device_uuid}/pin-schedule", response_model=PinScheduleResponse)
+async def update_pin_schedule(
+    device_uuid: str,
+    body: PinScheduleRequest,
+    session: SessionDep,
+    current_user: User = Depends(get_current_user),
+) -> PinScheduleResponse:
+
+    from datetime import datetime, UTC
+    from sqlalchemy.orm.attributes import flag_modified
+
+    device = await require_device_permission(device_uuid, "admin", current_user, session)
+    new_schedule = {
+        "enabled": body.enabled,
+        "rotation_interval_hours": body.rotation_interval_hours,
+        "next_rotation_at": body.next_rotation_at,
+    }
+    device.config = {**(device.config or {}), "pin_schedule": new_schedule}
+    flag_modified(device, "config")
+    await session.commit()
+
+    # If scheduled time is already past, fire rotation immediately instead of waiting for hourly loop
+    if body.enabled:
+        try:
+            next_dt = datetime.fromisoformat(body.next_rotation_at)
+            if next_dt.tzinfo is None:
+                next_dt = next_dt.replace(tzinfo=UTC)
+            if next_dt <= datetime.now(UTC):
+                await check_scheduled_rotation(session, device)
+        except ValueError:
+            pass
+
+    await session.refresh(device)
+    schedule = (device.config or {}).get("pin_schedule", {})
+    pin = await get_current_pin(device)
+    return PinScheduleResponse(
+        enabled=schedule.get("enabled", body.enabled),
+        rotation_interval_hours=schedule.get("rotation_interval_hours", body.rotation_interval_hours),
+        next_rotation_at=schedule.get("next_rotation_at"),
+        current_pin=pin,
+    )

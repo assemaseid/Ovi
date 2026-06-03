@@ -43,7 +43,7 @@ async def lifespan(app: FastAPI):
         print(f"✗ MQTT connection failed: {e}")
     async def _pin_rotation_loop():
         while True:
-            await asyncio.sleep(3600)  # check every hour
+            await asyncio.sleep(300)  # check every 5 minutes
             try:
                 await run_rotation_check()
             except Exception as e:
