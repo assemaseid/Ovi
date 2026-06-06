@@ -12,7 +12,9 @@ fun EventEntity.toEventDomain(): LockEvent {
         timestamp = this.timestamp,
         type = EventType.valueOf(this.type),
         success = this.success,
-        method = UnlockMethod.valueOf(this.method)
+        method = UnlockMethod.valueOf(this.method),
+        userUuid = this.userUuid,
+        msgId = this.msgId
     )
 }
 
@@ -22,6 +24,9 @@ fun LockEvent.toEventEntity(): EventEntity {
         type = this.type.name,
         timestamp = this.timestamp,
         success = this.success,
-        method = this.method.name
+        method = this.method.name,
+        userUuid = this.userUuid,
+        msgId = this.msgId,
+        synced = this.method == UnlockMethod.REMOTE
     )
 }

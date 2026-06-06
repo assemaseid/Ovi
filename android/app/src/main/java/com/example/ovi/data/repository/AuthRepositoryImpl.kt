@@ -7,6 +7,7 @@ import com.example.ovi.data.dto.auth.LoginRequest
 import com.example.ovi.data.dto.auth.LogoutRequest
 import com.example.ovi.data.dto.auth.RegisterRequest
 import com.example.ovi.data.local.SessionManager
+import com.example.ovi.data.local.dao.LockDao
 import com.example.ovi.data.mapper.toDomain
 import com.example.ovi.domain.model.User
 import com.example.ovi.domain.repository.AuthRepository
@@ -19,7 +20,8 @@ import javax.inject.Inject
 class AuthRepositoryImpl @Inject constructor(
     private val authService: AuthService,
     private val userService: UserService,
-    private val sessionManager: SessionManager
+    private val sessionManager: SessionManager,
+    private val lockDao: LockDao
 ): AuthRepository {
 
     override suspend fun login(email: String, password: String): Result<User> {
@@ -92,6 +94,7 @@ class AuthRepositoryImpl @Inject constructor(
             if (refreshToken != null) {
                 authService.logout(LogoutRequest(refreshToken))
             }
+            lockDao.deleteAllLocks()
             return Result.success(Unit)
         } catch (e: Exception) {
             return Result.failure(Exception("Logout failed: ${e.message}"))

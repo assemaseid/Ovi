@@ -4,6 +4,8 @@ import android.util.Log
 import com.example.ovi.data.api.UserService
 import com.example.ovi.data.dto.auth.FcmTokenRequest
 import com.example.ovi.data.local.SessionManager
+import com.example.ovi.data.local.dao.NotificationDao
+import com.example.ovi.data.local.entity.NotificationEntity
 import com.example.ovi.util.LockNotificationHelper
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
@@ -20,6 +22,7 @@ class OviFcmService : FirebaseMessagingService() {
 
     @Inject lateinit var userService: UserService
     @Inject lateinit var sessionManager: SessionManager
+    @Inject lateinit var notificationDao: NotificationDao
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -43,6 +46,7 @@ class OviFcmService : FirebaseMessagingService() {
 
         if (title != null && body != null) {
             LockNotificationHelper.show(this, title, body)
+            saveToDb(title, body)
             return
         }
 
@@ -56,11 +60,18 @@ class OviFcmService : FirebaseMessagingService() {
             else              -> return
         }
         LockNotificationHelper.show(this, t, b)
+        saveToDb(t, b)
     }
 
     override fun onDestroy() {
         super.onDestroy()
         scope.cancel()
+    }
+
+    private fun saveToDb(title: String, body: String) {
+        scope.launch {
+            notificationDao.insert(NotificationEntity(title = title, body = body))
+        }
     }
 
     private fun sendTokenToServer(token: String) {

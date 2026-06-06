@@ -18,9 +18,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.app.models.device import Device
 from src.app.models.grant import Grant
+from src.app.models.notification import UserNotification
 from src.app.models.user import User
 from src.app.security.jwt_utils import decode_jwt
 from src.app.services.auth_service import get_user_by_uuid, is_token_revoked
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from src.database import async_session_factory, SessionDep
 
 router = APIRouter(tags=["Websocket"])
@@ -96,6 +99,26 @@ async def _get_allowed_devices(user: User, session: SessionDep) -> set[str]:
     return owned | granted
 
 
+async def _send_pending_notifications(websocket: WebSocket, user: User, session: AsyncSession) -> None:
+    result = await session.execute(
+        select(UserNotification)
+        .where(UserNotification.user_uuid == user.user_uuid, UserNotification.is_read == False)
+        .order_by(UserNotification.created_at)
+    )
+    notifications = result.scalars().all()
+    for notif in notifications:
+        await websocket.send_text(json.dumps({
+            "type": "notification",
+            "id": notif.id,
+            "title": notif.title,
+            "body": notif.body,
+            "timestamp": notif.created_at.isoformat(),
+        }))
+        notif.is_read = True
+    if notifications:
+        await session.commit()
+
+
 async def _send_device_statuses(websocket: WebSocket,
                                 user: User,
                                 session: SessionDep
@@ -144,6 +167,8 @@ async def ws_events(
 
             # Send current status of all user's devices on connect
             await _send_device_statuses(websocket, user, session)
+            # Deliver any unread notifications accumulated while offline
+            await _send_pending_notifications(websocket, user, session)
 
             while True:
                 try:

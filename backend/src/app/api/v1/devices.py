@@ -1,7 +1,11 @@
 import logging
 import secrets
+import uuid as uuid_lib
+from datetime import datetime
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel, ConfigDict
 from sqlalchemy import delete as sql_delete, select
 
 from src.database import SessionDep
@@ -34,6 +38,16 @@ from src.config import settings
 
 router = APIRouter(prefix="/devices", tags=["Devices"])
 logger = logging.getLogger(__name__)
+
+
+class GuestOut(BaseModel):
+    grant_uuid: uuid_lib.UUID
+    user_uuid: uuid_lib.UUID
+    user_name: str | None = None
+    user_email: str | None = None
+    permissions: list[Any]
+    created_at: datetime
+    valid_until: datetime | None = None
 
 
 def _cfg(attr: str, default):
@@ -306,11 +320,39 @@ async def get_current_pin_endpoint(
     current_user: User = Depends(get_current_user),
 ) -> OkResponse:
 
-    device = await require_device_permission(device_uuid, "admin", current_user, session)
+    device = await require_device_permission(device_uuid, "read_status", current_user, session)
     pin = await get_current_pin(device)
     if not pin:
         raise HTTPException(status_code=404, detail="Device secret not configured")
     return OkResponse(message=pin)
+
+
+@router.get("/{device_uuid}/guests", response_model=list[GuestOut])
+async def list_guests(
+    device_uuid: str,
+    session: SessionDep,
+    current_user: User = Depends(get_current_user),
+) -> list[GuestOut]:
+    await require_device_permission(device_uuid, "admin", current_user, session)
+
+    result = await session.execute(
+        select(Grant, User)
+        .join(User, Grant.user_uuid == User.user_uuid)
+        .where(Grant.device_uuid == uuid_lib.UUID(device_uuid))
+    )
+    out = []
+    for grant, user in result.all():
+        if "admin" not in (grant.permissions or []):
+            out.append(GuestOut(
+                grant_uuid=grant.grant_uuid,
+                user_uuid=grant.user_uuid,
+                user_name=user.name,
+                user_email=user.email,
+                permissions=grant.permissions or [],
+                created_at=grant.created_at,
+                valid_until=grant.valid_until,
+            ))
+    return out
 
 
 @router.post("/{device_uuid}/rotate-pin", response_model=OkResponse)
@@ -364,7 +406,7 @@ async def get_pin_schedule(
     current_user: User = Depends(get_current_user),
 ) -> PinScheduleResponse:
 
-    device = await require_device_permission(device_uuid, "admin", current_user, session)
+    device = await require_device_permission(device_uuid, "read_status", current_user, session)
     schedule = (device.config or {}).get("pin_schedule", {})
     pin = await get_current_pin(device)
     return PinScheduleResponse(

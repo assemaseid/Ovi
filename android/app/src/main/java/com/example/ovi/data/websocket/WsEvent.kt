@@ -16,4 +16,16 @@ sealed class WsEvent {
         val firmwareVersion: String?,
         val isLocked: Boolean?
     ) : WsEvent()
+
+    data class PinRotated(
+        val deviceUuid: String,
+        val newPin: String,
+        val nextRotationAt: String?
+    ) : WsEvent()
+
+    data class Notification(
+        val title: String,
+        val body: String,
+        val timestamp: String?
+    ) : WsEvent()
 }

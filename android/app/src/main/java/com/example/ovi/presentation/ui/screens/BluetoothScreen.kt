@@ -25,16 +25,20 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AdminPanelSettings
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.BluetoothSearching
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.material3.*
@@ -59,8 +63,19 @@ import kotlinx.coroutines.launch
 @Composable
 fun BluetoothScreen(
     onBack: () -> Unit = {},
+    onNavigateToGuestJoin: () -> Unit = {},
     viewModel: BluetoothViewModel = hiltViewModel()
 ) {
+    var role by remember { mutableStateOf<String?>(null) }
+
+    if (role == null) {
+        RoleChooserContent(
+            onBack = onBack,
+            onOwner = { role = "owner" },
+            onGuest = onNavigateToGuestJoin
+        )
+        return
+    }
     val context = LocalContext.current
     val isScanning by viewModel.isScanning.collectAsState()
     val scannedDevices by viewModel.scannedDevices.collectAsState()
@@ -94,6 +109,13 @@ fun BluetoothScreen(
             }
             else -> {}
         }
+    }
+
+    if (onboardingState is OnboardingState.PinVerification) {
+        OwnerPinVerificationDialog(
+            onConfirm = { pin -> viewModel.verifyOwnerPin(pin) },
+            onDismiss = { viewModel.resetOnboardingState() }
+        )
     }
 
     val blePermissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -324,6 +346,7 @@ fun BluetoothScreen(
                 is OnboardingState.ReadingInfo -> "Reading device info..."
                 is OnboardingState.Registering -> "Registering with server..."
                 is OnboardingState.Configuring -> "Configuring lock..."
+                is OnboardingState.PinVerification -> "Verify PIN shown on lock display..."
                 else -> null
             }
             if (statusText != null) {
@@ -451,6 +474,142 @@ fun BluetoothScreen(
                     color = White.copy(alpha = 0.3f)
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun OwnerPinVerificationDialog(
+    onConfirm: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var pin by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = BgTop,
+        title = {
+            Text("Verify Ownership", color = White, fontWeight = FontWeight.Bold)
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    "Enter the 6-digit PIN shown on your lock's display to confirm you have physical access.",
+                    color = White.copy(alpha = 0.7f),
+                    fontSize = 14.sp
+                )
+                OutlinedTextField(
+                    value = pin,
+                    onValueChange = { if (it.length <= 6 && it.all { c -> c.isDigit() }) pin = it },
+                    label = { Text("PIN code", color = White.copy(alpha = 0.6f)) },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                    visualTransformation = PasswordVisualTransformation(),
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = White,
+                        unfocusedTextColor = White,
+                        focusedBorderColor = AccentBlue,
+                        unfocusedBorderColor = White.copy(alpha = 0.3f),
+                        cursorColor = AccentBlue,
+                    )
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { if (pin.length == 6) onConfirm(pin) },
+                enabled = pin.length == 6,
+                colors = ButtonDefaults.buttonColors(containerColor = AccentBlue)
+            ) {
+                Text("Confirm", color = White)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel", color = White.copy(alpha = 0.6f))
+            }
+        }
+    )
+}
+
+@Composable
+private fun RoleChooserContent(
+    onBack: () -> Unit,
+    onOwner: () -> Unit,
+    onGuest: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Brush.verticalGradient(listOf(BgTop, BgBottom)))
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Spacer(Modifier.height(48.dp))
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 40.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = onBack) {
+                    Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = White)
+                }
+                Text("Add Lock", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = White)
+            }
+
+            Spacer(Modifier.weight(1f))
+
+            Icon(
+                Icons.Default.Lock,
+                contentDescription = null,
+                tint = White.copy(alpha = 0.6f),
+                modifier = Modifier.size(72.dp)
+            )
+
+            Spacer(Modifier.height(20.dp))
+
+            Text("What is your role?", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = White)
+            Text(
+                "Choose how you want to connect to this lock",
+                fontSize = 14.sp,
+                color = White.copy(alpha = 0.5f),
+                modifier = Modifier.padding(top = 8.dp, bottom = 40.dp),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            )
+
+            Button(
+                onClick = onOwner,
+                modifier = Modifier.fillMaxWidth().height(56.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = AccentBlue)
+            ) {
+                Icon(Icons.Default.AdminPanelSettings, contentDescription = null, tint = White)
+                Spacer(Modifier.width(10.dp))
+                Text("I'm the Owner", color = White, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+            }
+
+            Spacer(Modifier.height(12.dp))
+
+            OutlinedButton(
+                onClick = onGuest,
+                modifier = Modifier.fillMaxWidth().height(56.dp),
+                shape = RoundedCornerShape(16.dp),
+                border = BorderStroke(1.dp, White.copy(alpha = 0.4f))
+            ) {
+                Icon(Icons.Default.PersonAdd, contentDescription = null, tint = White)
+                Spacer(Modifier.width(10.dp))
+                Text("I'm a Guest", color = White, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+            }
+
+            Spacer(Modifier.weight(1f))
+            Spacer(Modifier.height(80.dp))
         }
     }
 }

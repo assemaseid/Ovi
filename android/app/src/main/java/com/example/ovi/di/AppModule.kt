@@ -71,13 +71,13 @@ object AppModule {
     @Provides
     @Singleton
     @Named("wsBaseUrl")
-    fun provideWsBaseUrl(): String = "ws://172.22.100.128:8000/"
+    fun provideWsBaseUrl(): String = "ws://172.20.10.5:8000/"
 
     @Provides
     @Singleton
     fun provideRetrofit(okHttpClient: OkHttpClient): Retrofit {
         return Retrofit.Builder()
-            .baseUrl("http://172.22.100.128:8000/api/v1/")
+            .baseUrl("http://172.20.10.5:8000/api/v1/")
             .client(okHttpClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
@@ -117,8 +117,8 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideAuthRepository(authService: AuthService, userService: UserService, sessionManager: SessionManager): AuthRepository =
-        AuthRepositoryImpl(authService, userService, sessionManager)
+    fun provideAuthRepository(authService: AuthService, userService: UserService, sessionManager: SessionManager, lockDao: LockDao): AuthRepository =
+        AuthRepositoryImpl(authService, userService, sessionManager, lockDao)
 
     @Provides
     @Singleton
@@ -127,6 +127,10 @@ object AppModule {
     @Provides
     @Singleton
     fun provideEventDao(db: AppDatabase) = db.eventDao()
+
+    @Provides
+    @Singleton
+    fun provideNotificationDao(db: AppDatabase) = db.notificationDao()
 
     @Provides
     @Singleton
@@ -140,7 +144,11 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideEventRepository(ed: EventDao): EventRepository = EventRepositoryImpl(ed)
+    fun provideEventRepository(
+        ed: EventDao,
+        ls: LockService,
+        cm: ConnectivityManager
+    ): EventRepository = EventRepositoryImpl(ed, ls, cm)
 
     @Provides
     @Singleton

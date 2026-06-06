@@ -36,6 +36,7 @@ sealed class OnboardingState {
     object ReadingInfo : OnboardingState()
     object Registering : OnboardingState()
     object Configuring : OnboardingState()
+    data class PinVerification(val deviceSecret: String, val newLock: SmartLock) : OnboardingState()
     object Success : OnboardingState()
     data class Error(val message: String) : OnboardingState()
 }
@@ -311,20 +312,63 @@ class BluetoothViewModel @Inject constructor(
                 deviceSecret = regBody?.device_secret.orEmpty(),
                 rotationHours = regBody?.config?.rotation_hours ?: 24
             )
-            lockRepository.addLock(newLock)
-            _onboardingState.value = OnboardingState.Success
+            if (regBody != null) {
+                // Require owner to confirm the PIN shown on the lock's OLED display
+                _onboardingState.value = OnboardingState.PinVerification(
+                    deviceSecret = regBody.device_secret,
+                    newLock = newLock
+                )
+            } else {
+                // alreadyRegistered path — no fresh config was sent, skip PIN check
+                lockRepository.addLock(newLock)
+                _onboardingState.value = OnboardingState.Success
+            }
 
         } catch (e: Exception) {
             e.printStackTrace()
             _onboardingState.value = OnboardingState.Error("Unexpected error: ${e.message}")
         } finally {
-            if (_onboardingState.value !is OnboardingState.Success) {
+            val s = _onboardingState.value
+            if (s !is OnboardingState.Success && s !is OnboardingState.PinVerification) {
                 bleManager.disconnect()
             }
         }
     }
 
+    fun verifyOwnerPin(pin: String) {
+        val state = _onboardingState.value as? OnboardingState.PinVerification ?: return
+        val nowSeconds = System.currentTimeMillis() / 1000L
+        val slot = nowSeconds / 86400L
+        val expected = computeTotpPin(state.deviceSecret, slot)
+        val expectedPrev = computeTotpPin(state.deviceSecret, slot - 1)
+        if (pin == expected || pin == expectedPrev) {
+            viewModelScope.launch {
+                lockRepository.addLock(state.newLock)
+                _onboardingState.value = OnboardingState.Success
+            }
+        } else {
+            bleManager.disconnect()
+            _onboardingState.value = OnboardingState.Error("Incorrect PIN. Check the lock display and try again.")
+        }
+    }
+
+    private fun computeTotpPin(deviceSecretHex: String, slot: Long): String {
+        val key = deviceSecretHex.toByteArray(Charsets.UTF_8)
+        val message = slot.toString().toByteArray(Charsets.UTF_8)
+        val mac = javax.crypto.Mac.getInstance("HmacSHA256")
+        mac.init(javax.crypto.spec.SecretKeySpec(key, "HmacSHA256"))
+        val hmacOut = mac.doFinal(message)
+        var pinNum = 0L
+        for (b in hmacOut) {
+            pinNum = (pinNum * 256L + (b.toLong() and 0xFF)) % 1_000_000L
+        }
+        return pinNum.toString().padStart(6, '0')
+    }
+
     fun resetOnboardingState() {
+        if (_onboardingState.value is OnboardingState.PinVerification) {
+            bleManager.disconnect()
+        }
         _onboardingState.value = OnboardingState.Idle
     }
 }

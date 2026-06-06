@@ -168,6 +168,7 @@ fun EventCard(event: LockEvent) {
         UnlockMethod.PIN -> "PIN code"
         UnlockMethod.REMOTE -> "Remote"
         UnlockMethod.MANUAL -> "Manual"
+        UnlockMethod.FINGERPRINT -> "Fingerprint"
     }
 
     Surface(
@@ -221,11 +222,16 @@ fun EventCard(event: LockEvent) {
                         }
                     }
                 }
-                Text(
-                    text = "via $methodLabel",
-                    fontSize = 12.sp,
-                    color = White.copy(alpha = 0.5f)
-                )
+                val methodDetail = if (event.method == UnlockMethod.FINGERPRINT && !event.fingerName.isNullOrEmpty()) {
+                    "via $methodLabel · ${event.fingerName}"
+                } else {
+                    "via $methodLabel"
+                }
+                Text(text = methodDetail, fontSize = 12.sp, color = White.copy(alpha = 0.5f))
+                val userDisplay = event.userName ?: event.userUuid?.take(8)?.plus("…")
+                if (userDisplay != null) {
+                    Text(text = userDisplay, fontSize = 11.sp, color = White.copy(alpha = 0.35f))
+                }
             }
 
             Text(

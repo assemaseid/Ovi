@@ -2,7 +2,8 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, APIRouter
 from sqlalchemy import select
-from src.app.api.v1 import auth, devices, commands, ws, healthcheck, users, events, sync, grants
+from src.app.api.v1 import auth, devices, commands, ws, healthcheck, users, events, sync, grants, fingerprints
+from src.app.models import fingerprint as _fingerprint_model  # ensure table is registered
 from starlette.middleware.cors import CORSMiddleware
 
 import asyncio
@@ -66,6 +67,7 @@ def create_app() -> FastAPI:
         events.router,
         sync.router,
         grants.router,
+        fingerprints.router,
     ]
 
     for router in routers:

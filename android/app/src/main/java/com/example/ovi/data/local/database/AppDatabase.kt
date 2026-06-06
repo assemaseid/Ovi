@@ -10,14 +10,15 @@ import com.example.ovi.data.local.entity.LockEntity
 
 
 @Database(
-    entities = [EventEntity:: class, LockEntity::class],
-    version = 6,
+    entities = [EventEntity::class, LockEntity::class, NotificationEntity::class],
+    version = 9,
     exportSchema = false
 )
 
 abstract class AppDatabase: RoomDatabase() {
     abstract fun eventDao(): EventDao
     abstract fun lockDao(): LockDao
+    abstract fun notificationDao(): NotificationDao
 
     companion object {
         @Volatile
