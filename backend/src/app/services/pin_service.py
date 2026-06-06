@@ -155,7 +155,6 @@ async def check_scheduled_rotation(session, device: Device) -> bool:
         "next_rotation_at": new_next.isoformat(),
     }, allowed_users)
 
-
     # FCM notification
     owner_q = await session.execute(select(User).where(User.user_uuid == device.user_uuid))
     owner = owner_q.scalar_one_or_none()
