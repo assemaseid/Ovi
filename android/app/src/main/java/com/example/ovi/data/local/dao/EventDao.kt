@@ -16,4 +16,10 @@ interface EventDao {
 
     @Query("DELETE FROM events WHERE lockId = :lockId")
     suspend fun deleteEventsForLock(lockId: String)
+
+    @Query("SELECT * FROM events WHERE synced = 0")
+    suspend fun getUnsyncedEvents(): List<EventEntity>
+
+    @Query("UPDATE events SET synced = 1 WHERE id = :id")
+    suspend fun markSynced(id: Int)
 }

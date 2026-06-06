@@ -67,6 +67,9 @@ class AndroidBleManager @Inject constructor(
     private val _isServicesReady = MutableStateFlow(false)
     override val isServicesReady: StateFlow<Boolean> = _isServicesReady.asStateFlow()
 
+    private val _hasActiveTarget = MutableStateFlow(false)
+    override val hasActiveTarget: StateFlow<Boolean> = _hasActiveTarget.asStateFlow()
+
     private var gatt: BluetoothGatt? = null
     
     private val readMutex = Mutex()
@@ -76,9 +79,37 @@ class AndroidBleManager @Inject constructor(
     
     private var reconnectAttempts = 0
     private var isManualDisconnect = false
+    private var targetDeviceAddress: String? = null
+    private var reconnectRunnable: Runnable? = null
 
     private val mainHandler = Handler(Looper.getMainLooper())
     private var connectionTimeoutRunnable: Runnable? = null
+
+    private val btStateReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            if (intent.action != BluetoothAdapter.ACTION_STATE_CHANGED) return
+            when (intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, -1)) {
+                BluetoothAdapter.STATE_ON -> {
+                    val addr = targetDeviceAddress ?: return
+                    if (!isManualDisconnect) {
+                        Log.d("BLE", "BT turned ON — reconnecting to $addr")
+                        reconnectAttempts = 0
+                        reconnectRunnable?.let { mainHandler.removeCallbacks(it) }
+                        mainHandler.postDelayed({ doConnect(addr) }, 1_000L)
+                    }
+                }
+                BluetoothAdapter.STATE_OFF -> {
+                    Log.d("BLE", "BT turned OFF — cleaning up GATT")
+                    reconnectRunnable?.let { mainHandler.removeCallbacks(it) }
+                    connectionTimeoutRunnable?.let { mainHandler.removeCallbacks(it) }
+                    gatt?.close()
+                    gatt = null
+                    _connectedDeviceAddress.value = null
+                    _isServicesReady.value = false
+                }
+            }
+        }
+    }
 
     private val bondStateReceiver = object : BroadcastReceiver() {
         @SuppressLint("MissingPermission")
@@ -103,11 +134,14 @@ class AndroidBleManager @Inject constructor(
     }
 
     init {
-        val filter = IntentFilter(BluetoothDevice.ACTION_BOND_STATE_CHANGED)
+        val bondFilter = IntentFilter(BluetoothDevice.ACTION_BOND_STATE_CHANGED)
+        val btFilter = IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            context.registerReceiver(bondStateReceiver, filter, Context.RECEIVER_EXPORTED)
+            context.registerReceiver(bondStateReceiver, bondFilter, Context.RECEIVER_EXPORTED)
+            context.registerReceiver(btStateReceiver, btFilter, Context.RECEIVER_EXPORTED)
         } else {
-            context.registerReceiver(bondStateReceiver, filter)
+            context.registerReceiver(bondStateReceiver, bondFilter)
+            context.registerReceiver(btStateReceiver, btFilter)
         }
     }
 
@@ -157,26 +191,55 @@ class AndroidBleManager @Inject constructor(
 
     override suspend fun connect(address: String) {
         stopScan()
+        targetDeviceAddress = address
         isManualDisconnect = false
         reconnectAttempts = 0
+        _hasActiveTarget.value = true
+        doConnect(address)
+    }
+
+    private fun doConnect(address: String) {
         _isServicesReady.value = false
+        gatt?.close()
+        gatt = null
 
         val device = adapter?.getRemoteDevice(address) ?: return
         gatt = device.connectGatt(context, false, gattCallback)
 
-        // Issue #9: 30-second hard timeout on the connection attempt
         connectionTimeoutRunnable?.let { mainHandler.removeCallbacks(it) }
         val timeout = Runnable {
             if (_connectedDeviceAddress.value == null) {
-                disconnect()
+                Log.w("BLE", "Connection timeout — scheduling retry")
+                gatt?.close()
+                gatt = null
+                scheduleReconnect()
             }
         }
         connectionTimeoutRunnable = timeout
         mainHandler.postDelayed(timeout, BleConstants.BLE_CONNECTION_TIMEOUT_MS)
     }
 
+    private fun scheduleReconnect() {
+        val address = targetDeviceAddress ?: return
+        if (isManualDisconnect) return
+        reconnectAttempts++
+        // Экспоненциальный backoff: 2s, 4s, 8s, затем каждые 15s
+        val delay = minOf(2_000L * (1L shl (reconnectAttempts - 1)), 15_000L)
+        Log.d("BLE", "Reconnect attempt $reconnectAttempts in ${delay}ms")
+        reconnectRunnable?.let { mainHandler.removeCallbacks(it) }
+        reconnectRunnable = Runnable {
+            if (!isManualDisconnect && targetDeviceAddress != null && adapter?.isEnabled == true) {
+                doConnect(address)
+            }
+        }
+        mainHandler.postDelayed(reconnectRunnable!!, delay)
+    }
+
     override fun disconnect() {
         isManualDisconnect = true
+        targetDeviceAddress = null
+        _hasActiveTarget.value = false
+        reconnectRunnable?.let { mainHandler.removeCallbacks(it) }
         connectionTimeoutRunnable?.let { mainHandler.removeCallbacks(it) }
         gatt?.disconnect()
         gatt?.close()
@@ -202,16 +265,14 @@ class AndroidBleManager @Inject constructor(
                     gatt.discoverServices()
                 }
                 BluetoothProfile.STATE_DISCONNECTED -> {
-                    Log.w("BLE", "Disconnected, status=$status isManualDisconnect=$isManualDisconnect reconnectAttempts=$reconnectAttempts")
+                    Log.w("BLE", "Disconnected, status=$status isManualDisconnect=$isManualDisconnect")
+                    connectionTimeoutRunnable?.let { mainHandler.removeCallbacks(it) }
                     _connectedDeviceAddress.value = null
-                    if (!isManualDisconnect && reconnectAttempts < BleConstants.MAX_RECONNECT_ATTEMPTS) {
-                        reconnectAttempts++
-                        val delay = 1000L * reconnectAttempts
-                        mainHandler.postDelayed({ gatt.connect() }, delay)
-                    } else {
-                        gatt.close()
-                        this@AndroidBleManager.gatt = null
-                        reconnectAttempts = 0
+                    _isServicesReady.value = false
+                    gatt.close()
+                    this@AndroidBleManager.gatt = null
+                    if (!isManualDisconnect) {
+                        scheduleReconnect()
                     }
                 }
             }

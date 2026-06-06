@@ -4,6 +4,7 @@ import com.google.gson.annotations.SerializedName
 
 data class DeviceOutDto(
     @SerializedName("device_uuid") val deviceUuid: String,
+    @SerializedName("user_uuid") val userUuid: String?,
     @SerializedName("hardware_id") val hardwareId: String,
     @SerializedName("firmware_version") val firmwareVersion: String?,
     @SerializedName("battery_level") val batteryLevel: Int?,
@@ -62,4 +63,17 @@ data class MqttTopics(
 
 data class PinResponse(
     val message: String
+)
+
+data class PinScheduleRequest(
+    val enabled: Boolean,
+    val rotation_interval_hours: Int,
+    val next_rotation_at: String
+)
+
+data class PinScheduleResponse(
+    val enabled: Boolean,
+    val rotation_interval_hours: Int,
+    val next_rotation_at: String?,
+    val current_pin: String?
 )

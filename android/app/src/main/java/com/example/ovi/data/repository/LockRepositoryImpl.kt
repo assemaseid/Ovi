@@ -89,6 +89,10 @@ class LockRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun clearAllDevices() {
+        lockDao.deleteAllLocks()
+    }
+
     override suspend fun syncDevicesFromServer() {
         if (!isNetworkAvailable()) return
         try {
@@ -99,12 +103,20 @@ class LockRepositoryImpl @Inject constructor(
 
             val serverUuids = devices.map { it.deviceUuid }.toSet()
 
+            // Remove local locks that are no longer accessible to this user
+            for (entity in lockDao.getAllLocksOnce()) {
+                if (entity.deviceId !in serverUuids && !entity.pendingDelete) {
+                    lockDao.deleteLock(entity.deviceId)
+                }
+            }
+
             // Clean up pendingDelete records that no longer exist on server
             for (entity in lockDao.getPendingDeleteLocks()) {
                 if (entity.deviceId !in serverUuids) lockDao.deleteLock(entity.deviceId)
             }
 
             for (dto in devices) {
+                val actualOwnerUuid = dto.userUuid ?: ownerUuid
                 val existing = lockDao.getLockById(dto.deviceUuid)
                 if (existing != null) {
                     // Устройство помечено на удаление — повторяем удаление с сервера
@@ -115,6 +127,7 @@ class LockRepositoryImpl @Inject constructor(
                     }
                     lockDao.updateLock(
                         existing.copy(
+                            ownerUuid = actualOwnerUuid,
                             batteryLevel = dto.batteryLevel ?: existing.batteryLevel,
                             firmwareVersion = dto.firmwareVersion ?: existing.firmwareVersion,
                             lastSynced = System.currentTimeMillis()
@@ -126,7 +139,7 @@ class LockRepositoryImpl @Inject constructor(
                         LockEntity(
                             deviceId = dto.deviceUuid,
                             hardwareId = dto.hardwareId,
-                            ownerUuid = ownerUuid,
+                            ownerUuid = actualOwnerUuid,
                             name = dto.hardwareId,
                             publicKey = "",
                             batteryLevel = dto.batteryLevel ?: 0,
@@ -149,13 +162,32 @@ class LockRepositoryImpl @Inject constructor(
             val rssi = bleManager.getRssi(connectedAddress)
             if (rssi != null && rssi < -80) return false
         }
-        if (!isNetworkAvailable() || sessionManager.isJwtExpired()) return false
+        if (!isNetworkAvailable() || sessionManager.isJwtExpired()) {
+            return attemptOfflineBleUnlock(lockId)
+        }
         repeat(3) { attempt ->
             val success = attemptUnlock(lockId)
             if (success) return true
             if (attempt < 2) delay(1000L * (attempt + 1))
         }
         return false
+    }
+
+    private suspend fun attemptOfflineBleUnlock(lockId: String): Boolean {
+        if (bleManager.connectedDeviceAddress.value == null) return false
+        val entity = lockDao.getLockById(lockId) ?: return false
+        val secret = entity.deviceSecret.ifEmpty { return false }
+        val slot = System.currentTimeMillis() / 3_600_000L
+        val token = computeHmacHex(secret, slot)
+        val userUuid = sessionManager.getUserId()
+        val cmd = org.json.JSONObject().apply {
+            put("cmd", "unlock_offline")
+            put("req_id", UUID.randomUUID().toString())
+            put("timestamp", System.currentTimeMillis() / 1000)
+            put("token", token)
+            if (userUuid != null) put("user_uuid", userUuid)
+        }.toString()
+        return sendBleUnlockAndWait(lockId, cmd)
     }
 
     private suspend fun attemptUnlock(lockId: String): Boolean {
@@ -198,13 +230,42 @@ class LockRepositoryImpl @Inject constructor(
 
 
     override suspend fun lock(lockId: String): Boolean {
-        if (!isNetworkAvailable() || sessionManager.isJwtExpired()) return false
+        if (!isNetworkAvailable() || sessionManager.isJwtExpired()) {
+            return attemptOfflineBleLock(lockId)
+        }
         repeat(3) { attempt ->
             val success = attemptLock(lockId)
             if (success) return true
             if (attempt < 2) delay(1000L * (attempt + 1))
         }
         return false
+    }
+
+    private suspend fun attemptOfflineBleLock(lockId: String): Boolean {
+        if (bleManager.connectedDeviceAddress.value == null) return false
+        val entity = lockDao.getLockById(lockId) ?: return false
+        val secret = entity.deviceSecret.ifEmpty { return false }
+        val slot = System.currentTimeMillis() / 3_600_000L
+        val token = computeHmacHex(secret, slot)
+        val userUuid = sessionManager.getUserId()
+        val cmd = org.json.JSONObject().apply {
+            put("cmd", "lock_offline")
+            put("req_id", UUID.randomUUID().toString())
+            put("timestamp", System.currentTimeMillis() / 1000)
+            put("token", token)
+            if (userUuid != null) put("user_uuid", userUuid)
+        }.toString()
+        return sendBleLockAndWait(lockId, cmd)
+    }
+
+    private fun computeHmacHex(secretHex: String, slot: Long): String {
+        val key = javax.crypto.spec.SecretKeySpec(
+            secretHex.toByteArray(Charsets.UTF_8), "HmacSHA256"
+        )
+        val mac = javax.crypto.Mac.getInstance("HmacSHA256")
+        mac.init(key)
+        return mac.doFinal(slot.toString().toByteArray(Charsets.UTF_8))
+            .joinToString("") { "%02x".format(it) }
     }
 
     private suspend fun attemptLock(lockId: String): Boolean {
@@ -261,6 +322,16 @@ class LockRepositoryImpl @Inject constructor(
             return true
         }
         return false
+    }
+
+    override suspend fun syncTime() {
+        if (bleManager.connectedDeviceAddress.value == null) return
+        val cmd = org.json.JSONObject().apply {
+            put("cmd", "sync_time")
+            put("req_id", UUID.randomUUID().toString())
+            put("timestamp", System.currentTimeMillis() / 1000)
+        }.toString()
+        bleManager.sendMessage(cmd)
     }
 
     override suspend fun getDeviceInfo(): Boolean {
@@ -333,14 +404,20 @@ class LockRepositoryImpl @Inject constructor(
 
     override suspend fun deleteDevice(lockId: String): Boolean {
         return try {
+            val entity = lockDao.getLockById(lockId)
+            val isOwner = entity?.ownerUuid == sessionManager.getUserId()
+
             if (isNetworkAvailable()) {
-                val response = lockService.deleteDevice(lockId)
+                val response = if (isOwner) {
+                    lockService.deleteDevice(lockId)
+                } else {
+                    lockService.revokeOwnGrant(lockId)
+                }
                 if (!response.isSuccessful) return false
                 lockDao.deleteLock(lockId)
             } else {
-                // Нет интернета — помечаем на удаление, sync повторит попытку
-                lockDao.getLockById(lockId)?.let { entity ->
-                    lockDao.updateLock(entity.copy(pendingDelete = true))
+                lockDao.getLockById(lockId)?.let {
+                    lockDao.updateLock(it.copy(pendingDelete = true))
                 }
             }
             true

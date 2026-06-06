@@ -6,5 +6,9 @@ data class LockEvent(
     val timestamp: Long,
     val type: EventType,
     val success: Boolean,
-    val method: UnlockMethod
+    val method: UnlockMethod,
+    val userUuid: String? = null,
+    val userName: String? = null,
+    val fingerName: String? = null,
+    val msgId: String = java.util.UUID.randomUUID().toString()
 )

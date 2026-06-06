@@ -9,6 +9,7 @@ from src.config import settings, Settings
 from src.database import Base
 from src.app.models.user import User
 from src.app.models.auth import TokenBlacklist
+from src.app.models.notification import UserNotification
 
 config = context.config
 

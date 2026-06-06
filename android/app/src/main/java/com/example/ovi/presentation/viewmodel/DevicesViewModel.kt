@@ -16,6 +16,7 @@ import com.example.ovi.util.LockNotificationHelper
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import com.example.ovi.data.dto.ble.BleDeviceInfo
+import com.example.ovi.data.local.SessionManager
 import com.example.ovi.util.BleConstants
 import com.google.gson.Gson
 import kotlinx.coroutines.CoroutineStart
@@ -33,6 +34,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
+import android.util.Log
 import java.util.UUID
 import javax.inject.Inject
 
@@ -49,18 +51,25 @@ class DevicesViewModel @Inject constructor(
     private val eventRepository: EventRepository,
     private val bleManager: BleManager,
     private val wsManager: WebSocketManager,
+    private val sessionManager: SessionManager,
+    private val notificationDao: com.example.ovi.data.local.dao.NotificationDao,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
     init {
         wsManager.connect()
         viewModelScope.launch { lockRepository.syncDevicesFromServer() }
+        viewModelScope.launch { eventRepository.syncPendingEvents() }
         viewModelScope.launch {
             bleManager.isServicesReady.collect { ready ->
-                if (ready) lockRepository.getDeviceInfo()
+                if (ready) {
+                    lockRepository.syncTime()
+                    lockRepository.getDeviceInfo()
+                }
             }
         }
         viewModelScope.launch { collectWsEvents() }
+        viewModelScope.launch { autoConnectLoop() }
     }
 
     private suspend fun collectWsEvents() {
@@ -77,6 +86,7 @@ class DevicesViewModel @Inject constructor(
                 }
                 is WsEvent.DeviceEvent -> {
                     val lock = lockRepository.getLockById(event.deviceUuid) ?: return@collect
+                    val userUuid = event.eventData["user_uuid"] as? String
                     when (event.eventType) {
                         "unlock_success" -> {
                             lockRepository.updateLockState(event.deviceUuid, isLocked = false)
@@ -84,7 +94,8 @@ class DevicesViewModel @Inject constructor(
                                 eventRepository.addEvent(LockEvent(
                                     id = "", lockId = event.deviceUuid,
                                     timestamp = System.currentTimeMillis(),
-                                    type = EventType.UNLOCK, success = true, method = UnlockMethod.REMOTE
+                                    type = EventType.UNLOCK, success = true, method = UnlockMethod.REMOTE,
+                                    userUuid = userUuid
                                 ))
                                 LockNotificationHelper.show(context, lock.name, "Unlocked remotely")
                             }
@@ -95,7 +106,8 @@ class DevicesViewModel @Inject constructor(
                                 eventRepository.addEvent(LockEvent(
                                     id = "", lockId = event.deviceUuid,
                                     timestamp = System.currentTimeMillis(),
-                                    type = EventType.LOCK, success = true, method = UnlockMethod.REMOTE
+                                    type = EventType.LOCK, success = true, method = UnlockMethod.REMOTE,
+                                    userUuid = userUuid
                                 ))
                             }
                         }
@@ -125,10 +137,21 @@ class DevicesViewModel @Inject constructor(
                         }
                     }
                 }
+                is WsEvent.Notification -> {
+                    notificationDao.insert(
+                        com.example.ovi.data.local.entity.NotificationEntity(
+                            title = event.title,
+                            body = event.body
+                        )
+                    )
+                }
+
                 else -> Unit
             }
         }
     }
+
+    val currentUserId: String? = sessionManager.getUserId()
 
     val devices: StateFlow<List<SmartLock>> = lockRepository.observeAllLocks()
         .stateIn(
@@ -182,7 +205,8 @@ class DevicesViewModel @Inject constructor(
                         timestamp = System.currentTimeMillis(),
                         type = eventType,
                         success = true,
-                        method = UnlockMethod.BLUETOOTH
+                        method = UnlockMethod.BLUETOOTH,
+                        userUuid = sessionManager.getUserId()
                     )
                 )
                 val msg = if (lock.isLocked) "Unlocked successfully" else "Locked"
@@ -211,6 +235,36 @@ class DevicesViewModel @Inject constructor(
 
     fun refreshBattery(lockId: String) {
         viewModelScope.launch { doRefreshBattery(lockId) }
+    }
+
+    private suspend fun autoConnectLoop() {
+        while (true) {
+            delay(5_000L)
+            // Skip if already connected or a connection attempt is in progress (onboarding)
+            if (bleManager.hasActiveTarget.value) continue
+            // Skip if no locks registered yet
+            if (devices.value.isEmpty()) continue
+            // Skip if another part of the app is already scanning
+            if (bleManager.isScanning.value) continue
+
+            Log.d("AutoConnect", "Starting scan for known locks")
+            bleManager.startScan()
+            delay(3_000L)
+            bleManager.stopScan()
+
+            val target = bleManager.scannedDevices.value.firstOrNull()
+            if (target == null) {
+                Log.d("AutoConnect", "No devices found in scan")
+                continue
+            }
+
+            Log.d("AutoConnect", "Found device ${target.address}, connecting")
+            bleManager.connect(target.address)
+            // Wait up to 10s for connection before next iteration
+            withTimeoutOrNull(10_000L) {
+                bleManager.connectedDeviceAddress.first { it != null }
+            }
+        }
     }
 
     private suspend fun doRefreshBattery(lockId: String) {

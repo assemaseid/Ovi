@@ -92,7 +92,26 @@ fun MainNavigationGraph(
         }
 
         composable(
-            route = "auto_pin/{lockId}/{lockName}",
+            route = "auto_pin/{lockId}/{lockName}?isOwner={isOwner}",
+            arguments = listOf(
+                navArgument("lockId") { type = NavType.StringType },
+                navArgument("lockName") { type = NavType.StringType },
+                navArgument("isOwner") { type = NavType.BoolType; defaultValue = false }
+            )
+        ) { backStackEntry ->
+            val lockId = backStackEntry.arguments?.getString("lockId") ?: ""
+            val lockName = backStackEntry.arguments?.getString("lockName") ?: "Lock"
+            val isOwner = backStackEntry.arguments?.getBoolean("isOwner") ?: false
+            AutoPinScreen(
+                lockId = lockId,
+                lockName = lockName,
+                isOwner = isOwner,
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(
+            route = "fingerprints/{lockId}/{lockName}",
             arguments = listOf(
                 navArgument("lockId") { type = NavType.StringType },
                 navArgument("lockName") { type = NavType.StringType }
@@ -100,15 +119,50 @@ fun MainNavigationGraph(
         ) { backStackEntry ->
             val lockId = backStackEntry.arguments?.getString("lockId") ?: ""
             val lockName = backStackEntry.arguments?.getString("lockName") ?: "Lock"
-            AutoPinScreen(
-                lockId = lockId,
+            FingerprintScreen(
+                deviceId = lockId,
+                lockName = lockName,
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(
+            route = "guests/{lockId}/{lockName}",
+            arguments = listOf(
+                navArgument("lockId") { type = NavType.StringType },
+                navArgument("lockName") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val lockId = backStackEntry.arguments?.getString("lockId") ?: ""
+            val lockName = backStackEntry.arguments?.getString("lockName") ?: "Lock"
+            GuestManagementScreen(
+                deviceId = lockId,
                 lockName = lockName,
                 onBack = { navController.popBackStack() }
             )
         }
 
         composable(BottomNavItem.Bluetooth.route) {
-            BluetoothScreen(onBack = { navController.popBackStack() })
+            BluetoothScreen(
+                onBack = { navController.popBackStack() },
+                onNavigateToGuestJoin = { navController.navigate("guest_join") { launchSingleTop = true } }
+            )
+        }
+
+        composable("guest_join") {
+            GuestJoinScreen(
+                onBack = { navController.popBackStack() },
+                onSuccess = {
+                    navController.navigate(BottomNavItem.Devices.route) {
+                        popUpTo(navController.graph.startDestinationId) { inclusive = false }
+                        launchSingleTop = true
+                    }
+                }
+            )
+        }
+
+        composable(BottomNavItem.Messages.route) {
+            MessagesScreen()
         }
 
         composable(BottomNavItem.Personal.route) {

@@ -9,6 +9,8 @@ interface BleManager {
     val isScanning: StateFlow<Boolean>
     val scannedDevices: StateFlow<List<BluetoothDevice>>
     val connectedDeviceAddress: StateFlow<String?>
+    /** True while a connect() call is in progress or a connection is established (false only after disconnect()). */
+    val hasActiveTarget: StateFlow<Boolean>
 
     val notifications: SharedFlow<Pair<UUID, String>>
 

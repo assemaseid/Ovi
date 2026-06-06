@@ -64,6 +64,7 @@ class DeviceOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     device_uuid: uuid.UUID
+    user_uuid: uuid.UUID
     hardware_id: str
     firmware_version: str | None
     battery_level: int | None

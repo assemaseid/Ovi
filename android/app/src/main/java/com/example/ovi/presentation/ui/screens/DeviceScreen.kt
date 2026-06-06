@@ -40,9 +40,10 @@ fun DeviceScreen(
 ) {
     val device = viewModel.devices.collectAsState().value.find { it.id == deviceId }
     val operationState by viewModel.operationState.collectAsState()
+    val isOwner = device?.ownerUuid == viewModel.currentUserId
     
     val isLocked = device?.isLocked ?: true
-    val isLoading = operationState is LockOperationState.Loading
+    val isLoading = operationState !is LockOperationState.Idle
     val statusMessage: String? = when (val s = operationState) {
         is LockOperationState.Loading -> "Processing..."
         is LockOperationState.Success -> s.message
@@ -265,10 +266,20 @@ fun DeviceScreen(
                     icon = Icons.Default.Schedule,
                     label = "Auto PIN",
                     onClick = { navController.navigate(
-                        "auto_pin/${deviceId}/${device?.name ?: "Lock"}"
+                        "auto_pin/${deviceId}/${device?.name ?: "Lock"}?isOwner=$isOwner"
                     ) { launchSingleTop = true } },
                     modifier = Modifier.weight(1f)
                 )
+                if (isOwner) {
+                    ActionButton(
+                        icon = Icons.Default.Fingerprint,
+                        label = "Fingerprints",
+                        onClick = { navController.navigate(
+                            "fingerprints/${deviceId}/${device?.name ?: "Lock"}"
+                        ) { launchSingleTop = true } },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
                 ActionButton(
                     icon = Icons.Default.History,
                     label = "Event Log",
@@ -279,6 +290,18 @@ fun DeviceScreen(
                     },
                     modifier = Modifier.weight(1f)
                 )
+                if (isOwner) {
+                    ActionButton(
+                        icon = Icons.Default.Group,
+                        label = "Guests",
+                        onClick = {
+                            navController.navigate(
+                                "guests/${deviceId}/${device?.name ?: "Lock"}"
+                            ) { launchSingleTop = true }
+                        },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(8.dp))

@@ -35,6 +35,7 @@ fun DevicesListScreen(
     onAddDevice: () -> Unit
 ) {
     val devices by viewModel.devices.collectAsState()
+    val currentUserId = viewModel.currentUserId
     var deviceToDelete by remember { mutableStateOf<SmartLock?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -45,16 +46,24 @@ fun DevicesListScreen(
     }
 
     deviceToDelete?.let { device ->
+        val isOwner = device.ownerUuid == currentUserId
         AlertDialog(
             onDismissRequest = { deviceToDelete = null },
-            title = { Text("Remove lock") },
-            text = { Text("Remove \"${device.name}\" from your account?") },
+            title = { Text(if (isOwner) "Delete lock" else "Remove lock") },
+            text = {
+                Text(
+                    if (isOwner)
+                        "\"${device.name}\" will be permanently deleted for all users."
+                    else
+                        "Remove \"${device.name}\" from your account?"
+                )
+            },
             confirmButton = {
                 TextButton(onClick = {
                     viewModel.deleteDevice(device.id)
                     deviceToDelete = null
                 }) {
-                    Text("Remove", color = Red)
+                    Text(if (isOwner) "Delete" else "Remove", color = Red)
                 }
             },
             dismissButton = {

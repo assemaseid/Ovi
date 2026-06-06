@@ -10,5 +10,8 @@ data class EventEntity(
     val type: String,
     val timestamp: Long,
     val success: Boolean,
-    val method: String
+    val method: String,
+    val userUuid: String? = null,
+    val msgId: String = java.util.UUID.randomUUID().toString(),
+    val synced: Boolean = false
 )

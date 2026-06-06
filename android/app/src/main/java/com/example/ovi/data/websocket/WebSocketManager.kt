@@ -147,7 +147,20 @@ class WebSocketManager @Inject constructor(
                     val event = map["event"] as? Map<String, Any?> ?: return
                     val eventType = event["type"] as? String ?: return
                     Log.d("WS", "device_event: $eventType for $deviceUuid")
-                    _events.tryEmit(WsEvent.DeviceEvent(deviceUuid, eventType, event))
+                    if (eventType == "pin_rotated") {
+                        val newPin = event["new_pin"] as? String ?: return
+                        val nextRotationAt = event["next_rotation_at"] as? String
+                        _events.tryEmit(WsEvent.PinRotated(deviceUuid, newPin, nextRotationAt))
+                    } else {
+                        _events.tryEmit(WsEvent.DeviceEvent(deviceUuid, eventType, event))
+                    }
+                }
+
+                type == "notification" -> {
+                    val title = map["title"] as? String ?: return
+                    val body = map["body"] as? String ?: return
+                    val timestamp = map["timestamp"] as? String
+                    _events.tryEmit(WsEvent.Notification(title, body, timestamp))
                 }
 
                 else -> Log.d("WS", "Unknown message: $text")

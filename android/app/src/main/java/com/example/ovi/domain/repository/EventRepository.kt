@@ -7,4 +7,5 @@ import kotlinx.coroutines.flow.Flow
 interface EventRepository {
     fun getEventsForLock(lockId: String): Flow<List<LockEvent>>
     suspend fun addEvent(event: LockEvent)
+    suspend fun syncPendingEvents()
 }

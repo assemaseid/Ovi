@@ -144,6 +144,18 @@ async def check_scheduled_rotation(session, device: Device) -> bool:
         await mqtt.publish(payload=payload, packetId=0,
                            topicName=MQTTService.cmd_topic(dev_uuid_str))
 
+    # Push new PIN to any open app screens via WebSocket
+    from src.app.services.event_handler import _get_ws_manager, _get_allowed_users
+    new_pin = _compute_pin(new_secret, _current_slot(new_cfg.get("rotation_seconds", DEFAULT_ROTATION_SECONDS)))
+    ws_manager = _get_ws_manager()
+    allowed_users = await _get_allowed_users(dev_uuid_str)
+    await ws_manager.broadcast_event(dev_uuid_str, {
+        "type": "pin_rotated",
+        "new_pin": new_pin,
+        "next_rotation_at": new_next.isoformat(),
+    }, allowed_users)
+
+
     # FCM notification
     owner_q = await session.execute(select(User).where(User.user_uuid == device.user_uuid))
     owner = owner_q.scalar_one_or_none()

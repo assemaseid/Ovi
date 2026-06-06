@@ -57,6 +57,16 @@ android {
     }
 }
 
+kapt {
+    correctErrorTypes = true
+}
+
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KaptGenerateStubs>().configureEach {
+    kotlinOptions {
+        jvmTarget = "17"
+    }
+}
+
 dependencies {
 
     implementation("androidx.core:core-ktx:1.12.0")

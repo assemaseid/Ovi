@@ -1,15 +1,21 @@
+import hashlib
+import random
 import uuid
 import logging
-from datetime import datetime
+from datetime import datetime, UTC, timedelta
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict
-from sqlalchemy import select
+from sqlalchemy import select, or_
+from sqlalchemy.orm.attributes import flag_modified
 
 from src.app.api.dependencies import require_device_permission
+from src.app.models.device import Device
 from src.app.models.grant import Grant
+from src.app.models.notification import UserNotification
 from src.app.models.user import User
+from src.app.services.fcm_service import send_notification
 from src.database import SessionDep
 from src.dependencies import get_current_user
 
@@ -36,6 +42,139 @@ class GrantOut(BaseModel):
     valid_until: datetime | None
     created_by: uuid.UUID
     created_at: datetime
+
+
+class GuestRequestBody(BaseModel):
+    hardware_id: str
+
+
+class GuestRequestResponse(BaseModel):
+    device_uuid: str
+    status: str
+
+
+class GuestJoinBody(BaseModel):
+    pin: str
+
+
+@router.post("/guest-request", response_model=GuestRequestResponse)
+async def guest_request(
+    body: GuestRequestBody,
+    session: SessionDep,
+    current_user: User = Depends(get_current_user),
+) -> GuestRequestResponse:
+    conditions = [Device.hardware_id == body.hardware_id]
+    try:
+        conditions.append(Device.device_uuid == uuid.UUID(body.hardware_id))
+    except ValueError:
+        pass
+    result = await session.execute(select(Device).where(or_(*conditions)))
+    device = result.scalar_one_or_none()
+    if not device:
+        raise HTTPException(status_code=404, detail="Device not found")
+
+    pin = str(random.randint(100000, 999999))
+    pin_hash = hashlib.sha256(pin.encode()).hexdigest()
+
+    now = datetime.now(UTC)
+    expires = now + timedelta(minutes=15)
+
+    pending = device.config.get("pending_guest_pins", [])
+    pending = [
+        p for p in pending
+        if datetime.fromisoformat(p["expires_at"]).replace(tzinfo=UTC) > now
+    ]
+    pending.append({
+        "hash": pin_hash,
+        "expires_at": expires.isoformat(),
+        "requester_uuid": str(current_user.user_uuid),
+    })
+    device.config = {**device.config, "pending_guest_pins": pending}
+    flag_modified(device, "config")
+    await session.commit()
+
+    owner_q = await session.execute(select(User).where(User.user_uuid == device.user_uuid))
+    owner = owner_q.scalar_one_or_none()
+    notif_title = "Guest Access Request"
+    notif_body = f"Share this PIN with your guest: {pin}"
+
+    notif = UserNotification(
+        user_uuid=device.user_uuid,
+        title=notif_title,
+        body=notif_body,
+    )
+    session.add(notif)
+    await session.commit()
+    await session.refresh(notif)
+
+    if owner and owner.fcm_token:
+        await send_notification(
+            fcm_token=owner.fcm_token,
+            title=notif_title,
+            body=notif_body,
+            data={"action": "guest_request", "device_uuid": str(device.device_uuid), "pin": pin},
+        )
+
+    logger.info("Guest request for device=%s requester=%s", device.device_uuid, current_user.user_uuid)
+    return GuestRequestResponse(device_uuid=str(device.device_uuid), status="pending")
+
+
+@router.post("/{device_uuid}/guest-join", response_model=GrantOut, status_code=201)
+async def guest_join(
+    device_uuid: str,
+    body: GuestJoinBody,
+    session: SessionDep,
+    current_user: User = Depends(get_current_user),
+) -> GrantOut:
+    result = await session.execute(
+        select(Device).where(Device.device_uuid == uuid.UUID(device_uuid))
+    )
+    device = result.scalar_one_or_none()
+    if not device:
+        raise HTTPException(status_code=404, detail="Device not found")
+
+    pending = device.config.get("pending_guest_pins", [])
+    now = datetime.now(UTC)
+    pin_hash = hashlib.sha256(body.pin.encode()).hexdigest()
+
+    matched = None
+    new_pending = []
+    for p in pending:
+        exp = datetime.fromisoformat(p["expires_at"])
+        if exp.tzinfo is None:
+            exp = exp.replace(tzinfo=UTC)
+        if p["hash"] == pin_hash and exp > now:
+            matched = p
+        else:
+            new_pending.append(p)
+
+    if not matched:
+        raise HTTPException(status_code=400, detail="Invalid or expired PIN")
+
+    existing = await session.execute(
+        select(Grant).where(
+            Grant.device_uuid == uuid.UUID(device_uuid),
+            Grant.user_uuid == current_user.user_uuid,
+        )
+    )
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=409, detail="Already have access to this device")
+
+    grant = Grant(
+        device_uuid=uuid.UUID(device_uuid),
+        user_uuid=current_user.user_uuid,
+        permissions=["read_status", "unlock", "lock"],
+        created_by=device.user_uuid,
+    )
+    session.add(grant)
+
+    device.config = {**device.config, "pending_guest_pins": new_pending}
+    flag_modified(device, "config")
+
+    await session.commit()
+    await session.refresh(grant)
+    logger.info("Guest joined device=%s user=%s", device_uuid, current_user.user_uuid)
+    return GrantOut.model_validate(grant)
 
 
 @router.post("", response_model=GrantOut, status_code=201)

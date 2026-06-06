@@ -118,6 +118,32 @@ async def _verify_device_signature(payload: dict, device_uuid: str) -> bool:
     return
 
 
+async def _handle_finger_enrolled(device_uuid: str, event: dict) -> None:
+    import uuid as _uuid
+    finger_id = event.get("finger_id")
+    success = event.get("success", False)
+    if not success or not finger_id:
+        return
+    from src.app.models.fingerprint import Fingerprint
+    try:
+        dev_uuid = _uuid.UUID(device_uuid)
+    except ValueError:
+        logger.error("_handle_finger_enrolled: invalid device_uuid=%s", device_uuid)
+        return
+    async with async_session_factory() as session:
+        existing = await session.execute(
+            select(Fingerprint).where(
+                Fingerprint.device_uuid == dev_uuid,
+                Fingerprint.finger_id == int(finger_id),
+            )
+        )
+        if existing.scalar_one_or_none() is None:
+            fp = Fingerprint(device_uuid=dev_uuid, finger_id=int(finger_id), name="")
+            session.add(fp)
+            await session.commit()
+            logger.info("Fingerprint saved: device=%s slot=%d", device_uuid, finger_id)
+
+
 async def handle_device_event(topic: str, payload: dict) -> None:
     device_uuid = payload.get("device_uuid", "")
     event = payload.get("event", {})
@@ -134,6 +160,9 @@ async def handle_device_event(topic: str, payload: dict) -> None:
     is_new = await _save_event(payload, device_uuid, verified)
     if not is_new:
         return  # дубликат — не рассылаем повторно
+
+    if event_type == "finger_enrolled":
+        await _handle_finger_enrolled(device_uuid, event)
 
     allowed_users = await _get_allowed_users(device_uuid)
 
@@ -232,5 +261,6 @@ def _build_notification(event_type: str, event: dict) -> tuple[str, str]:
         "pin_rotation": ("New PIN Code", "Your lock PIN has been rotated. Open the app to view it."),
         "tamper_detected": ("Security Alert", "Tamper detected on your lock!"),
         "battery_low": ("Battery Low", "Your lock battery is running low"),
+        "finger_enrolled": ("Fingerprint Added", "A new fingerprint was enrolled on your lock."),
     }
     return messages.get(event_type, ("Lock Event", f"Event: {event_type}"))

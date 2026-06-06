@@ -9,7 +9,7 @@ from fastapi import (
                      Query,
                      Request
                      )
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from typing import Any
@@ -190,3 +190,74 @@ async def get_device_events(
         .offset(offset)
     )
     return result.scalars().all()
+
+
+class EnrichedEventOut(BaseModel):
+    event_uuid: uuid.UUID
+    msg_id: str
+    device_uuid: uuid.UUID
+    user_uuid: uuid.UUID | None = None
+    user_name: str | None = None
+    event_type: str
+    event_data: dict[str, Any]
+    verified: bool
+    created_at: datetime
+    finger_name: str | None = None
+
+
+@router.get("/{device_uuid}/enriched", response_model=list[EnrichedEventOut])
+async def get_enriched_events(
+    device_uuid: str,
+    session: SessionDep,
+    current_user: User = Depends(get_current_user),
+    limit: int = Query(default=50, le=200),
+    offset: int = Query(default=0),
+) -> list[EnrichedEventOut]:
+    await require_device_permission(device_uuid, "read_status", current_user, session)
+
+    result = await session.execute(
+        select(Event)
+        .where(Event.device_uuid == uuid.UUID(device_uuid))
+        .order_by(Event.created_at.desc())
+        .limit(limit)
+        .offset(offset)
+    )
+    events = result.scalars().all()
+
+    user_uuids = {e.user_uuid for e in events if e.user_uuid}
+    user_names: dict[str, str] = {}
+    if user_uuids:
+        rows = await session.execute(
+            select(User.user_uuid, User.name).where(User.user_uuid.in_(user_uuids))
+        )
+        user_names = {str(r.user_uuid): r.name for r in rows}
+
+    from src.app.models.fingerprint import Fingerprint
+    fp_result = await session.execute(
+        select(Fingerprint.finger_id, Fingerprint.name)
+        .where(Fingerprint.device_uuid == uuid.UUID(device_uuid))
+    )
+    finger_names: dict[int, str] = {r.finger_id: r.name for r in fp_result}
+
+    out = []
+    for e in events:
+        finger_name = None
+        if e.event_data:
+            fid = e.event_data.get("finger_id")
+            if fid is not None:
+                finger_name = finger_names.get(int(fid)) or None
+
+        out.append(EnrichedEventOut(
+            event_uuid=e.event_uuid,
+            msg_id=e.msg_id,
+            device_uuid=e.device_uuid,
+            user_uuid=e.user_uuid,
+            user_name=user_names.get(str(e.user_uuid)) if e.user_uuid else None,
+            event_type=e.event_type,
+            event_data=e.event_data or {},
+            verified=e.verified,
+            created_at=e.created_at,
+            finger_name=finger_name,
+        ))
+
+    return out
