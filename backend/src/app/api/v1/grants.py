@@ -1,12 +1,10 @@
 import hashlib
-import random
+import secrets
 import uuid
 import logging
 from datetime import datetime, UTC, timedelta
-from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, ConfigDict
 from sqlalchemy import select, or_
 from sqlalchemy.orm.attributes import flag_modified
 
@@ -15,46 +13,14 @@ from src.app.models.device import Device
 from src.app.models.grant import Grant
 from src.app.models.notification import UserNotification
 from src.app.models.user import User
+from src.app.schemas.grant import GrantCreate, GrantOut
+from src.app.schemas.guest import GuestRequestBody, GuestRequestResponse, GuestJoinBody
 from src.app.services.fcm_service import send_notification
 from src.database import SessionDep
 from src.dependencies import get_current_user
 
 router = APIRouter(prefix="/grants", tags=["Grants"])
 logger = logging.getLogger(__name__)
-
-
-class GrantCreate(BaseModel):
-    device_uuid: str
-    user_uuid: str
-    permissions: list[str] = ["read_status", "unlock", "lock"]
-    valid_from: datetime | None = None
-    valid_until: datetime | None = None
-
-
-class GrantOut(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    grant_uuid: uuid.UUID
-    device_uuid: uuid.UUID
-    user_uuid: uuid.UUID
-    permissions: list[Any]
-    valid_from: datetime
-    valid_until: datetime | None
-    created_by: uuid.UUID
-    created_at: datetime
-
-
-class GuestRequestBody(BaseModel):
-    hardware_id: str
-
-
-class GuestRequestResponse(BaseModel):
-    device_uuid: str
-    status: str
-
-
-class GuestJoinBody(BaseModel):
-    pin: str
 
 
 @router.post("/guest-request", response_model=GuestRequestResponse)
@@ -64,16 +30,18 @@ async def guest_request(
     current_user: User = Depends(get_current_user),
 ) -> GuestRequestResponse:
     conditions = [Device.hardware_id == body.hardware_id]
+
     try:
         conditions.append(Device.device_uuid == uuid.UUID(body.hardware_id))
     except ValueError:
         pass
+
     result = await session.execute(select(Device).where(or_(*conditions)))
     device = result.scalar_one_or_none()
     if not device:
         raise HTTPException(status_code=404, detail="Device not found")
 
-    pin = str(random.randint(100000, 999999))
+    pin = f"{secrets.randbelow(900000) + 100000:06d}"
     pin_hash = hashlib.sha256(pin.encode()).hexdigest()
 
     now = datetime.now(UTC)
@@ -115,7 +83,9 @@ async def guest_request(
             data={"action": "guest_request", "device_uuid": str(device.device_uuid), "pin": pin},
         )
 
-    logger.info("Guest request for device=%s requester=%s", device.device_uuid, current_user.user_uuid)
+    logger.info("Guest request for device=%s requester=%s",
+                device.device_uuid, current_user.user_uuid)
+
     return GuestRequestResponse(device_uuid=str(device.device_uuid), status="pending")
 
 
@@ -173,7 +143,9 @@ async def guest_join(
 
     await session.commit()
     await session.refresh(grant)
-    logger.info("Guest joined device=%s user=%s", device_uuid, current_user.user_uuid)
+    logger.info("Guest joined device=%s user=%s",
+                device_uuid, current_user.user_uuid)
+
     return GrantOut.model_validate(grant)
 
 
@@ -183,9 +155,12 @@ async def create_grant(
     session: SessionDep,
     current_user: User = Depends(get_current_user),
 ) -> GrantOut:
-    """Give a user access to a device. Owner only."""
-    # giva a user access to a device. Owner only
-    await require_device_permission(body.device_uuid, "admin", current_user, session)
+    # give a user access to a device. Owner only
+    await require_device_permission(
+        body.device_uuid,
+        "admin",
+        current_user,
+        session)
 
     existing = await session.execute(
         select(Grant).where(

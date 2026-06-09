@@ -19,6 +19,9 @@ class Settings(BaseSettings):
     POSTGRES_PORT: int
     POSTGRES_PASSWORD: str
 
+    REDIS_HOST = "localhost"
+    REDIS_PORT = 6379
+
     server_private_key_pem: Path = BASE_DIR / "certs" / "server-private.pem"
     server_public_key_pem: Path = BASE_DIR / "certs" / "server-public.pem"
 
@@ -32,6 +35,8 @@ class Settings(BaseSettings):
     MQTT_DEVICE_HOST: str = ""
 
     FIREBASE_CREDENTIALS_PATH: str | None = None
+
+    MAX_FINGER_SLOTS = 127
 
     
     @property

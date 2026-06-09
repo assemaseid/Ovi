@@ -10,14 +10,13 @@ from src.app.models.fingerprint import Fingerprint
 from src.app.schemas.fingerprint import FingerprintEnrollResponse, FingerprintOut, FingerprintRenameRequest
 from src.app.services.crypto_service import crypto_service
 from src.app.services.mqtt_service import MQTTService
+from src.config import settings
 from src.database import SessionDep
 from src.dependencies import get_current_user
 from src.app.models.user import User
 
 router = APIRouter(prefix="/devices", tags=["Fingerprints"])
 logger = logging.getLogger(__name__)
-
-MAX_FINGER_SLOTS = 127
 
 
 @router.get("/{device_uuid}/fingerprints", response_model=list[FingerprintOut])
@@ -41,13 +40,19 @@ async def enroll_fingerprint(
     session: SessionDep,
     current_user: User = Depends(get_current_user),
 ) -> FingerprintEnrollResponse:
-    device = await require_device_permission(device_uuid, "admin", current_user, session)
+    device = await require_device_permission(
+                                             device_uuid,
+                                   "admin",
+                                             current_user,
+                                             session,
+                                             )
 
     used_q = await session.execute(
-        select(Fingerprint.finger_id).where(Fingerprint.device_uuid == device.device_uuid)
+        select(Fingerprint.finger_id)
+        .where(Fingerprint.device_uuid == device.device_uuid)
     )
     used_ids = set(used_q.scalars().all())
-    next_id = next((i for i in range(1, MAX_FINGER_SLOTS + 1) if i not in used_ids), None)
+    next_id = next((i for i in range(1, settings.MAX_FINGER_SLOTS + 1) if i not in used_ids), None)
     if next_id is None:
         raise HTTPException(status_code=409, detail="All fingerprint slots are full (max 127)")
 

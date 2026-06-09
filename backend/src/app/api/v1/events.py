@@ -20,6 +20,7 @@ from src.app.models.event import Event
 from src.app.models.grant import Grant
 from src.app.models.user import User
 from src.app.schemas.device import EventOut
+from src.app.schemas.event import DeviceEventRequest, DeviceEventResponse
 from src.app.services.fcm_service import send_notification
 from src.app.services.event_handler import (
     _save_event,
@@ -34,18 +35,6 @@ from src.dependencies import get_current_user
 router = APIRouter(prefix="/events", tags=["Events"])
 logger = logging.getLogger(__name__)
 
-
-class DeviceEventRequest(BaseModel):
-    msg_id: str
-    device_uuid: str
-    timestamp: int
-    event: dict[str, Any]
-    signature: str
-
-
-class DeviceEventResponse(BaseModel):
-    accepted: bool
-    duplicate: bool = False
 
 # дублирование handle_device_event
 @router.post("", response_model=DeviceEventResponse, status_code=201)

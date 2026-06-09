@@ -21,9 +21,9 @@ class AsyncOrm:
             if not existing_user:
                 user1 = User(name="User1", email="user1@gmail.com", hashed_password=hash_password("12345678"),
                              public_key="temp1", fcm_token="temp1",
-                             last_login=datetime.now(timezone.utc))
+                             last_login=datetime.now(timezone.utc)) # nosec B106
                 user2 = User(name="User2", email="user2@gmail.com", hashed_password=hash_password("87654321"),
                              public_key="temp1", fcm_token="temp1",
-                             last_login=datetime.now(timezone.utc))
+                             last_login=datetime.now(timezone.utc)) # nosec B106
                 session.add_all([user1, user2])
                 await session.commit()

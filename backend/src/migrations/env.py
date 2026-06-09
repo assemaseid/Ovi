@@ -5,9 +5,14 @@ from sqlalchemy import pool
 
 from alembic import context
 
-from src.config import settings, Settings
+from src.config import settings
 from src.database import Base
 from src.app.models.user import User
+from src.app.models.pin_state import PinState
+from src.app.models.offline_events_queue import OfflineEventsQueue
+from src.app.models.grant import Grant
+from src.app.models.event import Event
+from src.app.models.device import Device
 from src.app.models.auth import TokenBlacklist
 from src.app.models.notification import UserNotification
 
@@ -16,7 +21,7 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-config.set_main_option("sqlalchemy.url", Settings().alembic_db_url)
+config.set_main_option("sqlalchemy.url", settings.alembic_db_url)
 
 target_metadata = Base.metadata
 

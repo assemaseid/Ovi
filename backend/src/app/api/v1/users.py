@@ -1,24 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
-from typing import Any
 
 from src.app.models.user import User
 from src.app.schemas.device import OkResponse
+from src.app.schemas.fcm import FcmTokenUpdate, PushNotificationRequest
 from src.app.services.fcm_service import send_notification
 from src.database import SessionDep
 from src.dependencies import get_current_user
 
 router = APIRouter(prefix="/users", tags=["Users"])
-
-
-class FcmTokenUpdate(BaseModel):
-    fcm_token: str
-
-
-class PushNotificationRequest(BaseModel):
-    title: str
-    body: str
-    data: dict[str, Any] | None = None
 
 
 @router.put("/me/fcm-token", status_code=204)

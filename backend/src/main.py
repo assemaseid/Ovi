@@ -1,6 +1,9 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, APIRouter
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 from sqlalchemy import select
 from src.app.api.v1 import auth, devices, commands, ws, healthcheck, users, events, sync, grants, fingerprints
 from src.app.models import fingerprint as _fingerprint_model  # ensure table is registered
@@ -8,6 +11,7 @@ from starlette.middleware.cors import CORSMiddleware
 
 import asyncio
 import logging
+from src.app.utils.rate_limit import limiter
 from src.app.models.device import Device
 from src.app.queries.orm import AsyncOrm
 from src.app.services import mqtt_service
@@ -78,6 +82,11 @@ def create_app() -> FastAPI:
                   redoc_url="/api/v1/redoc",
                   openapi_url="/api/v1/openapi.json",
                   )
+
+    app.state.limiter = limiter
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+    # app.add_middleware(SlowAPIMiddleware)
+
     app.include_router(api_v1)
     app.include_router(ws.router)
     app.include_router(healthcheck.router)
