@@ -19,8 +19,8 @@ class Settings(BaseSettings):
     POSTGRES_PORT: int
     POSTGRES_PASSWORD: str
 
-    REDIS_HOST = "localhost"
-    REDIS_PORT = 6379
+    REDIS_HOST: str = "localhost"
+    REDIS_PORT: int = 6379
 
     server_private_key_pem: Path = BASE_DIR / "certs" / "server-private.pem"
     server_public_key_pem: Path = BASE_DIR / "certs" / "server-public.pem"
@@ -36,7 +36,7 @@ class Settings(BaseSettings):
 
     FIREBASE_CREDENTIALS_PATH: str | None = None
 
-    MAX_FINGER_SLOTS = 127
+    MAX_FINGER_SLOTS: int = 127
 
     
     @property

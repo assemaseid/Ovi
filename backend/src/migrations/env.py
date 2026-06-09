@@ -7,14 +7,16 @@ from alembic import context
 
 from src.config import settings
 from src.database import Base
+
 from src.app.models.user import User
 from src.app.models.pin_state import PinState
 from src.app.models.offline_events_queue import OfflineEventsQueue
+from src.app.models.notification import UserNotification
 from src.app.models.grant import Grant
+from src.app.models.fingerprint import Fingerprint
 from src.app.models.event import Event
 from src.app.models.device import Device
 from src.app.models.auth import TokenBlacklist
-from src.app.models.notification import UserNotification
 
 config = context.config
 
