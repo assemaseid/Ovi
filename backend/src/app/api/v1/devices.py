@@ -119,7 +119,7 @@ async def register_device(
             lockout_seconds=lockout_seconds,
         ),
         mqtt_config=MqttConfig(
-            broker=settings.MQTT_HOST,
+            broker=settings.MQTT_DEVICE_HOST or settings.MQTT_HOST,
             port=settings.MQTT_PORT,
             client_id=dev_uuid_str,
             topics=MqttTopics(
