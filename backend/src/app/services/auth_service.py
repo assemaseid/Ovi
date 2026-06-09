@@ -11,9 +11,9 @@ from src.app.schemas.user import UserResponseSchema
 from src.config  import settings
 from src.app.security import jwt_utils
 
-TOKEN_TYPE_FIELD = "type"
-_ACCESS_TOKEN_TYPE = "access"
-_REFRESH_TOKEN_TYPE = "refresh"
+TOKEN_TYPE_FIELD = "type" # nosec B105
+_ACCESS_TOKEN_TYPE = "access" # nosec B105
+_REFRESH_TOKEN_TYPE = "refresh" # nosec B105
 
 def create_token(
     token_type: str,

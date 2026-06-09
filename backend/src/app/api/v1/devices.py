@@ -1,13 +1,11 @@
 import logging
 import secrets
 import uuid as uuid_lib
-from datetime import datetime
-from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, ConfigDict
 from sqlalchemy import delete as sql_delete, select
 
+from src.app.schemas.guest import GuestOut
 from src.database import SessionDep
 from src.dependencies import get_current_user
 from src.app.api.dependencies import require_device_permission
@@ -40,20 +38,6 @@ router = APIRouter(prefix="/devices", tags=["Devices"])
 logger = logging.getLogger(__name__)
 
 
-class GuestOut(BaseModel):
-    grant_uuid: uuid_lib.UUID
-    user_uuid: uuid_lib.UUID
-    user_name: str | None = None
-    user_email: str | None = None
-    permissions: list[Any]
-    created_at: datetime
-    valid_until: datetime | None = None
-
-
-def _cfg(attr: str, default):
-    return getattr(settings, attr, default)
-
-
 @router.post(
     "/register_device",
     status_code=status.HTTP_201_CREATED,
@@ -75,11 +59,11 @@ async def register_device(
     if str(current_user.user_uuid) != body.owner_info.user_uuid:
         raise HTTPException(status_code=403, detail="owner_info.owner_uuid mismatch")
 
-    pin_length = _cfg("pin_length", 6)
-    rotation_hours = _cfg("pin_rotation_seconds", 86400) // 3600
-    grace_period_minutes = _cfg("pin_grace_period_seconds", 300) // 60
-    max_attempts = _cfg("pin_max_attempts", 5)
-    lockout_seconds = _cfg("pin_lockout_seconds", 30)
+    pin_length = 6
+    rotation_hours = 86400 // 3600
+    grace_period_minutes = 300 // 60
+    max_attempts = 5
+    lockout_seconds = 30
 
     device = Device(
         hardware_id=body.device.hardware_id,
@@ -135,8 +119,8 @@ async def register_device(
             lockout_seconds=lockout_seconds,
         ),
         mqtt_config=MqttConfig(
-            broker=settings.MQTT_DEVICE_HOST or settings.MQTT_HOST,
-            port=_cfg("MQTT_PORT", 1883),
+            broker=settings.MQTT_HOST,
+            port=settings.MQTT_PORT,
             client_id=dev_uuid_str,
             topics=MqttTopics(
                 commands=MQTTService.cmd_topic(dev_uuid_str),
@@ -209,7 +193,7 @@ async def get_device_reconfig(
         ),
         mqtt_config=MqttConfig(
             broker=settings.MQTT_DEVICE_HOST or settings.MQTT_HOST,
-            port=_cfg("MQTT_PORT", 1883),
+            port=settings.MQTT_PORT,
             client_id=dev_uuid_str,
             topics=MqttTopics(
                 commands=MQTTService.cmd_topic(dev_uuid_str),

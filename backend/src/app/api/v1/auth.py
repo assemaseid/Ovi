@@ -7,7 +7,9 @@ from fastapi import (
     Depends,
     HTTPException,
     status,
+    Request,
     )
+from src.app.utils.rate_limit import limiter
 from src.app.schemas.auth import (
     LoginSchema,
     RefreshTokenResponse,
@@ -37,8 +39,9 @@ router = APIRouter(prefix="/auth",
                    tags=["JWT"],
                    dependencies=[Depends(http_bearer)])
 
-
+@limiter.limit("30/minute")
 async def validate_user_auth(
+        request: Request,
         session: SessionDep,
         login_data: LoginSchema,
 ) -> UserResponseSchema:
@@ -68,7 +71,9 @@ async def validate_user_auth(
     return UserResponseSchema.model_validate(user)
 
 @router.post("/register_user/", status_code=status.HTTP_201_CREATED)
+@limiter.limit("30/minute")
 async def register_user(
+        request: Request,
         session: SessionDep,
         user_data: UserCreateSchema,
 ):
@@ -97,7 +102,11 @@ async def register_user(
 
 
 @router.post("/login_user/")
-async def auth_user(user: UserResponseSchema = Depends(validate_user_auth)):
+@limiter.limit("30/minute")
+async def auth_user(
+        request: Request,
+        user: UserResponseSchema = Depends(validate_user_auth),
+                    ):
     return create_token_pair(user=user)
 
 
