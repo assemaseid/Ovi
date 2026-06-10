@@ -45,6 +45,7 @@ async def validate_user_auth(
         session: SessionDep,
         login_data: LoginSchema,
 ) -> UserResponseSchema:
+    """Validate user credentials and return the user if email and password match"""
     unauthed_exec = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="invalid email or password",
@@ -77,6 +78,7 @@ async def register_user(
         session: SessionDep,
         user_data: UserCreateSchema,
 ):
+    """Register a new user account and return access and refresh tokens"""
     result = await session.execute(select(User).where(User.email == user_data.email))
     existing_email = result.scalars().first()
 
@@ -107,12 +109,14 @@ async def auth_user(
         request: Request,
         user: UserResponseSchema = Depends(validate_user_auth),
                     ):
+    """Authenticate user with email and password and issue a new token pair"""
     return create_token_pair(user=user)
 
 
 @router.post("/refresh/", response_model=RefreshTokenResponse)
 async def refresh_access_token(session: SessionDep,
                                refresh_token_request: RefreshTokenRequest):
+    """Exchange a valid refresh token for a new short lived access token"""
     try:
         payload = jwt_utils.decode_jwt(refresh_token_request.refresh_token)
 
@@ -143,10 +147,10 @@ async def refresh_access_token(session: SessionDep,
             detail=str(e),
         )
 
-"""Logout с добавлением refresh_token в blacklist"""
 @router.post("/logout/")
 async def logout(session: SessionDep,
                  refresh_token_request: RefreshTokenRequest):
+    """Log out the user by adding their refresh token to the blacklist"""
     try:
         payload = jwt_utils.decode_jwt(refresh_token_request.refresh_token)
         user_uuid = UUID(payload.get("sub"))

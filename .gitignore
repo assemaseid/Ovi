@@ -85,9 +85,9 @@ docs/_build/
 
 # PyBuilder
 .pybuilder/
+.claude/
 target/
 
-.DS_Store
 
 
 # Jupyter Notebook
@@ -187,7 +187,6 @@ celerybeat.pid
 .mypy_cache/
 .dmypy.json
 dmypy.json
-.claude/
 
 # PyCharm / JetBrains
 .idea/
@@ -216,7 +215,5 @@ cython_debug/
 # Local config
 local.properties
 
-# OS
-.DS_Store
 
 
