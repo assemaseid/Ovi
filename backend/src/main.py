@@ -1,23 +1,38 @@
+import asyncio
+import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, APIRouter
+from fastapi import APIRouter, FastAPI
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 from sqlalchemy import select
-from src.app.api.v1 import auth, devices, commands, ws, healthcheck, users, events, sync, grants, fingerprints
-from src.app.models import fingerprint as _fingerprint_model  # ensure table is registered
 from starlette.middleware.cors import CORSMiddleware
 
-import asyncio
-import logging
-from src.app.utils.rate_limit import limiter
+from src.app.api.v1 import (
+    auth,
+    commands,
+    devices,
+    events,
+    fingerprints,
+    grants,
+    healthcheck,
+    sync,
+    users,
+    ws,
+)
+from src.app.models import fingerprint as _fingerprint_model  # ensure table is registered
 from src.app.models.device import Device
 from src.app.queries.orm import AsyncOrm
 from src.app.services import mqtt_service
+from src.app.services.event_handler import (
+    handle_device_cmd,
+    handle_device_event,
+    handle_device_status,
+)
 from src.app.services.fcm_service import init_fcm
-from src.app.services.event_handler import handle_device_event, handle_device_status, handle_device_cmd
 from src.app.services.pin_service import run_rotation_check
+from src.app.utils.rate_limit import limiter
 from src.database import async_session_factory
 
 logger = logging.getLogger(__name__)
