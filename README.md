@@ -85,6 +85,67 @@ redis_container mqtt_broker` while the API runs on the host.
 
 A complete reference can be found in `backend/.env.example`.
 
+## Frontend (Android app)
+
+The Android client in `android/` is the user-facing frontend of the system. It is written in
+Kotlin with Jetpack Compose and follows a clean-architecture layout (`data` / `domain` /
+`presentation`) with Hilt for dependency injection.
+
+### Features
+
+- **Auth flow** — registration, login, automatic JWT refresh, secure token storage.
+- **Device list** — lists locks the user owns or has been granted access to, with live status.
+- **Lock control** — open/close commands sent over MQTT (via backend) or directly over BLE
+  when the phone is near the lock and the network is unavailable.
+- **Guest access** — owners can issue time-limited PINs to guests from the app.
+- **Live events** — opens a WebSocket to the backend to stream lock events into the UI.
+- **Push notifications** — receives FCM alerts (e.g. unauthorized PIN attempts) even when
+  the app is in the background.
+- **Offline-first** — caches devices and events in a local Room database so the UI is
+  usable without a network connection.
+
+### Tech stack
+
+| Concern         | Library                                                      |
+| --------------- | ------------------------------------------------------------ |
+| UI              | Jetpack Compose, Material 3                                  |
+| DI              | Hilt                                                         |
+| Networking      | Retrofit + OkHttp (REST), OkHttp WebSocket (events)          |
+| Local storage   | Room, DataStore (tokens / preferences)                       |
+| BLE             | Android Bluetooth GATT API                                   |
+| Push            | Firebase Cloud Messaging                                     |
+| Async           | Kotlin Coroutines + Flow                                     |
+
+### Project layout
+
+```
+android/app/src/main/java/com/example/ovi/
+├── data/           # Retrofit DTOs, repositories, Room, BLE, WebSocket, FCM
+├── domain/         # Models, repository interfaces, BLE use-cases
+├── presentation/   # Compose UI, ViewModels, navigation
+├── di/             # Hilt modules
+└── util/           # Helpers
+```
+
+### Build and run
+
+Requirements: Android Studio (Hedgehog or newer), JDK 17, an Android device or emulator
+with API 24+, and a running backend reachable from the device.
+
+```bash
+cd android
+./gradlew assembleDebug                 # build debug APK
+./gradlew installDebug                  # install to a connected device
+```
+
+Configure the backend base URL and (if used) Firebase credentials before building:
+
+- Backend URL — set in the app's Retrofit module (or via a `BuildConfig` field).
+- FCM — drop a `google-services.json` into `android/app/`.
+
+For BLE features the app needs the runtime permissions `BLUETOOTH_SCAN`,
+`BLUETOOTH_CONNECT`, and (on Android 11 and below) `ACCESS_FINE_LOCATION`.
+
 ## Database migrations
 
 ```bash
